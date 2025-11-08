@@ -1,28 +1,32 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Navigation } from './components/Navigation';
-import { HomePage } from './components/pages/HomePage';
-import { AboutPage } from './components/pages/AboutPage';
-import { ServicesPage } from './components/pages/ServicesPage';
-import { VideoGalleryPage } from './components/pages/VideoGalleryPage';
-import { MagazinePage } from './components/pages/MagazinePage';
-import { ContactPage } from './components/pages/ContactPage';
-import { BookingPage } from './components/pages/BookingPage';
 import { Footer } from './components/Footer';
 import { LanguageProvider } from './components/LanguageContext';
 import { ChatWidget } from './components/ChatWidget';
 import { ScrollToTop } from './components/ScrollToTop';
 import { Toaster } from './components/ui/sonner';
 import { AdminProvider, useAdmin } from './components/admin/AdminContext';
-import { AdminLogin } from './components/admin/AdminLogin';
-import { AdminLayout } from './components/admin/AdminLayout';
-import { AdminDashboard } from './components/admin/pages/AdminDashboard';
-import { BookingsManagement } from './components/admin/pages/BookingsManagement';
-import { ClientsManagement } from './components/admin/pages/ClientsManagement';
-import { ServicesManagement } from './components/admin/pages/ServicesManagement';
-import { ContentManagement } from './components/admin/pages/ContentManagement';
-import { MessagesManagement } from './components/admin/pages/MessagesManagement';
-import { TeamManagement } from './components/admin/pages/TeamManagement';
-import { SettingsManagement } from './components/admin/pages/SettingsManagement';
+
+// Public pages (code-split via lazy)
+const HomePage = lazy(() => import('./components/pages/HomePage').then(m => ({ default: m.HomePage })));
+const AboutPage = lazy(() => import('./components/pages/AboutPage').then(m => ({ default: m.AboutPage })));
+const ServicesPage = lazy(() => import('./components/pages/ServicesPage').then(m => ({ default: m.ServicesPage })));
+const VideoGalleryPage = lazy(() => import('./components/pages/VideoGalleryPage').then(m => ({ default: m.VideoGalleryPage })));
+const MagazinePage = lazy(() => import('./components/pages/MagazinePage').then(m => ({ default: m.MagazinePage })));
+const ContactPage = lazy(() => import('./components/pages/ContactPage').then(m => ({ default: m.ContactPage })));
+const BookingPage = lazy(() => import('./components/pages/BookingPage').then(m => ({ default: m.BookingPage })));
+
+// Admin area (code-split)
+const AdminLogin = lazy(() => import('./components/admin/AdminLogin').then(m => ({ default: m.AdminLogin })));
+const AdminLayout = lazy(() => import('./components/admin/AdminLayout').then(m => ({ default: m.AdminLayout })));
+const AdminDashboard = lazy(() => import('./components/admin/pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const BookingsManagement = lazy(() => import('./components/admin/pages/BookingsManagement').then(m => ({ default: m.BookingsManagement })));
+const ClientsManagement = lazy(() => import('./components/admin/pages/ClientsManagement').then(m => ({ default: m.ClientsManagement })));
+const ServicesManagement = lazy(() => import('./components/admin/pages/ServicesManagement').then(m => ({ default: m.ServicesManagement })));
+const ContentManagement = lazy(() => import('./components/admin/pages/ContentManagement').then(m => ({ default: m.ContentManagement })));
+const MessagesManagement = lazy(() => import('./components/admin/pages/MessagesManagement').then(m => ({ default: m.MessagesManagement })));
+const TeamManagement = lazy(() => import('./components/admin/pages/TeamManagement').then(m => ({ default: m.TeamManagement })));
+const SettingsManagement = lazy(() => import('./components/admin/pages/SettingsManagement').then(m => ({ default: m.SettingsManagement })));
 
 function AdminApp() {
   const [adminPage, setAdminPage] = useState('dashboard');
@@ -52,9 +56,11 @@ function AdminApp() {
   };
 
   return (
-    <AdminLayout currentPage={adminPage} onNavigate={setAdminPage}>
-      {renderAdminPage()}
-    </AdminLayout>
+    <Suspense fallback={<div className="p-6 text-center text-gray-500">Loading admin…</div>}>
+      <AdminLayout currentPage={adminPage} onNavigate={setAdminPage}>
+        {renderAdminPage()}
+      </AdminLayout>
+    </Suspense>
   );
 }
 
@@ -94,7 +100,11 @@ function MainApp() {
   // Show admin panel if in admin mode
   if (viewMode === 'admin') {
     if (!isAdminAuthenticated) {
-      return <AdminLogin />;
+      return (
+        <Suspense fallback={<div className="p-6 text-center text-gray-500">Loading…</div>}>
+          <AdminLogin />
+        </Suspense>
+      );
     }
     return <AdminApp />;
   }
@@ -108,7 +118,9 @@ function MainApp() {
       >
         <Navigation currentPage={currentPage} onNavigate={setCurrentPage} />
         <main>
-          {renderPage()}
+          <Suspense fallback={<div className="p-10 text-center text-gray-500">Loading…</div>}>
+            {renderPage()}
+          </Suspense>
         </main>
         <Footer onNavigate={setCurrentPage} />
         <ChatWidget />

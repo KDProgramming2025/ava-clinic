@@ -2,9 +2,24 @@
   import { defineConfig } from 'vite';
   import react from '@vitejs/plugin-react-swc';
   import path from 'path';
+  import { fileURLToPath } from 'url';
+  import { dirname } from 'path';
+  import { visualizer } from 'rollup-plugin-visualizer';
+  import compression from 'vite-plugin-compression2';
 
   export default defineConfig({
-    plugins: [react()],
+    plugins: [
+      react(),
+      // Bundle analysis (generates stats.html after build)
+      visualizer({ filename: 'stats.html', gzipSize: true, brotliSize: true, template: 'treemap' }),
+      // Generate gzip and brotli compressed assets for production serving
+      compression({
+        include: /.(js|css|html|svg)$/,
+        algorithms: ['gzip', 'brotli'],
+        threshold: 1024,
+        deleteOriginalAssets: false,
+      }),
+    ],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -46,12 +61,27 @@
         '@radix-ui/react-aspect-ratio@1.1.2': '@radix-ui/react-aspect-ratio',
         '@radix-ui/react-alert-dialog@1.1.6': '@radix-ui/react-alert-dialog',
         '@radix-ui/react-accordion@1.2.3': '@radix-ui/react-accordion',
-        '@': path.resolve(__dirname, './src'),
+        '@': path.resolve(dirname(fileURLToPath(import.meta.url)), './src'),
       },
     },
     build: {
       target: 'esnext',
       outDir: 'build',
+      rollupOptions: {
+        output: {
+          // Separate vendor and admin chunks for better caching and smaller initial load
+          manualChunks(id: string) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react')) return 'vendor-react';
+              if (id.includes('radix-ui')) return 'vendor-radix';
+              return 'vendor';
+            }
+            if (id.includes('/src/components/admin/')) {
+              return 'admin';
+            }
+          },
+        },
+      },
     },
     server: {
       port: 3000,
