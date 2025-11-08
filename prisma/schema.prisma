@@ -1,0 +1,56 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Service {
+  id           String        @id @default(cuid())
+  title        String
+  subtitle     String?
+  slug         String        @unique
+  description  String        @db.Text
+  image        String?
+  priceRange   String?
+  duration     String?
+  recovery     String?
+  benefits     Benefit[]
+  processSteps ProcessStep[]
+  faq          Faq[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Benefit {
+  id        String   @id @default(cuid())
+  text      String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceId String
+}
+
+model ProcessStep {
+  id          String   @id @default(cuid())
+  stepNumber  Int
+  title       String?
+  description String   @db.Text
+  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceId   String
+  @@index([serviceId, stepNumber])
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String   @db.Text
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceId String
+}

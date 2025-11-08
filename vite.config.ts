@@ -69,13 +69,8 @@
       outDir: 'build',
       rollupOptions: {
         output: {
-          // Separate vendor and admin chunks for better caching and smaller initial load
+          // Keep only a dedicated admin chunk; let Vite default splitting handle libs
           manualChunks(id: string) {
-            if (id.includes('node_modules')) {
-              if (id.includes('react')) return 'vendor-react';
-              if (id.includes('radix-ui')) return 'vendor-radix';
-              return 'vendor';
-            }
             if (id.includes('/src/components/admin/')) {
               return 'admin';
             }
