@@ -27,13 +27,36 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+function slugify(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+async function uniqueVideoSlug(base) {
+  let slug = base;
+  let i = 1;
+  // Ensure uniqueness
+  while (await prisma.video.findUnique({ where: { slug } })) {
+    slug = `${base}-${i++}`;
+  }
+  return slug;
+}
+
 router.post('/', async (req, res) => {
-  const { title, description, thumbnail, durationSeconds, status, categoryId } = req.body;
+  const { title, slug, description, thumbnail, durationSeconds, status, categoryId } = req.body;
   if (!title) return res.status(400).json({ error: 'missing_title' });
   try {
+    let finalSlug = slug ? slugify(slug) : slugify(title);
+    if (finalSlug) finalSlug = await uniqueVideoSlug(finalSlug);
     const created = await prisma.video.create({
       data: {
         title,
+        slug: finalSlug || null,
         description: description || null,
         thumbnail: thumbnail || null,
         durationSeconds: durationSeconds ?? null,
@@ -50,12 +73,19 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { title, description, thumbnail, durationSeconds, status, categoryId } = req.body;
+  const { title, slug, description, thumbnail, durationSeconds, status, categoryId } = req.body;
   try {
+    let slugUpdate = {};
+    if (slug !== undefined) {
+      let next = slug ? slugify(slug) : null;
+      if (next) next = await uniqueVideoSlug(next);
+      slugUpdate = { slug: next };
+    }
     const updated = await prisma.video.update({
       where: { id },
       data: {
         ...(title !== undefined ? { title } : {}),
+        ...slugUpdate,
         ...(description !== undefined ? { description } : {}),
         ...(thumbnail !== undefined ? { thumbnail } : {}),
         ...(durationSeconds !== undefined ? { durationSeconds } : {}),

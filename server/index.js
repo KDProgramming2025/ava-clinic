@@ -24,6 +24,7 @@ import mediaRouter from './routes/media.js';
 import adminUsersRouter from './routes/adminUsers.js';
 import analyticsRouter from './routes/analytics.js';
 import authRouter from './routes/auth.js';
+import seoRouter from './routes/seo.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,6 +59,7 @@ app.use('/api/media', mediaRouter);
 app.use('/api/admin-users', adminUsersRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/auth', authRouter);
+app.use('/', seoRouter);
 
 // Health endpoint
 app.get('/api/health', (_req, res) => {

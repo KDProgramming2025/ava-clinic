@@ -365,6 +365,7 @@ model VideoCategory {
 model Video {
   id             String       @id @default(cuid())
   title          String
+  slug           String?      @unique
   description    String?      @db.Text
   thumbnail      String?
   durationSeconds Int?
