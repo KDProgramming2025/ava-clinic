@@ -377,3 +377,33 @@ model Video {
   @@index([categoryId])
   @@index([status])
 }
+
+// Phase 4 enhancements: Media library and Admin users (access control)
+
+model Media {
+  id        String   @id @default(cuid())
+  url       String
+  alt       String?
+  type      String?
+  labels    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum AdminRole {
+  SUPERADMIN
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  role         AdminRole @default(EDITOR)
+  passwordHash String
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}

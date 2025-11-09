@@ -20,6 +20,9 @@ import clientsRouter from './routes/clients.js';
 import bookingsRouter from './routes/bookings.js';
 import messagesRouter from './routes/messages.js';
 import translationsRouter from './routes/translations.js';
+import mediaRouter from './routes/media.js';
+import adminUsersRouter from './routes/adminUsers.js';
+import analyticsRouter from './routes/analytics.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,6 +49,9 @@ app.use('/api/clients', clientsRouter);
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/translations', translationsRouter);
+app.use('/api/media', mediaRouter);
+app.use('/api/admin-users', adminUsersRouter);
+app.use('/api/analytics', analyticsRouter);
 
 // Health endpoint
 app.get('/api/health', (_req, res) => {
