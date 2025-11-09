@@ -1,6 +1,23 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
 import { authMiddleware } from './auth.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+// Ensure uploads directory exists
+const uploadDir = path.resolve(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    cb(null, unique + ext);
+  }
+});
+const upload = multer({ storage });
 
 const router = express.Router();
 
@@ -27,6 +44,23 @@ router.post('/', authMiddleware(['SUPERADMIN','ADMIN','EDITOR']), async (req, re
   }
 });
 
+// DELETE /api/media/:id
+// POST /api/media/upload (multipart) field: file, optional alt, type, labels(json string)
+router.post('/upload', authMiddleware(['SUPERADMIN','ADMIN','EDITOR']), upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'missing_file' });
+    let { alt, type, labels } = req.body || {};
+    let labelsJson = null;
+    if (labels) {
+      try { labelsJson = JSON.parse(labels); } catch { labelsJson = null; }
+    }
+    const relativePath = '/uploads/' + req.file.filename;
+    const created = await prisma.media.create({ data: { url: relativePath, alt: alt || null, type: type || req.file.mimetype || null, labels: labelsJson } });
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(500).json({ error: 'upload_failed' });
+  }
+});
 // DELETE /api/media/:id
 router.delete('/:id', authMiddleware(['SUPERADMIN','ADMIN','EDITOR']), async (req, res) => {
   const { id } = req.params;

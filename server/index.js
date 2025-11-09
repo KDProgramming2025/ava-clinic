@@ -32,6 +32,10 @@ const port = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(express.json());
+// Serve uploaded media
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads'), {
+  maxAge: '7d',
+}));
 // API routes
 app.use('/api/services', servicesRouter);
 app.use('/api/home/testimonials', testimonialsRouter);
