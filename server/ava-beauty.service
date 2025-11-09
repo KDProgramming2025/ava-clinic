@@ -1,0 +1,15 @@
+[Unit]
+Description=Ava Beauty Backend (Express + Prisma)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/ava-beauty
+ExecStart=/usr/bin/node -e "import('./server/index.js').then(()=>setInterval(()=>{}, 1<<30))"
+Restart=always
+RestartSec=5
+EnvironmentFile=/var/www/ava-beauty/.env
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
