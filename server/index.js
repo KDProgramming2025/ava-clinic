@@ -4,6 +4,13 @@ import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import servicesRouter from './routes/services.js';
+import testimonialsRouter from './routes/testimonials.js';
+import teamRouter from './routes/team.js';
+import categoriesRouter from './routes/categories.js';
+import tagsRouter from './routes/tags.js';
+import articlesRouter from './routes/articles.js';
+import videoCategoriesRouter from './routes/videoCategories.js';
+import videosRouter from './routes/videos.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +21,13 @@ app.use(cors());
 app.use(express.json());
 // API routes
 app.use('/api/services', servicesRouter);
+app.use('/api/home/testimonials', testimonialsRouter);
+app.use('/api/team', teamRouter);
+app.use('/api/categories', categoriesRouter);
+app.use('/api/tags', tagsRouter);
+app.use('/api/articles', articlesRouter);
+app.use('/api/video-categories', videoCategoriesRouter);
+app.use('/api/videos', videosRouter);
 
 // Health endpoint
 app.get('/api/health', (_req, res) => {
