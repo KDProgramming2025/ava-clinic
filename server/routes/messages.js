@@ -43,7 +43,8 @@ router.put('/:id', async (req, res) => {
 // PATCH star toggle
 router.patch('/:id/star', async (req, res) => {
   const { id } = req.params;
-  const { starred } = req.body;
+  const { starred } = req.body || {};
+  if (starred === undefined) return res.status(400).json({ error: 'invalid_payload' });
   try {
     const updated = await prisma.message.update({ where: { id }, data: { starred: !!starred } });
     res.json(updated);

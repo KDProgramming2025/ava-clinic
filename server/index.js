@@ -23,6 +23,7 @@ import translationsRouter from './routes/translations.js';
 import mediaRouter from './routes/media.js';
 import adminUsersRouter from './routes/adminUsers.js';
 import analyticsRouter from './routes/analytics.js';
+import authRouter from './routes/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,6 +53,7 @@ app.use('/api/translations', translationsRouter);
 app.use('/api/media', mediaRouter);
 app.use('/api/admin-users', adminUsersRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/auth', authRouter);
 
 // Health endpoint
 app.get('/api/health', (_req, res) => {

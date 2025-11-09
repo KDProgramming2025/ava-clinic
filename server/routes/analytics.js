@@ -1,10 +1,11 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
+import { authMiddleware } from './auth.js';
 
 const router = express.Router();
 
 // GET /api/analytics - aggregated counts
-router.get('/', async (_req, res) => {
+router.get('/', authMiddleware(['SUPERADMIN','ADMIN']), async (_req, res) => {
   try {
     const [services, clients, bookingsPending, bookingsConfirmed, bookingsCompleted, articlesPublished, videosPublished, messagesNew, mediaCount] = await Promise.all([
       prisma.service.count(),

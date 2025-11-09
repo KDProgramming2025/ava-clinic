@@ -1,5 +1,6 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
+import { authMiddleware } from './auth.js';
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ router.get('/', async (_req, res) => {
 
 // POST /api/media
 // Body: { url: string, alt?: string, type?: string, labels?: string[] | any }
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware(['SUPERADMIN','ADMIN','EDITOR']), async (req, res) => {
   const { url, alt, type, labels } = req.body || {};
   if (!url) return res.status(400).json({ error: 'missing_url' });
   try {
@@ -27,7 +28,7 @@ router.post('/', async (req, res) => {
 });
 
 // DELETE /api/media/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authMiddleware(['SUPERADMIN','ADMIN','EDITOR']), async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.media.delete({ where: { id } });

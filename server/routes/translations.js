@@ -16,10 +16,10 @@ router.get('/', async (_req, res) => {
   }
 });
 
-// PUT bulk update: expects { key: { lang: value, ... }, ... }
+// PUT bulk update: expects body as object map { key: { lang: value, ... }, ... }
 router.put('/', async (req, res) => {
   const payload = req.body;
-  if (typeof payload !== 'object' || Array.isArray(payload)) return res.status(400).json({ error: 'invalid_payload' });
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return res.status(400).json({ error: 'invalid_payload' });
   try {
     await prisma.$transaction(async (tx) => {
       for (const key of Object.keys(payload)) {
@@ -47,7 +47,7 @@ router.patch('/:key', async (req, res) => {
       update: { data },
       create: { key, data },
     });
-    res.json(updated);
+    res.json({ [key]: updated.data });
   } catch (e) {
     res.status(500).json({ error: 'translation_patch_failed' });
   }

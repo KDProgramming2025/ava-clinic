@@ -1,6 +1,7 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
 import bcrypt from 'bcryptjs';
+import { authMiddleware } from './auth.js';
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ router.get('/', async (_req, res) => {
 
 // POST /api/admin-users
 // Body: { email, password, name?, role? }
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware(['SUPERADMIN','ADMIN']), async (req, res) => {
   const { email, password, name, role } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'missing_fields' });
   try {
@@ -30,7 +31,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/admin-users/:id (update name, role, active, reset password)
-router.put('/:id', async (req, res) => {
+router.put('/:id', authMiddleware(['SUPERADMIN','ADMIN']), async (req, res) => {
   const { id } = req.params;
   const { name, role, active, password } = req.body || {};
   try {
@@ -47,7 +48,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/admin-users/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authMiddleware(['SUPERADMIN','ADMIN']), async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.adminUser.delete({ where: { id } });
