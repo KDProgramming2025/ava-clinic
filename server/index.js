@@ -11,6 +11,11 @@ import tagsRouter from './routes/tags.js';
 import articlesRouter from './routes/articles.js';
 import videoCategoriesRouter from './routes/videoCategories.js';
 import videosRouter from './routes/videos.js';
+import homeRouter from './routes/home.js';
+import aboutRouter from './routes/about.js';
+import contactRouter from './routes/contact.js';
+import newsletterRouter from './routes/newsletter.js';
+import settingsRouter from './routes/settings.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,6 +33,11 @@ app.use('/api/tags', tagsRouter);
 app.use('/api/articles', articlesRouter);
 app.use('/api/video-categories', videoCategoriesRouter);
 app.use('/api/videos', videosRouter);
+app.use('/api/home', homeRouter);
+app.use('/api/about', aboutRouter);
+app.use('/api/contact', contactRouter);
+app.use('/api/newsletter', newsletterRouter);
+app.use('/api/settings', settingsRouter);
 
 // Health endpoint
 app.get('/api/health', (_req, res) => {

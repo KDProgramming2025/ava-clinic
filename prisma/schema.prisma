@@ -129,6 +129,155 @@ model Article {
   @@index([featured])
 }
 
+// Phase 2 content & settings
+
+model NavigationItem {
+  id        String   @id @default(cuid())
+  label     String
+  path      String
+  order     Int      @default(0)
+  visible   Boolean  @default(true)
+}
+
+model FooterLink {
+  id    String @id @default(cuid())
+  label String
+  url   String
+  group String?
+}
+
+model Settings {
+  id              Int      @id @default(1)
+  siteTitle       String?
+  metaDescription String?  @db.Text
+  ogImage         String?
+  primaryColor    String?
+  secondaryColor  String?
+  languagesJson   Json?
+}
+
+model HomeHero {
+  id                   Int     @id @default(1)
+  title                String?
+  subtitle             String?
+  description          String? @db.Text
+  ctaPrimaryLabel      String?
+  ctaSecondaryLabel    String?
+}
+
+model HomeStat {
+  id     String @id @default(cuid())
+  label  String
+  value  Int
+  icon   String?
+}
+
+model HomeFeature {
+  id          String @id @default(cuid())
+  title       String
+  description String? @db.Text
+  icon        String?
+}
+
+model HomeCTA {
+  id         Int    @id @default(1)
+  heading    String?
+  subheading String?
+  buttonLabel String?
+}
+
+model AboutTimeline {
+  id          String @id @default(cuid())
+  year        Int
+  title       String
+  description String? @db.Text
+}
+
+model AboutValue {
+  id          String @id @default(cuid())
+  title       String
+  description String? @db.Text
+  icon        String?
+}
+
+model AboutSkill {
+  id    String @id @default(cuid())
+  name  String
+  level Int
+}
+
+model AboutMission {
+  id         Int     @id @default(1)
+  heading    String?
+  paragraph  String? @db.Text
+}
+
+model AboutMissionBullet {
+  id       String @id @default(cuid())
+  text     String
+}
+
+enum ContactInfoType {
+  phone
+  email
+  address
+  hours
+}
+
+model ContactInfoBlock {
+  id     String          @id @default(cuid())
+  type   ContactInfoType
+  title  String
+  values ContactInfoValue[]
+}
+
+model ContactInfoValue {
+  id       String  @id @default(cuid())
+  value    String
+  blockId  String
+  block    ContactInfoBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+}
+
+model ContactFaq {
+  id       String @id @default(cuid())
+  question String
+  answer   String @db.Text
+}
+
+model SocialLink {
+  id       String @id @default(cuid())
+  platform String
+  url      String
+  icon     String?
+}
+
+enum QuickActionType {
+  call
+  email
+  chat
+  custom
+}
+
+model QuickAction {
+  id     String          @id @default(cuid())
+  label  String
+  type   QuickActionType
+  target String
+}
+
+model Newsletter {
+  id          Int    @id @default(1)
+  headline    String?
+  description String?
+  buttonLabel String?
+}
+
+model TrendingTopic {
+  id    String @id @default(cuid())
+  text  String
+  order Int    @default(0)
+}
+
 model VideoCategory {
   id        String   @id @default(cuid())
   name      String
