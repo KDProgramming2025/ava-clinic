@@ -26,6 +26,7 @@ model Service {
   benefits     Benefit[]
   processSteps ProcessStep[]
   faq          Faq[]
+  bookings     Booking[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -276,6 +277,80 @@ model TrendingTopic {
   id    String @id @default(cuid())
   text  String
   order Int    @default(0)
+}
+
+// Phase 3 operational models
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MessageStatus {
+  NEW
+  READ
+  REPLIED
+  ARCHIVED
+}
+
+model Client {
+  id         String    @id @default(cuid())
+  name       String
+  email      String?
+  phone      String?
+  joinDate   DateTime  @default(now())
+  lastVisit  DateTime?
+  status     ClientStatus @default(ACTIVE)
+  notes      String?   @db.Text
+  bookings   Booking[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  clientId   String
+  client     Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  serviceId  String?
+  service    Service?      @relation(fields: [serviceId], references: [id])
+  startTime  DateTime
+  endTime    DateTime?
+  status     BookingStatus @default(PENDING)
+  notes      String?       @db.Text
+  priceCents Int?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  @@index([clientId])
+  @@index([serviceId])
+  @@index([status, startTime])
+}
+
+model Message {
+  id         String        @id @default(cuid())
+  fromName   String
+  email      String?
+  phone      String?
+  subject    String?
+  body       String        @db.Text
+  receivedAt DateTime      @default(now())
+  status     MessageStatus @default(NEW)
+  starred    Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  @@index([status, receivedAt])
+}
+
+model Translation {
+  key       String @id
+  data      Json
+  updatedAt DateTime @updatedAt
 }
 
 model VideoCategory {

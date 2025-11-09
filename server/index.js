@@ -16,6 +16,10 @@ import aboutRouter from './routes/about.js';
 import contactRouter from './routes/contact.js';
 import newsletterRouter from './routes/newsletter.js';
 import settingsRouter from './routes/settings.js';
+import clientsRouter from './routes/clients.js';
+import bookingsRouter from './routes/bookings.js';
+import messagesRouter from './routes/messages.js';
+import translationsRouter from './routes/translations.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,6 +42,10 @@ app.use('/api/about', aboutRouter);
 app.use('/api/contact', contactRouter);
 app.use('/api/newsletter', newsletterRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/clients', clientsRouter);
+app.use('/api/bookings', bookingsRouter);
+app.use('/api/messages', messagesRouter);
+app.use('/api/translations', translationsRouter);
 
 // Health endpoint
 app.get('/api/health', (_req, res) => {
