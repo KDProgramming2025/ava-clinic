@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, X, Grid3x3, List, Filter, Search } from 'lucide-react';
+import { Play, X, Grid3x3, List, Filter, Search, Clock } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { api } from '../../api/client';
 import {
   Select,
   SelectContent,
@@ -16,113 +17,55 @@ import {
 
 export function VideoGalleryPage() {
   const { isRTL } = useLanguage();
-  const [selectedVideo, setSelectedVideo] = useState<number | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterCategory, setFilterCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [videos, setVideos] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const videos = [
-    {
-      id: 1,
-      title: 'Hair Implant Procedure Overview',
-      category: 'hair',
-      thumbnail: 'https://images.unsplash.com/photo-1624595110541-b50f76b524e1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      duration: '5:32',
-      views: '12.5K',
-      description: 'Complete walkthrough of our advanced FUE hair transplant procedure',
-    },
-    {
-      id: 2,
-      title: 'Eyebrow Implant Transformation',
-      category: 'eyebrow',
-      thumbnail: 'https://images.unsplash.com/photo-1737746165411-bdb26bab61cd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      duration: '4:15',
-      views: '8.2K',
-      description: 'Before and after results of eyebrow restoration',
-    },
-    {
-      id: 3,
-      title: 'Patient Testimonial: Sarah',
-      category: 'testimonial',
-      thumbnail: 'https://images.unsplash.com/photo-1673378630655-6a0e8eba07b0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      duration: '3:48',
-      views: '15.3K',
-      description: 'Real patient experience and results',
-    },
-    {
-      id: 4,
-      title: 'PRP Treatment Process',
-      category: 'treatment',
-      thumbnail: 'https://images.unsplash.com/photo-1664549761426-6a1cb1032854?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      duration: '6:20',
-      views: '9.7K',
-      description: 'Step-by-step guide to PRP therapy for hair growth',
-    },
-    {
-      id: 5,
-      title: 'Clinic Tour - Facilities',
-      category: 'facility',
-      thumbnail: 'https://images.unsplash.com/photo-1758691463333-c79215e8bc3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      duration: '4:55',
-      views: '6.1K',
-      description: 'Virtual tour of our state-of-the-art clinic',
-    },
-    {
-      id: 6,
-      title: 'Eyelash Enhancement Results',
-      category: 'eyelash',
-      thumbnail: 'https://images.unsplash.com/photo-1673378630655-6a0e8eba07b0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      duration: '3:30',
-      views: '11.2K',
-      description: 'Beautiful eyelash implant transformations',
-    },
-    {
-      id: 7,
-      title: 'Expert Q&A Session',
-      category: 'educational',
-      thumbnail: 'https://images.unsplash.com/photo-1664549761426-6a1cb1032854?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      duration: '12:15',
-      views: '7.8K',
-      description: 'Common questions answered by our specialists',
-    },
-    {
-      id: 8,
-      title: 'Before & After Gallery',
-      category: 'results',
-      thumbnail: 'https://images.unsplash.com/photo-1624595110541-b50f76b524e1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      duration: '8:45',
-      views: '18.9K',
-      description: 'Compilation of amazing transformation results',
-    },
-    {
-      id: 9,
-      title: 'Post-Procedure Care Guide',
-      category: 'educational',
-      thumbnail: 'https://images.unsplash.com/photo-1664549761426-6a1cb1032854?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      duration: '5:10',
-      views: '5.4K',
-      description: 'Essential aftercare tips for optimal results',
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const [vids, cats] = await Promise.all([api.videos(), api.videoCategories()]);
+        if (cancelled) return;
+        setVideos(vids || []);
+        setCategories([{ id: 'all', name: 'All Videos', slug: 'all' }, ...(cats || [])]);
+      } catch (e: any) {
+        if (!cancelled) setError(e.message || 'Failed to load videos');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-  const categories = [
-    { value: 'all', label: 'All Videos' },
-    { value: 'hair', label: 'Hair Implant' },
-    { value: 'eyebrow', label: 'Eyebrow' },
-    { value: 'eyelash', label: 'Eyelash' },
-    { value: 'treatment', label: 'Treatments' },
-    { value: 'testimonial', label: 'Testimonials' },
-    { value: 'educational', label: 'Educational' },
-    { value: 'results', label: 'Results' },
-    { value: 'facility', label: 'Facility' },
-  ];
+  const filteredVideos = useMemo(() => {
+    const lc = searchQuery.toLowerCase();
+    return videos.filter(v => {
+      const catSlug = v.category?.slug || v.category?.id || 'uncategorized';
+      const matchesCategory = filterCategory === 'all' || catSlug === filterCategory;
+      const matchesSearch = (v.title || '').toLowerCase().includes(lc) || (v.description || '').toLowerCase().includes(lc);
+      return matchesCategory && matchesSearch;
+    });
+  }, [videos, filterCategory, searchQuery]);
 
-  const filteredVideos = videos.filter((video) => {
-    const matchesCategory = filterCategory === 'all' || video.category === filterCategory;
-    const matchesSearch = video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         video.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  const formatDuration = (seconds?: number | null) => {
+    if (!seconds || seconds < 0) return '—';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+  const formatViews = (views?: number | null) => {
+    if (views == null) return '0';
+    if (views >= 1_000_000) return `${(views / 1_000_000).toFixed(1)}M`;
+    if (views >= 1_000) return `${(views / 1_000).toFixed(1)}K`;
+    return String(views);
+  };
 
   return (
     <div className="pt-20 min-h-screen">
@@ -168,9 +111,9 @@ export function VideoGalleryPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>
-                    {cat.label}
+                {categories.map(cat => (
+                  <SelectItem key={cat.id} value={cat.slug || cat.id}>
+                    {cat.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -207,9 +150,11 @@ export function VideoGalleryPage() {
       {/* Video Gallery */}
       <section className="py-12 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {loading && <div className="text-center py-20">Loading videos...</div>}
+          {error && !loading && <div className="text-center py-20 text-red-600">{error}</div>}
           {viewMode === 'grid' ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredVideos.map((video, index) => (
+              {!loading && !error && filteredVideos.map((video, index) => (
                 <motion.div
                   key={video.id}
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -223,7 +168,7 @@ export function VideoGalleryPage() {
                       onClick={() => setSelectedVideo(video.id)}
                     >
                       <ImageWithFallback
-                        src={video.thumbnail}
+                        src={video.thumbnail || ''}
                         alt={video.title}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                       />
@@ -240,16 +185,16 @@ export function VideoGalleryPage() {
                       </motion.div>
 
                       {/* Duration */}
-                      <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-sm">
-                        {video.duration}
+                      <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {formatDuration(video.durationSeconds)}
                       </div>
                     </div>
                     <div className="p-4">
                       <h3 className="mb-2 text-gray-900 line-clamp-2">{video.title}</h3>
                       <p className="text-gray-600 mb-3 line-clamp-2">{video.description}</p>
                       <div className="flex items-center justify-between text-gray-500">
-                        <span>{video.views} views</span>
-                        <span className="text-pink-500 capitalize">{video.category}</span>
+                        <span>{formatViews(video.views)} views</span>
+                        <span className="text-pink-500 capitalize">{video.category?.name || 'Uncategorized'}</span>
                       </div>
                     </div>
                   </Card>
@@ -258,7 +203,7 @@ export function VideoGalleryPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredVideos.map((video, index) => (
+              {!loading && !error && filteredVideos.map((video, index) => (
                 <motion.div
                   key={video.id}
                   initial={{ opacity: 0, x: isRTL ? 50 : -50 }}
@@ -272,7 +217,7 @@ export function VideoGalleryPage() {
                     <div className="flex flex-col md:flex-row">
                       <div className="relative md:w-80 h-48 overflow-hidden group flex-shrink-0">
                         <ImageWithFallback
-                          src={video.thumbnail}
+                          src={video.thumbnail || ''}
                           alt={video.title}
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         />
@@ -282,16 +227,16 @@ export function VideoGalleryPage() {
                             <Play className="w-8 h-8 text-pink-500 ml-1" fill="currentColor" />
                           </div>
                         </div>
-                        <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-sm">
-                          {video.duration}
+                        <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {formatDuration(video.durationSeconds)}
                         </div>
                       </div>
                       <div className="p-6 flex-1">
                         <h3 className="mb-3 text-gray-900">{video.title}</h3>
                         <p className="text-gray-600 mb-4">{video.description}</p>
                         <div className="flex items-center gap-4 text-gray-500">
-                          <span>{video.views} views</span>
-                          <span className="text-pink-500 capitalize">{video.category}</span>
+                          <span>{formatViews(video.views)} views</span>
+                          <span className="text-pink-500 capitalize">{video.category?.name || 'Uncategorized'}</span>
                         </div>
                       </div>
                     </div>
@@ -353,9 +298,9 @@ export function VideoGalleryPage() {
                   {videos.find(v => v.id === selectedVideo)?.description}
                 </p>
                 <div className="flex items-center gap-4 text-white/60">
-                  <span>{videos.find(v => v.id === selectedVideo)?.views} views</span>
+                  <span>{formatViews(videos.find(v => v.id === selectedVideo)?.views)} views</span>
                   <span>•</span>
-                  <span className="capitalize">{videos.find(v => v.id === selectedVideo)?.category}</span>
+                  <span className="capitalize">{videos.find(v => v.id === selectedVideo)?.category?.name || 'Uncategorized'}</span>
                 </div>
               </div>
             </motion.div>

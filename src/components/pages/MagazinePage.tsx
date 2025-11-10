@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Calendar, Clock, User, ArrowRight, TrendingUp, Heart, Sparkles } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
@@ -5,92 +6,62 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { api } from '../../api/client';
 
 export function MagazinePage() {
   const { t, isRTL } = useLanguage();
 
-  const featured = {
-    title: 'The Complete Guide to Hair Transplantation in 2025',
-    excerpt: 'Everything you need to know about modern hair transplant techniques, recovery, and results',
-    image: 'https://images.unsplash.com/photo-1624595110541-b50f76b524e1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1200',
-    author: 'Dr. Sarah Anderson',
-    date: 'Nov 4, 2025',
-    readTime: '12 min read',
-    category: 'Hair Care',
+  const [featured, setFeatured] = useState<any | null>(null);
+  const [articles, setArticles] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [tags, setTags] = useState<any[]>([]);
+  const [trending, setTrending] = useState<string[]>([]);
+  const [newsletter, setNewsletter] = useState<{ headline?: string; description?: string; buttonLabel?: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const [allArticles, featuredArticles, cats, tgs, settings, nl] = await Promise.all([
+          api.articles(),
+          api.articles({ featured: true }),
+          api.categories(),
+          api.tags(),
+          api.settings(),
+          api.newsletter(),
+        ]);
+        if (cancelled) return;
+        setArticles(allArticles || []);
+        setFeatured((featuredArticles && featuredArticles[0]) || (allArticles || []).find((a: any) => a.featured) || null);
+        setCategories(cats || []);
+        setTags(tgs || []);
+        setTrending(((settings?.trendingTopics) || []).map((t: any) => t.text));
+        setNewsletter(nl || null);
+      } catch (e: any) {
+        if (!cancelled) setError(e.message || 'Failed to load magazine data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const a of articles) {
+      const id = a.category?.id || a.categoryId || a.category?.slug || 'uncategorized';
+      counts[id] = (counts[id] || 0) + 1;
+    }
+    return counts;
+  }, [articles]);
+
+  const formatDate = (d?: string | null) => {
+    if (!d) return '';
+    try { return new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return String(d); }
   };
-
-  const articles = [
-    {
-      title: 'Understanding FUE vs FUT Hair Transplant Methods',
-      excerpt: 'Compare the two most popular hair transplant techniques and find which one is right for you',
-      image: 'https://images.unsplash.com/photo-1624595110541-b50f76b524e1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      author: 'Dr. Emily Roberts',
-      date: 'Nov 1, 2025',
-      readTime: '8 min read',
-      category: 'Procedures',
-    },
-    {
-      title: 'Perfect Eyebrow Shape Guide for Every Face',
-      excerpt: 'Learn how to choose the ideal eyebrow shape based on your facial features',
-      image: 'https://images.unsplash.com/photo-1737746165411-bdb26bab61cd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      author: 'Dr. Lisa Chen',
-      date: 'Oct 28, 2025',
-      readTime: '6 min read',
-      category: 'Beauty Tips',
-    },
-    {
-      title: 'PRP Treatment: Natural Hair Growth Solution',
-      excerpt: 'Discover how Platelet-Rich Plasma therapy can stimulate natural hair growth',
-      image: 'https://images.unsplash.com/photo-1664549761426-6a1cb1032854?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      author: 'Dr. Maria Garcia',
-      date: 'Oct 25, 2025',
-      readTime: '10 min read',
-      category: 'Treatments',
-    },
-    {
-      title: 'Post-Transplant Care: Essential Tips',
-      excerpt: 'Maximize your results with proper aftercare following hair transplant surgery',
-      image: 'https://images.unsplash.com/photo-1673378630655-6a0e8eba07b0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      author: 'Dr. Sarah Anderson',
-      date: 'Oct 20, 2025',
-      readTime: '7 min read',
-      category: 'Recovery',
-    },
-    {
-      title: 'Eyelash Enhancement: What to Expect',
-      excerpt: 'A comprehensive overview of eyelash implant procedures and results',
-      image: 'https://images.unsplash.com/photo-1673378630655-6a0e8eba07b0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      author: 'Dr. Emily Roberts',
-      date: 'Oct 15, 2025',
-      readTime: '9 min read',
-      category: 'Procedures',
-    },
-    {
-      title: 'Hair Loss Prevention: Early Signs & Solutions',
-      excerpt: 'Identify the warning signs of hair loss and take action before it progresses',
-      image: 'https://images.unsplash.com/photo-1624595110541-b50f76b524e1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
-      author: 'Dr. Lisa Chen',
-      date: 'Oct 10, 2025',
-      readTime: '11 min read',
-      category: 'Hair Care',
-    },
-  ];
-
-  const trending = [
-    'Top 10 Hair Care Myths Debunked',
-    'Celebrity Hair Transplants: Before & After',
-    'Natural Remedies for Hair Growth',
-    'Understanding Hair Loss in Women',
-    'Beard Transplant: Complete Guide',
-  ];
-
-  const categories = [
-    { name: 'Hair Care', count: 24, color: 'from-pink-500 to-rose-500' },
-    { name: 'Procedures', count: 18, color: 'from-purple-500 to-pink-500' },
-    { name: 'Beauty Tips', count: 32, color: 'from-blue-500 to-purple-500' },
-    { name: 'Treatments', count: 15, color: 'from-green-500 to-blue-500' },
-    { name: 'Recovery', count: 12, color: 'from-orange-500 to-pink-500' },
-  ];
 
   return (
     <div className="pt-20 min-h-screen">
@@ -111,6 +82,7 @@ export function MagazinePage() {
           </motion.div>
 
           {/* Featured Article */}
+          {!loading && !error && featured && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -120,7 +92,7 @@ export function MagazinePage() {
               <div className="grid lg:grid-cols-2 gap-0">
                 <div className="relative h-96 lg:h-auto overflow-hidden">
                   <ImageWithFallback
-                    src={featured.image}
+                    src={featured.image || ''}
                     alt={featured.title}
                     className="w-full h-full object-cover"
                   />
@@ -132,22 +104,22 @@ export function MagazinePage() {
                 </div>
                 <div className="p-8 lg:p-12 flex flex-col justify-center bg-gradient-to-br from-white to-pink-50/30">
                   <Badge className="mb-4 w-fit bg-pink-100 text-pink-700 border-0">
-                    {featured.category}
+                    {featured.category?.name || 'General'}
                   </Badge>
                   <h2 className="mb-4 text-gray-900">{featured.title}</h2>
                   <p className="text-gray-600 mb-6">{featured.excerpt}</p>
                   <div className="flex items-center gap-6 text-gray-500 mb-6">
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4" />
-                      <span>{featured.author}</span>
+                      <span>{featured.author?.name || '—'}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
-                      <span>{featured.date}</span>
+                      <span>{formatDate(featured.publishedAt)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4" />
-                      <span>{featured.readTime}</span>
+                      <span>{featured.readTimeMinutes ? `${featured.readTimeMinutes} min read` : ''}</span>
                     </div>
                   </div>
                   <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-full w-fit px-8">
@@ -158,6 +130,7 @@ export function MagazinePage() {
               </div>
             </Card>
           </motion.div>
+          )}
         </div>
       </section>
 
@@ -169,7 +142,9 @@ export function MagazinePage() {
             <div className="lg:col-span-2">
               <h2 className="mb-8 text-gray-900">Latest Articles</h2>
               <div className="space-y-8">
-                {articles.map((article, index) => (
+                {loading && <div className="text-center py-8">Loading...</div>}
+                {error && !loading && <div className="text-center py-8 text-red-600">{error}</div>}
+                {!loading && !error && articles.map((article, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, y: 20 }}
@@ -181,14 +156,14 @@ export function MagazinePage() {
                       <div className="flex flex-col md:flex-row">
                         <div className="relative md:w-80 h-56 overflow-hidden group flex-shrink-0">
                           <ImageWithFallback
-                            src={article.image}
+                            src={article.image || ''}
                             alt={article.title}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                           />
                         </div>
                         <div className="p-6 flex-1 flex flex-col">
                           <Badge className="mb-3 w-fit bg-purple-100 text-purple-700 border-0">
-                            {article.category}
+                            {article.category?.name || 'General'}
                           </Badge>
                           <h3 className="mb-3 text-gray-900">{article.title}</h3>
                           <p className="text-gray-600 mb-4 flex-1">{article.excerpt}</p>
@@ -196,11 +171,11 @@ export function MagazinePage() {
                             <div className="flex items-center gap-4 text-gray-500">
                               <span className="flex items-center gap-2">
                                 <User className="w-4 h-4" />
-                                {article.author}
+                                {article.author?.name || '—'}
                               </span>
                               <span className="flex items-center gap-2">
                                 <Clock className="w-4 h-4" />
-                                {article.readTime}
+                                {article.readTimeMinutes ? `${article.readTimeMinutes} min` : ''}
                               </span>
                             </div>
                             <Button variant="ghost" className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 rounded-full">
@@ -242,8 +217,8 @@ export function MagazinePage() {
                         className="w-full flex items-center justify-between p-3 rounded-xl bg-white hover:shadow-md transition-all group"
                       >
                         <span className="text-gray-700 group-hover:text-gray-900">{category.name}</span>
-                        <Badge className={`bg-gradient-to-r ${category.color} text-white border-0`}>
-                          {category.count}
+                        <Badge className={`bg-gradient-to-r ${category.color || 'from-pink-500 to-purple-600'} text-white border-0`}>
+                          {categoryCounts[category.id] || 0}
                         </Badge>
                       </motion.button>
                     ))}
@@ -296,12 +271,12 @@ export function MagazinePage() {
                   
                   <div className="relative z-10">
                     <Sparkles className="w-8 h-8 mb-4" />
-                    <h3 className="mb-3 text-white">Subscribe to Newsletter</h3>
+                    <h3 className="mb-3 text-white">{newsletter?.headline || 'Subscribe to Newsletter'}</h3>
                     <p className="text-white/90 mb-6">
-                      Get the latest beauty tips and exclusive offers directly to your inbox
+                      {newsletter?.description || 'Get the latest beauty tips and exclusive offers directly to your inbox'}
                     </p>
                     <Button className="w-full bg-white text-purple-600 hover:bg-gray-100 rounded-full">
-                      Subscribe Now
+                      {newsletter?.buttonLabel || 'Subscribe Now'}
                     </Button>
                   </div>
                 </Card>
@@ -316,7 +291,7 @@ export function MagazinePage() {
                 <Card className="p-6 border-0 shadow-lg">
                   <h3 className="mb-6 text-gray-900">Popular Tags</h3>
                   <div className="flex flex-wrap gap-2">
-                    {['Hair Care', 'Beauty', 'FUE', 'Eyebrows', 'PRP', 'Transplant', 'Recovery', 'Tips', 'Natural', 'Results'].map((tag, index) => (
+                    {tags.map((tag, index) => (
                       <motion.button
                         key={index}
                         initial={{ opacity: 0, scale: 0 }}
@@ -325,7 +300,7 @@ export function MagazinePage() {
                         whileHover={{ scale: 1.1 }}
                         className="px-4 py-2 bg-gradient-to-r from-pink-50 to-purple-50 text-pink-600 rounded-full hover:from-pink-100 hover:to-purple-100 transition-all"
                       >
-                        {tag}
+                        {tag.name}
                       </motion.button>
                     ))}
                   </div>

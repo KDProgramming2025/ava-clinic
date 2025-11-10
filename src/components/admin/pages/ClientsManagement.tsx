@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Users, Search, Filter, MoreVertical, Mail, Phone, Calendar, Edit, Trash2, Eye, Download, UserPlus } from 'lucide-react';
 import { Card } from '../../ui/card';
@@ -27,78 +27,79 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../ui/select';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog';
+import { Textarea } from '../../ui/textarea';
+import { apiFetch } from '../../../api/client';
+import { toast } from 'sonner';
+
+type ClientStatus = 'ACTIVE' | 'INACTIVE';
+interface ClientItem {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  joinDate: string;
+  lastVisit?: string | null;
+  status: ClientStatus;
+  notes?: string | null;
+}
 
 export function ClientsManagement() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('all');
+  const [filterType, setFilterType] = useState<'all' | 'ACTIVE' | 'INACTIVE'>('all');
+  const [clients, setClients] = useState<ClientItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState<ClientItem | null>(null);
+  const [form, setForm] = useState<Partial<ClientItem>>({ name: '', email: '', phone: '', status: 'ACTIVE', notes: '' });
 
-  const clients = [
-    {
-      id: 'C001',
-      name: 'Sarah Johnson',
-      email: 'sarah@example.com',
-      phone: '+1 (555) 123-4567',
-      joinDate: '2024-03-15',
-      totalBookings: 5,
-      totalSpent: '$12,500',
-      status: 'active',
-      lastVisit: '2025-10-28',
-    },
-    {
-      id: 'C002',
-      name: 'Emily Davis',
-      email: 'emily@example.com',
-      phone: '+1 (555) 234-5678',
-      joinDate: '2024-06-20',
-      totalBookings: 3,
-      totalSpent: '$5,400',
-      status: 'active',
-      lastVisit: '2025-10-15',
-    },
-    {
-      id: 'C003',
-      name: 'Lisa Martinez',
-      email: 'lisa@example.com',
-      phone: '+1 (555) 345-6789',
-      joinDate: '2023-12-10',
-      totalBookings: 12,
-      totalSpent: '$18,900',
-      status: 'vip',
-      lastVisit: '2025-11-01',
-    },
-    {
-      id: 'C004',
-      name: 'Maria Garcia',
-      email: 'maria@example.com',
-      phone: '+1 (555) 456-7890',
-      joinDate: '2025-01-05',
-      totalBookings: 1,
-      totalSpent: '$2,200',
-      status: 'new',
-      lastVisit: '2025-01-05',
-    },
-    {
-      id: 'C005',
-      name: 'Jennifer Lee',
-      email: 'jennifer@example.com',
-      phone: '+1 (555) 567-8901',
-      joinDate: '2024-08-12',
-      totalBookings: 7,
-      totalSpent: '$15,200',
-      status: 'active',
-      lastVisit: '2025-10-20',
-    },
-  ];
+  // Debounce search input
+  const debouncedSearch = useMemo(() => {
+    let t: any;
+    return (q: string, cb: (v: string) => void) => {
+      clearTimeout(t);
+      t = setTimeout(() => cb(q), 300);
+    };
+  }, []);
+
+  const load = async (q?: string, status?: 'ACTIVE' | 'INACTIVE' | 'all') => {
+    try {
+      setLoading(true);
+      setError(null);
+      const params: Record<string, any> = {};
+      if (q) params.search = q;
+      if (status && status !== 'all') params.status = status;
+      const data = await apiFetch<ClientItem[]>('/clients', { method: 'GET', body: undefined, headers: undefined, auth: undefined });
+      // If server supports query params, prefer it; otherwise filter client-side
+      const result = data.filter(c => {
+        const matchesStatus = status && status !== 'all' ? c.status === status : true;
+        const qq = (q || '').toLowerCase();
+        const matchesSearch = !qq || [c.name, c.email || '', c.phone || '', c.id].some(v => v.toLowerCase().includes(qq));
+        return matchesStatus && matchesSearch;
+      });
+      setClients(result);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load clients');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(searchQuery, filterType); }, []);
+  useEffect(() => {
+    debouncedSearch(searchQuery, (v) => load(v, filterType));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+  useEffect(() => { load(searchQuery, filterType); // refresh on filter change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterType]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
+      case 'ACTIVE':
         return 'bg-green-100 text-green-700';
-      case 'vip':
-        return 'bg-purple-100 text-purple-700';
-      case 'new':
-        return 'bg-blue-100 text-blue-700';
-      case 'inactive':
+      case 'INACTIVE':
         return 'bg-gray-100 text-gray-700';
       default:
         return 'bg-gray-100 text-gray-700';
@@ -113,21 +114,61 @@ export function ClientsManagement() {
       .toUpperCase();
   };
 
-  const filteredClients = clients.filter((client) => {
-    const matchesSearch =
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = filterType === 'all' || client.status === filterType;
-    return matchesSearch && matchesType;
-  });
+  const filteredClients = clients; // already filtered in load()
 
+  const now = new Date();
+  const isSameMonth = (d: string) => {
+    const dt = new Date(d);
+    return dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth();
+  };
   const stats = [
     { label: 'Total Clients', value: clients.length, color: 'from-pink-500 to-rose-600' },
-    { label: 'Active', value: clients.filter((c) => c.status === 'active').length, color: 'from-green-500 to-emerald-600' },
-    { label: 'VIP', value: clients.filter((c) => c.status === 'vip').length, color: 'from-purple-500 to-violet-600' },
-    { label: 'New This Month', value: clients.filter((c) => c.status === 'new').length, color: 'from-blue-500 to-cyan-600' },
+    { label: 'Active', value: clients.filter((c) => c.status === 'ACTIVE').length, color: 'from-green-500 to-emerald-600' },
+    { label: 'Inactive', value: clients.filter((c) => c.status === 'INACTIVE').length, color: 'from-purple-500 to-violet-600' },
+    { label: 'New This Month', value: clients.filter((c) => isSameMonth(c.joinDate)).length, color: 'from-blue-500 to-cyan-600' },
   ];
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ name: '', email: '', phone: '', status: 'ACTIVE', notes: '' });
+    setEditOpen(true);
+  };
+  const openEdit = (c: ClientItem) => {
+    setEditing(c);
+    setForm({ ...c });
+    setEditOpen(true);
+  };
+  const saveClient = async () => {
+    try {
+      if (!form.name || !form.name.trim()) { toast.error('Name is required'); return; }
+      if (editing) {
+        const updated = await apiFetch<ClientItem>(`/clients/${editing.id}`, { method: 'PUT', body: {
+          name: form.name, email: form.email, phone: form.phone, status: form.status, notes: form.notes, lastVisit: form.lastVisit,
+        }});
+        setClients(prev => prev.map(c => c.id === updated.id ? updated : c));
+        toast.success('Client updated');
+      } else {
+        const created = await apiFetch<ClientItem>('/clients', { method: 'POST', body: {
+          name: form.name, email: form.email, phone: form.phone, status: form.status, notes: form.notes,
+        }});
+        setClients(prev => [created, ...prev]);
+        toast.success('Client added');
+      }
+      setEditOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message || 'Save failed');
+    }
+  };
+  const deleteClient = async (c: ClientItem) => {
+    if (!confirm(`Delete client ${c.name}?`)) return;
+    try {
+      await apiFetch(`/clients/${c.id}`, { method: 'DELETE' });
+      setClients(prev => prev.filter(x => x.id !== c.id));
+      toast.success('Client deleted');
+    } catch (e: any) {
+      toast.error(e?.message || 'Delete failed');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -137,7 +178,7 @@ export function ClientsManagement() {
           <h1 className="mb-2 text-gray-900">Clients Management</h1>
           <p className="text-gray-600">Manage all client information and history</p>
         </div>
-        <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">
+        <Button onClick={openCreate} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">
           <UserPlus className="w-4 h-4 mr-2" />
           Add Client
         </Button>
@@ -176,17 +217,15 @@ export function ClientsManagement() {
               />
             </div>
           </div>
-          <Select value={filterType} onValueChange={setFilterType}>
+          <Select value={filterType} onValueChange={(v: 'all' | 'ACTIVE' | 'INACTIVE') => setFilterType(v)}>
             <SelectTrigger className="w-full md:w-48 rounded-xl">
               <Filter className="w-4 h-4 mr-2" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Clients</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="vip">VIP</SelectItem>
-              <SelectItem value="new">New</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="ACTIVE">Active</SelectItem>
+              <SelectItem value="INACTIVE">Inactive</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" className="rounded-xl">
@@ -205,8 +244,7 @@ export function ClientsManagement() {
                 <TableHead>Client</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Join Date</TableHead>
-                <TableHead>Bookings</TableHead>
-                <TableHead>Total Spent</TableHead>
+                
                 <TableHead>Last Visit</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -249,12 +287,10 @@ export function ClientsManagement() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-400" />
-                      {client.joinDate}
+                      {new Date(client.joinDate).toLocaleDateString()}
                     </div>
                   </TableCell>
-                  <TableCell className="text-gray-900">{client.totalBookings}</TableCell>
-                  <TableCell className="text-gray-900">{client.totalSpent}</TableCell>
-                  <TableCell className="text-gray-600">{client.lastVisit}</TableCell>
+                  <TableCell className="text-gray-600">{client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : '—'}</TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(client.status)}>
                       {client.status}
@@ -272,7 +308,7 @@ export function ClientsManagement() {
                           <Eye className="w-4 h-4 mr-2" />
                           View Profile
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEdit(client)}>
                           <Edit className="w-4 h-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
@@ -284,7 +320,7 @@ export function ClientsManagement() {
                           <Calendar className="w-4 h-4 mr-2" />
                           Book Appointment
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
+                        <DropdownMenuItem className="text-red-600" onClick={() => deleteClient(client)}>
                           <Trash2 className="w-4 h-4 mr-2" />
                           Delete
                         </DropdownMenuItem>
@@ -297,6 +333,63 @@ export function ClientsManagement() {
           </Table>
         </div>
       </Card>
+
+      {/* Create/Edit Modal */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Edit Client' : 'Add Client'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              placeholder="Full name"
+              value={form.name || ''}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="rounded-xl"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                placeholder="Email"
+                value={form.email || ''}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="rounded-xl"
+              />
+              <Input
+                placeholder="Phone"
+                value={form.phone || ''}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+              <div>
+                <label className="text-sm text-gray-600 mb-1 block">Status</label>
+                <Select value={(form.status as ClientStatus) || 'ACTIVE'} onValueChange={(v: ClientStatus) => setForm({ ...form, status: v })}>
+                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm text-gray-600 mb-1 block">Last visit</label>
+                <Input type="date" value={form.lastVisit ? new Date(form.lastVisit).toISOString().slice(0,10) : ''} onChange={(e) => setForm({ ...form, lastVisit: e.target.value })} className="rounded-xl" />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">Notes</label>
+              <Textarea rows={4} value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl" onClick={saveClient}>
+              {editing ? 'Save Changes' : 'Create Client'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

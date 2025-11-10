@@ -155,6 +155,10 @@ model Settings {
   primaryColor    String?
   secondaryColor  String?
   languagesJson   Json?
+  logoUrl         String?
+  emailConfirmTemplate  String? @db.Text
+  emailReminderTemplate String? @db.Text
+  contactAutoReply      String? @db.Text
 }
 
 model HomeHero {

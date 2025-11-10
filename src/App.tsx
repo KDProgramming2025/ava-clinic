@@ -27,6 +27,17 @@ const ContentManagement = lazy(() => import('./components/admin/pages/ContentMan
 const MessagesManagement = lazy(() => import('./components/admin/pages/MessagesManagement').then(m => ({ default: m.MessagesManagement })));
 const TeamManagement = lazy(() => import('./components/admin/pages/TeamManagement').then(m => ({ default: m.TeamManagement })));
 const SettingsManagement = lazy(() => import('./components/admin/pages/SettingsManagement').then(m => ({ default: m.SettingsManagement })));
+// Simpler dynamic imports relying on default exports; TS complaints earlier likely due to module resolution config. Keeping consistent pattern used by other pages.
+// Use explicit relative path with .tsx extension to satisfy module resolution for certain TS configs
+const AdminUsersManagement = lazy(() => import('./components/admin/pages/AdminUsersManagement.tsx').then(m => ({ default: m.default || (m as any).AdminUsersManagement })));
+const TestimonialsManagement = lazy(() => import('./components/admin/pages/TestimonialsManagement.tsx').then(m => ({ default: m.default || (m as any).TestimonialsManagement })));
+const HomeContentManagement = lazy(() => import('./components/admin/pages/HomeContentManagement').then(m => ({ default: m.HomeContentManagement })));
+const AboutContentManagement = lazy(() => import('./components/admin/pages/AboutContentManagement').then(m => ({ default: m.AboutContentManagement })));
+const ContactContentManagement = lazy(() => import('./components/admin/pages/ContactContentManagement').then(m => ({ default: m.ContactContentManagement })));
+const NewsletterSettings = lazy(() => import('./components/admin/pages/NewsletterSettings').then(m => ({ default: m.NewsletterSettings })));
+const SEOSettings = lazy(() => import('./components/admin/pages/SEOSettings').then(m => ({ default: m.SEOSettings })));
+const TranslationsManagement = lazy(() => import('./components/admin/pages/TranslationsManagement.tsx').then(m => ({ default: m.default || (m as any).TranslationsManagement })));
+const MediaLibrary = lazy(() => import('./components/admin/pages/MediaLibrary.tsx').then(m => ({ default: m.default || (m as any).MediaLibrary })));
 
 function AdminApp() {
   const [adminPage, setAdminPage] = useState('dashboard');
@@ -46,10 +57,28 @@ function AdminApp() {
         return <ContentManagement />;
       case 'messages':
         return <MessagesManagement />;
+      case 'testimonials':
+        return <TestimonialsManagement />;
+      case 'home-content':
+        return <HomeContentManagement />;
+      case 'about-content':
+        return <AboutContentManagement />;
+      case 'contact-content':
+        return <ContactContentManagement />;
+      case 'seo-settings':
+        return <SEOSettings />;
+      case 'newsletter':
+        return <NewsletterSettings />;
+      case 'translations':
+        return <TranslationsManagement />;
       case 'team':
         return <TeamManagement />;
+      case 'media':
+        return <MediaLibrary />;
       case 'settings':
         return <SettingsManagement />;
+      case 'admin-users':
+        return <Suspense fallback={<div>Loading Admin Users...</div>}><AdminUsersManagement /></Suspense>;
       default:
         return <AdminDashboard />;
     }

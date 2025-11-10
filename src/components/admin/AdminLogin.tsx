@@ -1,27 +1,23 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Lock, User, Eye, EyeOff, Shield } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, Shield } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { useAdmin } from './AdminContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function AdminLogin() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { adminLogin } = useAdmin();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = adminLogin(username, password);
-    if (success) {
-      toast.success('Welcome back, Admin!');
-    } else {
-      toast.error('Invalid credentials. Please try again.');
-    }
+    const success = await adminLogin(email, password);
+    if (success) toast.success('Welcome back!'); else toast.error('Invalid credentials');
   };
 
   return (
@@ -73,15 +69,15 @@ export function AdminLogin() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative mt-2">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <Input
-                  id="username"
-                  type="text"
-                  placeholder="Enter your username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="admin@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                   className="pl-10 rounded-xl"
                 />
@@ -121,7 +117,7 @@ export function AdminLogin() {
 
           <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl">
             <p className="text-sm text-gray-600 text-center">
-              Demo credentials: <strong>admin</strong> / <strong>admin123</strong>
+              Use an existing admin user email/password from the database to sign in.
             </p>
           </div>
         </Card>

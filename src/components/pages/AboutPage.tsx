@@ -1,80 +1,81 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Award, Heart, Users, Target, CheckCircle, TrendingUp } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
 import { Card } from '../ui/card';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { Progress } from '../ui/progress';
+import { api } from '../../api/client';
+
+interface TimelineItem { id?: string; year: number; title: string; description?: string | null; }
+interface ValueItem { id?: string; title: string; description?: string | null; icon?: string | null; }
+interface SkillItem { id?: string; name: string; level: number; }
+interface Mission { heading?: string | null; paragraph?: string | null; }
+interface MissionBullet { id?: string; text: string; }
+interface TeamMember { id?: string; name: string; role: string; bio?: string | null; image?: string | null; active?: boolean; }
 
 export function AboutPage() {
   const { isRTL } = useLanguage();
 
-  const timeline = [
-    { year: '2009', title: 'Foundation', description: 'Beauty Implant clinic established' },
-    { year: '2012', title: 'Expansion', description: 'Opened second location and added new services' },
-    { year: '2016', title: 'Recognition', description: 'Awarded Best Beauty Clinic of the Year' },
-    { year: '2020', title: 'Innovation', description: 'Introduced advanced FUE technology' },
-    { year: '2025', title: 'Excellence', description: '10,000+ successful procedures completed' },
-  ];
+  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+  const [values, setValues] = useState<ValueItem[]>([]);
+  const [skills, setSkills] = useState<SkillItem[]>([]);
+  const [mission, setMission] = useState<Mission | null>(null);
+  const [missionBullets, setMissionBullets] = useState<MissionBullet[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [stats, setStats] = useState<{ icon: string; value: string; label: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const team = [
-    {
-      name: 'Dr. Sarah Anderson',
-      role: 'Chief Medical Director',
-      image: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
-      bio: '15+ years of experience in hair transplantation',
-    },
-    {
-      name: 'Dr. Emily Roberts',
-      role: 'Senior Specialist',
-      image: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
-      bio: 'Expert in eyebrow and eyelash implants',
-    },
-    {
-      name: 'Dr. Lisa Chen',
-      role: 'Lead Consultant',
-      image: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
-      bio: 'Specialized in PRP and regenerative treatments',
-    },
-    {
-      name: 'Dr. Maria Garcia',
-      role: 'Aesthetic Specialist',
-      image: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
-      bio: 'Certified in advanced aesthetic procedures',
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const [aboutData, teamData, homeData] = await Promise.all([
+          api.about(),
+          api.team(),
+          api.home(), // reuse home stats for bottom section (assumption)
+        ]);
+        if (cancelled) return;
+        setTimeline((aboutData.timeline || []).map((t: any) => ({ ...t })));
+        setValues(aboutData.values || []);
+        setSkills(aboutData.skills || []);
+        setMission(aboutData.mission || null);
+        setMissionBullets(aboutData.missionBullets || []);
+        setTeam(teamData || []);
+        // Map home stats to local shape if available; fallback to empty (removes static array)
+        const mappedStats = (homeData?.stats || []).slice(0, 4).map((s: any) => ({
+          icon: s.icon || 'award',
+          value: String(s.value),
+          label: s.label || 'Stat',
+        }));
+        setStats(mappedStats);
+      } catch (e: any) {
+        if (!cancelled) setError(e.message || 'Failed to load About content');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-  const values = [
-    {
-      icon: Heart,
-      title: 'Patient-Centered Care',
-      description: 'Your comfort and satisfaction are our top priorities',
-    },
-    {
-      icon: Award,
-      title: 'Excellence',
-      description: 'Maintaining the highest standards in every procedure',
-    },
-    {
-      icon: Target,
-      title: 'Innovation',
-      description: 'Using cutting-edge technology and techniques',
-    },
-    {
-      icon: Users,
-      title: 'Expertise',
-      description: 'Highly trained and experienced specialists',
-    },
-  ];
-
-  const skills = [
-    { name: 'Hair Implantation', level: 98 },
-    { name: 'Eyebrow Design', level: 95 },
-    { name: 'Patient Satisfaction', level: 99 },
-    { name: 'Advanced Technology', level: 96 },
-  ];
+  const iconComponent = (name: string) => {
+    switch ((name || '').toLowerCase()) {
+      case 'heart': return Heart;
+      case 'award': return Award;
+      case 'target': return Target;
+      case 'users': return Users;
+      default: return Heart; // default icon
+    }
+  };
 
   return (
     <div className="pt-20 min-h-screen">
+      {loading && <div className="text-center py-32">Loading...</div>}
+      {error && !loading && <div className="text-center py-32 text-red-600">{error}</div>}
+      {!loading && !error && (
+        <>
       {/* Hero Section */}
       <section className="relative py-20 bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -110,27 +111,21 @@ export function AboutPage() {
               transition={{ delay: 0.3 }}
               className="space-y-6"
             >
-              <h2 className="text-gray-900">Our Mission</h2>
+              <h2 className="text-gray-900">{mission?.heading || 'Our Mission'}</h2>
               <p className="text-gray-700">
-                To provide world-class hair and eyebrow implant services that restore confidence and enhance natural beauty. We combine medical expertise with artistic vision to deliver exceptional, personalized results.
+                {mission?.paragraph || 'We strive to provide world-class services that restore confidence and enhance natural beauty with medical expertise and artistic vision.'}
               </p>
               <div className="space-y-4">
-                {[
-                  'FDA-approved procedures and techniques',
-                  'Board-certified medical professionals',
-                  'State-of-the-art facilities',
-                  'Personalized treatment plans',
-                  'Comprehensive aftercare support',
-                ].map((item, index) => (
+                {(missionBullets || []).map((b, index) => (
                   <motion.div
-                    key={index}
+                    key={b.id || index}
                     initial={{ opacity: 0, x: isRTL ? -20 : 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.4 + index * 0.1 }}
                     className="flex items-center gap-3"
                   >
                     <CheckCircle className="w-6 h-6 text-pink-500 flex-shrink-0" />
-                    <span className="text-gray-700">{item}</span>
+                    <span className="text-gray-700">{b.text}</span>
                   </motion.div>
                 ))}
               </div>
@@ -159,7 +154,7 @@ export function AboutPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {values.map((value, index) => (
               <motion.div
-                key={index}
+                key={value.id || index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -168,7 +163,10 @@ export function AboutPage() {
               >
                 <Card className="p-6 text-center border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-white to-pink-50/30">
                   <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                    <value.icon className="w-8 h-8 text-white" />
+                    {(() => {
+                      const Icon = iconComponent(value.icon || 'heart');
+                      return <Icon className="w-8 h-8 text-white" />;
+                    })()}
                   </div>
                   <h3 className="mb-3 text-gray-900">{value.title}</h3>
                   <p className="text-gray-600">{value.description}</p>
@@ -203,7 +201,7 @@ export function AboutPage() {
             <div className="space-y-12">
               {timeline.map((item, index) => (
                 <motion.div
-                  key={index}
+                  key={item.id || index}
                   initial={{ opacity: 0, x: index % 2 === 0 ? (isRTL ? 50 : -50) : (isRTL ? -50 : 50) }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
@@ -243,7 +241,7 @@ export function AboutPage() {
               <div className="space-y-6">
                 {skills.map((skill, index) => (
                   <motion.div
-                    key={index}
+                    key={skill.id || index}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
@@ -294,7 +292,7 @@ export function AboutPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {team.map((member, index) => (
               <motion.div
-                key={index}
+                key={member.id || index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -304,7 +302,7 @@ export function AboutPage() {
                 <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all">
                   <div className="relative h-64 overflow-hidden">
                     <ImageWithFallback
-                      src={member.image}
+                      src={member.image || undefined}
                       alt={member.name}
                       className="w-full h-full object-cover"
                     />
@@ -321,33 +319,35 @@ export function AboutPage() {
           </div>
         </div>
       </section>
-
-      {/* Stats */}
-      <section className="py-20 bg-gradient-to-r from-pink-500 via-purple-600 to-blue-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8">
-            {[
-              { icon: Award, value: '15+', label: 'Years Experience' },
-              { icon: Users, value: '10,000+', label: 'Happy Clients' },
-              { icon: TrendingUp, value: '98%', label: 'Success Rate' },
-              { icon: Heart, value: '50+', label: 'Specialists' },
-            ].map((stat, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, scale: 0.5 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="text-center text-white"
-              >
-                <stat.icon className="w-12 h-12 mx-auto mb-4" />
-                <div className="mb-2">{stat.value}</div>
-                <p className="text-white/90">{stat.label}</p>
-              </motion.div>
-            ))}
+        {/* Stats (dynamic from home stats) */}
+        <section className="py-20 bg-gradient-to-r from-pink-500 via-purple-600 to-blue-600">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid md:grid-cols-4 gap-8">
+              {stats.map((stat, index) => {
+                const Icon = iconComponent(stat.icon);
+                return (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.1 }}
+                    className="text-center text-white"
+                  >
+                    <Icon className="w-12 h-12 mx-auto mb-4" />
+                    <div className="mb-2">{stat.value}</div>
+                    <p className="text-white/90">{stat.label}</p>
+                  </motion.div>
+                );
+              })}
+              {stats.length === 0 && (
+                <div className="col-span-4 text-center text-white/80">No stats available</div>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+        </>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Users, Plus, Edit, Trash2, Mail, Phone, Award, UserPlus } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, UserPlus, Image as ImageIcon, CheckCircle, XCircle } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
@@ -8,95 +8,74 @@ import { Avatar, AvatarFallback } from '../../ui/avatar';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
 import { Textarea } from '../../ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '../../ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../ui/select';
-import { toast } from 'sonner@2.0.3';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../ui/dialog';
+import { toast } from 'sonner';
+import { apiFetch } from '../../../api/client';
+import { ImageWithFallback } from '../../figma/ImageWithFallback';
+
+type TeamMember = {
+  id: string;
+  name: string;
+  role: string;
+  bio?: string | null;
+  image?: string | null;
+  active: boolean;
+  createdAt?: string;
+};
 
 export function TeamManagement() {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingMember, setEditingMember] = useState<any>(null);
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<TeamMember | null>(null);
+  const [form, setForm] = useState<{ name: string; role: string; bio: string; image: string; active: boolean }>({ name: '', role: '', bio: '', image: '', active: true });
 
-  const team = [
-    {
-      id: 'T001',
-      name: 'Dr. Sarah Anderson',
-      role: 'Chief Medical Director',
-      specialization: 'Hair Transplantation',
-      email: 'sarah.anderson@beautyimplant.com',
-      phone: '+1 (555) 111-1111',
-      experience: '15+ years',
-      status: 'active',
-      patientsServed: 2500,
-    },
-    {
-      id: 'T002',
-      name: 'Dr. Emily Roberts',
-      role: 'Senior Specialist',
-      specialization: 'Eyebrow & Eyelash Implants',
-      email: 'emily.roberts@beautyimplant.com',
-      phone: '+1 (555) 222-2222',
-      experience: '12+ years',
-      status: 'active',
-      patientsServed: 1800,
-    },
-    {
-      id: 'T003',
-      name: 'Dr. Lisa Chen',
-      role: 'Lead Consultant',
-      specialization: 'PRP & Regenerative Treatments',
-      email: 'lisa.chen@beautyimplant.com',
-      phone: '+1 (555) 333-3333',
-      experience: '10+ years',
-      status: 'active',
-      patientsServed: 1500,
-    },
-    {
-      id: 'T004',
-      name: 'Dr. Maria Garcia',
-      role: 'Aesthetic Specialist',
-      specialization: 'Advanced Aesthetic Procedures',
-      email: 'maria.garcia@beautyimplant.com',
-      phone: '+1 (555) 444-4444',
-      experience: '8+ years',
-      status: 'active',
-      patientsServed: 1200,
-    },
-    {
-      id: 'T005',
-      name: 'Nurse Jennifer White',
-      role: 'Senior Nurse',
-      specialization: 'Post-Operative Care',
-      email: 'jennifer.white@beautyimplant.com',
-      phone: '+1 (555) 555-5555',
-      experience: '7+ years',
-      status: 'active',
-      patientsServed: 3000,
-    },
-  ];
+  const fetchAll = async () => {
+    try {
+      setLoading(true); setError(null);
+      const data = await apiFetch<TeamMember[]>('/team');
+      setMembers(data);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load team');
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { fetchAll(); }, []);
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase();
+  const openNew = () => { setEditing(null); setForm({ name: '', role: '', bio: '', image: '', active: true }); setIsDialogOpen(true); };
+  const openEdit = (m: TeamMember) => {
+    setEditing(m);
+    setForm({ name: m.name, role: m.role, bio: m.bio || '', image: m.image || '', active: m.active });
+    setIsDialogOpen(true);
+  };
+  const save = async () => {
+    try {
+      if (!form.name.trim() || !form.role.trim()) { toast.error('Name & Role required'); return; }
+      const payload = {
+        name: form.name.trim(),
+        role: form.role.trim(),
+        bio: form.bio.trim() || undefined,
+        image: form.image.trim() || undefined,
+        active: form.active,
+      };
+      if (editing) { await apiFetch(`/team/${editing.id}`, { method: 'PUT', body: payload }); toast.success('Member updated'); }
+      else { await apiFetch('/team', { method: 'POST', body: payload }); toast.success('Member added'); }
+      setIsDialogOpen(false); setEditing(null); await fetchAll();
+    } catch (e: any) { toast.error(e?.message || 'Save failed'); }
+  };
+  const del = async (m: TeamMember) => {
+    if (!confirm(`Delete team member "${m.name}"?`)) return;
+    try { await apiFetch(`/team/${m.id}`, { method: 'DELETE' }); setMembers(prev => prev.filter(x => x.id !== m.id)); toast.success('Deleted'); }
+    catch (e: any) { toast.error(e?.message || 'Delete failed'); }
+  };
+  const toggleActive = async (m: TeamMember) => {
+    try { const updated = await apiFetch<TeamMember>(`/team/${m.id}`, { method: 'PUT', body: { active: !m.active } }); setMembers(prev => prev.map(x => x.id === m.id ? updated : x)); }
+    catch (e: any) { toast.error(e?.message || 'Status update failed'); }
   };
 
-  const handleDelete = (id: string, name: string) => {
-    toast.error(`Team member "${name}" removed`);
-  };
+  const activeCount = members.filter(m => m.active).length;
+
+  const initials = (name: string) => name.split(' ').map(p => p[0]).join('').toUpperCase();
 
   return (
     <div className="space-y-6">
@@ -104,217 +83,95 @@ export function TeamManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="mb-2 text-gray-900">Team Management</h1>
-          <p className="text-gray-600">Manage staff members and specialists</p>
+          <p className="text-gray-600">Manage team member profiles and visibility</p>
         </div>
-        <Button
-          onClick={() => setIsAddDialogOpen(true)}
-          className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl"
-        >
-          <UserPlus className="w-4 h-4 mr-2" />
-          Add Team Member
+        <Button onClick={openNew} className="bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl">
+          <UserPlus className="w-4 h-4 mr-2" /> New Member
         </Button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Team Members', value: team.length, color: 'from-pink-500 to-rose-600' },
-          { label: 'Doctors', value: team.filter((m) => m.role.includes('Dr.')).length, color: 'from-purple-500 to-violet-600' },
-          { label: 'Active', value: team.filter((m) => m.status === 'active').length, color: 'from-green-500 to-emerald-600' },
-          { label: 'Total Patients Served', value: team.reduce((acc, m) => acc + m.patientsServed, 0).toLocaleString(), color: 'from-blue-500 to-cyan-600' },
-        ].map((stat, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
+          { label: 'Total Members', value: members.length, color: 'from-pink-500 to-rose-600' },
+          { label: 'Active Members', value: activeCount, color: 'from-green-500 to-emerald-600' },
+          { label: 'Inactive', value: members.length - activeCount, color: 'from-purple-500 to-violet-600' },
+          { label: 'Visibility %', value: members.length? Math.round(activeCount / members.length * 100) + '%' : '—', color: 'from-blue-500 to-cyan-600' },
+        ].map((stat, i) => (
+          <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
             <Card className="p-4 border-0 shadow-lg">
               <p className="text-gray-600 mb-2">{stat.label}</p>
-              <div className={`bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
-                {stat.value}
-              </div>
+              <div className={`bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>{stat.value}</div>
             </Card>
           </motion.div>
         ))}
       </div>
 
       {/* Team Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {team.map((member, index) => (
-          <motion.div
-            key={member.id}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all">
-              <div className="text-center mb-4">
-                <Avatar className="w-24 h-24 mx-auto mb-4">
-                  <AvatarFallback className="bg-gradient-to-br from-pink-500 to-purple-600 text-white text-xl">
-                    {getInitials(member.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <h3 className="text-gray-900 mb-1">{member.name}</h3>
-                <p className="text-pink-600 mb-2">{member.role}</p>
-                <Badge className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 border-0">
-                  {member.specialization}
-                </Badge>
-              </div>
-
-              <div className="space-y-3 mb-4">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Mail className="w-4 h-4 text-pink-500 flex-shrink-0" />
-                  <span className="truncate">{member.email}</span>
+      {loading && <div className="p-4 text-gray-500">Loading…</div>}
+      {error && <div className="p-4 text-red-600">{error}</div>}
+      {!loading && !error && (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {members.map((m, i) => (
+            <motion.div key={m.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.1 }}>
+              <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all">
+                <div className="text-center mb-4">
+                  <div className="relative w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden bg-gray-100">
+                    {m.image ? (
+                      <ImageWithFallback src={m.image} alt={m.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Avatar className="w-full h-full"><AvatarFallback className="bg-gradient-to-br from-pink-500 to-purple-600 text-white text-xl">{initials(m.name)}</AvatarFallback></Avatar>
+                    )}
+                  </div>
+                  <h3 className="text-gray-900 mb-1">{m.name}</h3>
+                  <p className="text-pink-600 mb-2">{m.role}</p>
+                  <div className="flex items-center justify-center mb-2">
+                    <Badge className={m.active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}>{m.active ? 'Active' : 'Inactive'}</Badge>
+                  </div>
+                  {m.bio && <p className="text-gray-600 text-sm line-clamp-3">{m.bio}</p>}
                 </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Phone className="w-4 h-4 text-purple-500 flex-shrink-0" />
-                  <span>{member.phone}</span>
+                <div className="flex gap-2 mb-3">
+                  <Button variant="outline" size="sm" className="flex-1 rounded-xl" onClick={() => openEdit(m)}><Edit className="w-4 h-4 mr-2" />Edit</Button>
+                  <Button variant="outline" size="sm" className="flex-1 rounded-xl text-red-600" onClick={() => del(m)}><Trash2 className="w-4 h-4 mr-2" />Delete</Button>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Award className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                  <span>{member.experience} experience</span>
-                </div>
-              </div>
-
-              <div className="p-3 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl mb-4">
-                <p className="text-gray-600 text-center">
-                  <span className="text-gray-900">{member.patientsServed}</span> patients served
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-gray-600">Status</span>
-                <Badge className="bg-green-100 text-green-700">
-                  {member.status}
-                </Badge>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 rounded-xl"
-                  onClick={() => setEditingMember(member)}
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
+                <Button variant="outline" size="sm" className={`w-full rounded-xl ${m.active? 'text-green-700 hover:bg-green-50':'text-gray-700 hover:bg-gray-100'}`} onClick={() => toggleActive(m)}>
+                  {m.active ? <XCircle className="w-4 h-4 mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />} {m.active ? 'Deactivate' : 'Activate'}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 rounded-xl text-red-600 hover:bg-red-50"
-                  onClick={() => handleDelete(member.id, member.name)}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Remove
-                </Button>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
-      {/* Add/Edit Team Member Dialog */}
-      <Dialog open={isAddDialogOpen || !!editingMember} onOpenChange={(open) => {
-        if (!open) {
-          setIsAddDialogOpen(false);
-          setEditingMember(null);
-        }
-      }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingMember ? 'Edit Team Member' : 'Add New Team Member'}
-            </DialogTitle>
-          </DialogHeader>
+  <Dialog open={isDialogOpen} onOpenChange={(o: boolean)=> { if(!o){ setIsDialogOpen(false); setEditing(null);} }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader><DialogTitle>{editing ? 'Edit Member' : 'New Member'}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="member-name">Full Name*</Label>
-              <Input
-                id="member-name"
-                placeholder="e.g., Dr. Jane Smith"
-                defaultValue={editingMember?.name}
-                className="mt-2 rounded-xl"
-              />
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="member-role">Role*</Label>
-                <Select defaultValue={editingMember?.role}>
-                  <SelectTrigger className="mt-2 rounded-xl">
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Chief Medical Director">Chief Medical Director</SelectItem>
-                    <SelectItem value="Senior Specialist">Senior Specialist</SelectItem>
-                    <SelectItem value="Lead Consultant">Lead Consultant</SelectItem>
-                    <SelectItem value="Aesthetic Specialist">Aesthetic Specialist</SelectItem>
-                    <SelectItem value="Senior Nurse">Senior Nurse</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="member-experience">Experience*</Label>
-                <Input
-                  id="member-experience"
-                  placeholder="e.g., 10+ years"
-                  defaultValue={editingMember?.experience}
-                  className="mt-2 rounded-xl"
-                />
-              </div>
+              <Label htmlFor="tm-name">Name*</Label>
+              <Input id="tm-name" value={form.name} onChange={(e)=> setForm(f=>({...f,name:e.target.value}))} className="mt-2 rounded-xl" placeholder="Dr. Jane Smith" />
             </div>
             <div>
-              <Label htmlFor="member-specialization">Specialization*</Label>
-              <Input
-                id="member-specialization"
-                placeholder="e.g., Hair Transplantation"
-                defaultValue={editingMember?.specialization}
-                className="mt-2 rounded-xl"
-              />
+              <Label htmlFor="tm-role">Role*</Label>
+              <Input id="tm-role" value={form.role} onChange={(e)=> setForm(f=>({...f,role:e.target.value}))} className="mt-2 rounded-xl" placeholder="Senior Specialist" />
             </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="member-email">Email*</Label>
-                <Input
-                  id="member-email"
-                  type="email"
-                  placeholder="email@beautyimplant.com"
-                  defaultValue={editingMember?.email}
-                  className="mt-2 rounded-xl"
-                />
-              </div>
-              <div>
-                <Label htmlFor="member-phone">Phone*</Label>
-                <Input
-                  id="member-phone"
-                  placeholder="+1 (555) 000-0000"
-                  defaultValue={editingMember?.phone}
-                  className="mt-2 rounded-xl"
-                />
-              </div>
+            <div>
+              <Label htmlFor="tm-image">Image URL</Label>
+              <Input id="tm-image" value={form.image} onChange={(e)=> setForm(f=>({...f,image:e.target.value}))} className="mt-2 rounded-xl" placeholder="https://..." />
+              {form.image && <img src={form.image} alt="preview" className="mt-2 h-28 w-full object-cover rounded-xl border" />}
+            </div>
+            <div>
+              <Label htmlFor="tm-bio">Bio</Label>
+              <Textarea id="tm-bio" value={form.bio} onChange={(e)=> setForm(f=>({...f,bio:e.target.value}))} className="mt-2 rounded-xl" rows={4} placeholder="Short bio / expertise" />
+            </div>
+            <div className="flex items-center gap-2">
+              <input id="tm-active" type="checkbox" checked={form.active} onChange={(e)=> setForm(f=>({...f,active:e.target.checked}))} className="rounded border-gray-300" />
+              <Label htmlFor="tm-active">Active / Visible</Label>
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsAddDialogOpen(false);
-                setEditingMember(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="bg-gradient-to-r from-pink-500 to-purple-600"
-              onClick={() => {
-                toast.success(editingMember ? 'Team member updated!' : 'Team member added!');
-                setIsAddDialogOpen(false);
-                setEditingMember(null);
-              }}
-            >
-              {editingMember ? 'Update' : 'Add'}
-            </Button>
+            <Button variant="outline" onClick={()=> { setIsDialogOpen(false); setEditing(null); }}>Cancel</Button>
+            <Button className="bg-gradient-to-r from-pink-500 to-purple-600" onClick={save}>{editing ? 'Update' : 'Create'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

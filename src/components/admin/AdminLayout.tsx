@@ -15,6 +15,7 @@ import {
   Bell,
   Search,
   ChevronDown,
+  Lock,
 } from 'lucide-react';
 import { useAdmin } from './AdminContext';
 import { Button } from '../ui/button';
@@ -43,11 +44,20 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
     { id: 'bookings', label: 'Bookings', icon: Calendar, badge: 12 },
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'services', label: 'Services', icon: Briefcase },
+    { id: 'testimonials', label: 'Testimonials', icon: Users },
+  { id: 'home-content', label: 'Home Content', icon: LayoutDashboard },
+  { id: 'about-content', label: 'About Content', icon: LayoutDashboard },
+  { id: 'contact-content', label: 'Contact Content', icon: LayoutDashboard },
+    { id: 'seo-settings', label: 'SEO Settings', icon: Search },
+    { id: 'newsletter', label: 'Newsletter', icon: BookOpen },
+    { id: 'translations', label: 'Translations', icon: BookOpen },
+  { id: 'media', label: 'Media Library', icon: Video },
     { id: 'videos', label: 'Videos', icon: Video },
     { id: 'magazine', label: 'Magazine', icon: BookOpen },
     { id: 'messages', label: 'Messages', icon: MessageSquare, badge: 5 },
     { id: 'team', label: 'Team', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'admin-users', label: 'Access Control', icon: Lock },
   ];
 
   return (
