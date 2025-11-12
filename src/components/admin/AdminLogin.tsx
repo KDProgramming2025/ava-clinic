@@ -69,13 +69,13 @@ export function AdminLogin() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <Label htmlFor="identifier">Email or Username</Label>
+              <Label htmlFor="identifier">Username</Label>
               <div className="relative mt-2">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <Input
                   id="identifier"
                   type="text"
-                  placeholder="admin or admin@example.com"
+                  placeholder="admin"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   required
@@ -117,7 +117,7 @@ export function AdminLogin() {
 
           <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl">
             <p className="text-sm text-gray-600 text-center">
-              Sign in with your admin email or username and password.
+              Sign in with your admin username and password.
             </p>
           </div>
         </Card>
