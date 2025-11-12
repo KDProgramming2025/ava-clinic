@@ -31,12 +31,12 @@ export function HomePage() {
         setLoading(true);
         const [home, services] = await Promise.all([api.home(), api.services()]);
         if (cancelled) return;
-        setHero(home.hero || null);
-        setStats(home.stats || []);
-        setFeatures(home.features || []);
-        setCTA(home.cta || null);
-        setTestimonials(home.testimonials || []);
-        setServicesPreview((services || []).slice(0, 3));
+  setHero(home?.hero || null);
+  setStats(Array.isArray(home?.stats) ? home!.stats : []);
+  setFeatures(Array.isArray(home?.features) ? home!.features : []);
+  setCTA(home?.cta || null);
+  setTestimonials(Array.isArray(home?.testimonials) ? home!.testimonials : []);
+  setServicesPreview(Array.isArray(services) ? services.slice(0, 3) : []);
       } catch (e: any) {
         if (!cancelled) setError(e.message || 'Failed to load');
       } finally {
@@ -115,7 +115,7 @@ export function HomePage() {
                 </motion.div>
               </div>
               <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-20">
-                {stats.map((stat, index) => (
+                {(Array.isArray(stats) ? stats : []).map((stat, index) => (
                   <motion.div key={index} whileHover={{ y: -5 }} className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 text-center shadow-lg">
                     <div className="w-8 h-8 mx-auto mb-3 text-pink-500">{iconForStat(stat.icon)}</div>
                     <div className="mb-1 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">{stat.value}</div>
@@ -132,7 +132,7 @@ export function HomePage() {
                 <h2 className="mb-4 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">{t('whyChooseUs')}</h2>
               </div>
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                {features.map((feature, index) => (
+                {(Array.isArray(features) ? features : []).map((feature, index) => (
                   <motion.div key={index} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }} whileHover={{ y: -10 }}>
                     <Card className="p-6 h-full border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-white to-pink-50/30">
                       <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">{iconForFeature(feature.icon)}</div>
@@ -151,7 +151,7 @@ export function HomePage() {
                 <h2 className="mb-4 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">{t('ourServices')}</h2>
               </div>
               <div className="grid md:grid-cols-3 gap-8">
-                {servicesPreview.map((service, index) => (
+                {(Array.isArray(servicesPreview) ? servicesPreview : []).map((service, index) => (
                   <motion.div key={service.id || index} initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }} whileHover={{ y: -10 }}>
                     <Card className="overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all">
                       <div className="relative h-64 overflow-hidden">
@@ -178,7 +178,7 @@ export function HomePage() {
                 <h2 className="mb-4 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">{t('testimonials')}</h2>
               </div>
               <div className="grid md:grid-cols-3 gap-8">
-                {testimonials.map((testimonial, index) => (
+                {(Array.isArray(testimonials) ? testimonials : []).map((testimonial, index) => (
                   <motion.div key={index} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }} whileHover={{ y: -5 }}>
                     <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-white to-purple-50/30">
                       <div className="flex gap-1 mb-4">
