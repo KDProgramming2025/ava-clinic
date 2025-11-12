@@ -2,22 +2,40 @@ import express from 'express';
 import prisma from '../prismaClient.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-secret';
 const JWT_EXPIRES = '2h';
 
+// Basic rate limiting for login to reduce brute force attempts
+const loginLimiter = rateLimit({
+  windowMs: parseInt(process.env.RL_WINDOW_MS || '900000', 10), // 15 minutes
+  limit: parseInt(process.env.RL_MAX || '20', 10), // 20 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too_many_requests' },
+});
+
 // POST /api/auth/login { email, password }
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: 'missing_credentials' });
+router.post('/login', loginLimiter, async (req, res) => {
+  const { email, identifier, password } = req.body || {};
+  const id = (identifier || email || '').trim();
+  if (!id || !password) return res.status(400).json({ error: 'missing_credentials' });
   try {
-    const user = await prisma.adminUser.findUnique({ where: { email } });
+    let user = null;
+    if (id.includes('@')) {
+      user = await prisma.adminUser.findUnique({ where: { email: id } });
+    } else {
+      // Try username first, then fallback to email
+      user = await prisma.adminUser.findUnique({ where: { username: id } });
+      if (!user) user = await prisma.adminUser.findUnique({ where: { email: id } });
+    }
     if (!user || !user.active) return res.status(401).json({ error: 'invalid_login' });
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return res.status(401).json({ error: 'invalid_login' });
     const token = jwt.sign({ sub: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    res.json({ token, user: { id: user.id, email: user.email, username: user.username, name: user.name, role: user.role } });
   } catch (e) {
     res.status(500).json({ error: 'login_failed' });
   }

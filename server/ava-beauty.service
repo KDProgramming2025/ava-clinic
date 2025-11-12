@@ -9,6 +9,13 @@ ExecStart=/usr/bin/node /var/www/ava-beauty/server/index.js
 EnvironmentFile=/var/www/ava-beauty/.env
 Environment=NODE_ENV=production
 Environment=PORT=4000
+Environment=JWT_SECRET=change_me_in_production
+Environment=RL_WINDOW_MS=900000
+Environment=RL_MAX=20
+# Optional initial superadmin seed vars (remove after first run)
+# Environment=SUPERADMIN_USERNAME=admin
+# Environment=SUPERADMIN_EMAIL=admin@local
+# Environment=SUPERADMIN_PASSWORD=admin
 Restart=on-failure
 RestartSec=3s
 # Ensure graceful stop

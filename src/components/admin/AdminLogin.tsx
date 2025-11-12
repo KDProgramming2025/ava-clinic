@@ -9,14 +9,14 @@ import { useAdmin } from './AdminContext';
 import { toast } from 'sonner';
 
 export function AdminLogin() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { adminLogin } = useAdmin();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await adminLogin(email, password);
+    const success = await adminLogin(identifier, password);
     if (success) toast.success('Welcome back!'); else toast.error('Invalid credentials');
   };
 
@@ -69,15 +69,15 @@ export function AdminLogin() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="identifier">Email or Username</Label>
               <div className="relative mt-2">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="admin@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="identifier"
+                  type="text"
+                  placeholder="admin or admin@example.com"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   required
                   className="pl-10 rounded-xl"
                 />
@@ -117,7 +117,7 @@ export function AdminLogin() {
 
           <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl">
             <p className="text-sm text-gray-600 text-center">
-              Use an existing admin user email/password from the database to sign in.
+              Sign in with your admin email or username and password.
             </p>
           </div>
         </Card>

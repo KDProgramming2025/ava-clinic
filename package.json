@@ -52,7 +52,9 @@
             "vaul": "^1.1.2",
             "bcryptjs": "^2.4.3",
             "jsonwebtoken": "^9.0.2",
-            "multer": "^1.4.5-lts.1"
+            "express-rate-limit": "^7.4.0",
+            "multer": "^1.4.5-lts.1",
+            "dotenv": "^16.4.5"
       },
       "devDependencies": {
             "@types/node": "^20.10.0",
@@ -68,6 +70,7 @@
             "dev": "vite",
             "build": "vite build",
             "analyze": "vite build",
-            "start:backend": "node server/index.js"
+                                    "start:backend": "node server/index.js",
+                                    "seed:superadmin": "node server/scripts/seedSuperAdmin.js"
       }
 }

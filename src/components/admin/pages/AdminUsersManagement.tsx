@@ -16,6 +16,7 @@ import { useAdmin } from '../AdminContext';
 interface AdminUser {
   id: string;
   email: string;
+  username?: string | null;
   name?: string | null;
   role: AdminRole;
   active: boolean;
@@ -34,7 +35,7 @@ export function AdminUsersManagement() {
   const [filterRole, setFilterRole] = useState<'all' | AdminRole>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
-  const [form, setForm] = useState<{ email: string; name: string; role: AdminRole; password: string; active: boolean }>({ email: '', name: '', role: 'VIEWER', password: '', active: true });
+  const [form, setForm] = useState<{ email: string; username: string; name: string; role: AdminRole; password: string; active: boolean }>({ email: '', username: '', name: '', role: 'VIEWER', password: '', active: true });
   const [resetPassword, setResetPassword] = useState('');
 
   const canManage = currentRole === 'SUPERADMIN' || currentRole === 'ADMIN';
@@ -61,21 +62,21 @@ export function AdminUsersManagement() {
     return matchesRole && matchesSearch;
   });
 
-  const openCreate = () => { setEditing(null); setForm({ email: '', name: '', role: 'VIEWER', password: '', active: true }); setResetPassword(''); setDialogOpen(true); };
-  const openEdit = (u: AdminUser) => { setEditing(u); setForm({ email: u.email, name: u.name || '', role: u.role, password: '', active: u.active }); setResetPassword(''); setDialogOpen(true); };
+  const openCreate = () => { setEditing(null); setForm({ email: '', username: '', name: '', role: 'VIEWER', password: '', active: true }); setResetPassword(''); setDialogOpen(true); };
+  const openEdit = (u: AdminUser) => { setEditing(u); setForm({ email: u.email, username: u.username || '', name: u.name || '', role: u.role, password: '', active: u.active }); setResetPassword(''); setDialogOpen(true); };
 
   const save = async () => {
     try {
-      if (!form.email.trim()) { toast.error('Email required'); return; }
+      if (!form.email.trim() && !form.username.trim()) { toast.error('Email or username required'); return; }
       if (!editing && !form.password.trim()) { toast.error('Password required'); return; }
       if (editing) {
-        const body: any = { name: form.name || null, role: form.role, active: form.active };
+        const body: any = { name: form.name || null, role: form.role, active: form.active, username: form.username.trim() || null };
         if (resetPassword.trim()) body.password = resetPassword.trim();
         const updated = await apiFetch<AdminUser>(`/admin-users/${editing.id}`, { method: 'PUT', body });
         setUsers(prev => prev.map(x => x.id === updated.id ? updated : x));
         toast.success('Admin user updated');
       } else {
-        const created = await apiFetch<AdminUser>('/admin-users', { method: 'POST', body: { email: form.email.trim(), password: form.password.trim(), name: form.name.trim() || undefined, role: form.role } });
+        const created = await apiFetch<AdminUser>('/admin-users', { method: 'POST', body: { email: form.email.trim() || undefined, username: form.username.trim() || undefined, password: form.password.trim(), name: form.name.trim() || undefined, role: form.role } });
         setUsers(prev => [created, ...prev]);
         toast.success('Admin user created');
       }
@@ -161,7 +162,7 @@ export function AdminUsersManagement() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Email</TableHead>
+                <TableHead>Email / Username</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
@@ -172,7 +173,7 @@ export function AdminUsersManagement() {
             <TableBody>
               {filtered.map((u,i)=>(
                 <motion.tr key={u.id} initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:i*0.03}} className="hover:bg-gray-50">
-                  <TableCell className="font-mono text-sm">{u.email}</TableCell>
+                  <TableCell className="font-mono text-sm">{u.username ? `${u.username} (${u.email})` : u.email}</TableCell>
                   <TableCell>{u.name || '—'}</TableCell>
                   <TableCell><Badge className={roleBadge(u.role)}>{u.role}</Badge></TableCell>
                   <TableCell>{u.active ? <span className="text-green-600 flex items-center"><Unlock className="w-4 h-4 mr-1"/>Active</span> : <span className="text-gray-500 flex items-center"><Lock className="w-4 h-4 mr-1"/>Inactive</span>}</TableCell>
@@ -202,9 +203,21 @@ export function AdminUsersManagement() {
           </DialogHeader>
           <div className="space-y-4">
             {!editing && (
+              <>
+                <div>
+                  <label className="text-sm text-gray-600 mb-1 block">Email (optional if username set)</label>
+                  <Input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className="rounded-xl" />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600 mb-1 block">Username (optional if email set)</label>
+                  <Input value={form.username} onChange={e=>setForm({...form,username:e.target.value})} className="rounded-xl" />
+                </div>
+              </>
+            )}
+            {editing && (
               <div>
-                <label className="text-sm text-gray-600 mb-1 block">Email</label>
-                <Input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className="rounded-xl" />
+                <label className="text-sm text-gray-600 mb-1 block">Username</label>
+                <Input value={form.username} onChange={e=>setForm({...form,username:e.target.value})} className="rounded-xl" />
               </div>
             )}
             <div>
