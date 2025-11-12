@@ -49,6 +49,8 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
   { id: 'about-content', label: 'About Content', icon: LayoutDashboard },
   { id: 'contact-content', label: 'Contact Content', icon: LayoutDashboard },
     { id: 'seo-settings', label: 'SEO Settings', icon: Search },
+  { id: 'booking-config', label: 'Booking Flow Config', icon: Calendar },
+  { id: 'booking-info', label: 'Booking Info Cards', icon: LayoutDashboard },
     { id: 'newsletter', label: 'Newsletter', icon: BookOpen },
     { id: 'translations', label: 'Translations', icon: BookOpen },
   { id: 'media', label: 'Media Library', icon: Video },
@@ -56,6 +58,8 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
     { id: 'magazine', label: 'Magazine', icon: BookOpen },
     { id: 'messages', label: 'Messages', icon: MessageSquare, badge: 5 },
     { id: 'team', label: 'Team', icon: Users },
+    { id: 'navigation', label: 'Navigation', icon: LayoutDashboard },
+    { id: 'footer-links', label: 'Footer Links', icon: LayoutDashboard },
     { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'admin-users', label: 'Access Control', icon: Lock },
   ];

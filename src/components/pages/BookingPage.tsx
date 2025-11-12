@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Calendar as CalendarIcon, Clock, CheckCircle, User, Mail, Phone, MessageSquare, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, CheckCircle, User, Mail, Phone, MessageSquare, ChevronRight, Star, Heart } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -15,71 +15,102 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Badge } from '../ui/badge';
+import { api } from '../../api/client';
 
 export function BookingPage() {
   const { t, isRTL } = useLanguage();
   const [step, setStep] = useState(1);
+  const [services, setServices] = useState<any[]>([]);
   const [selectedService, setSelectedService] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState('');
+  const [config, setConfig] = useState<any | null>(null);
+  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingTimes, setLoadingTimes] = useState(false);
+  const [infoCards, setInfoCards] = useState<any[]>([]);
 
-  const services = [
-    {
-      id: 'hair',
-      name: t('hairImplant'),
-      duration: '4-8 hours',
-      price: 'From $2,500',
-      description: 'Advanced FUE hair transplantation',
-    },
-    {
-      id: 'eyebrow',
-      name: t('eyebrowImplant'),
-      duration: '2-4 hours',
-      price: 'From $1,800',
-      description: 'Natural eyebrow restoration',
-    },
-    {
-      id: 'eyelash',
-      name: t('eyelashImplant'),
-      duration: '2-3 hours',
-      price: 'From $2,200',
-      description: 'Beautiful eyelash enhancement',
-    },
-    {
-      id: 'beard',
-      name: t('beardImplant'),
-      duration: '3-6 hours',
-      price: 'From $3,000',
-      description: 'Perfect beard styling',
-    },
-    {
-      id: 'prp',
-      name: t('prp'),
-      duration: '1 hour',
-      price: 'From $500',
-      description: 'Natural growth stimulation',
-    },
-    {
-      id: 'mesotherapy',
-      name: t('mesotherapy'),
-      duration: '30-45 min',
-      price: 'From $400',
-      description: 'Hair strengthening treatment',
-    },
-  ];
+  // Map stored icon name strings to Lucide components
+  const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+    CheckCircle,
+    CalendarIcon,
+    Clock,
+    Star,
+    Heart,
+  } as any;
+  const renderIcon = (name?: string) => {
+    const Comp = name && iconMap[name] ? iconMap[name] : CheckCircle;
+    return <Comp className="w-7 h-7 text-white" />;
+  };
 
-  const timeSlots = [
-    '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
-    '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM',
-    '05:00 PM', '06:00 PM',
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+  const [svc, cfg, info] = await Promise.all([api.services(), api.bookingConfig(), api.bookingInfo()]);
+        if (cancelled) return;
+        setServices(svc || []);
+        setConfig(cfg || {});
+  setInfoCards(Array.isArray(info) ? info : []);
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!selectedDate) { setAvailableTimes([]); return; }
+      try {
+        setLoadingTimes(true);
+        const dateStr = selectedDate.toISOString().slice(0, 10);
+        const times = await api.availability(dateStr, selectedService || undefined);
+        if (!cancelled) setAvailableTimes(times || []);
+      } catch {
+        if (!cancelled) setAvailableTimes([]);
+      } finally {
+        if (!cancelled) setLoadingTimes(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedDate, selectedService]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Booking confirmed! Check your email for details.');
-    setStep(4);
+    try {
+      const form = e.target as HTMLFormElement;
+      const fullname = (form.querySelector('#fullname') as HTMLInputElement)?.value || '';
+      const email = (form.querySelector('#email-booking') as HTMLInputElement)?.value || '';
+      const phone = (form.querySelector('#phone-booking') as HTMLInputElement)?.value || '';
+      const notes = (form.querySelector('#notes') as HTMLTextAreaElement)?.value || '';
+      if (!selectedService || !selectedDate || !selectedTime) { toast.error('Please select service, date and time'); return; }
+      const client = await api.createClient({ name: fullname, email, phone });
+      const [h, m] = selectedTime.split(':').map(Number);
+      const start = new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), selectedDate.getUTCDate(), h, m, 0));
+  // Prefer per-service numeric durationMinutes when available
+  const svc = services.find(s => s.id === selectedService);
+  const durationMin = (svc?.durationMinutes && Number.isFinite(svc.durationMinutes)) ? svc.durationMinutes : (config?.defaultDurationMinutes ?? 60);
+      const end = new Date(start.getTime() + durationMin * 60_000);
+      await api.createBooking({
+        clientId: client.id,
+        serviceId: selectedService,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+        status: 'PENDING',
+        notes,
+      });
+      toast.success('Booking submitted! We will confirm shortly.');
+      setStep(4);
+    } catch (err: any) {
+      toast.error(err?.message || 'Booking failed');
+    }
   };
 
   const renderStepIndicator = () => (
@@ -124,7 +155,7 @@ export function BookingPage() {
               {t('booking')}
             </h1>
             <p className="text-gray-700 max-w-3xl mx-auto">
-              Schedule your consultation or procedure in just a few simple steps
+              {t('booking.subtitle')}
             </p>
           </motion.div>
         </div>
@@ -143,7 +174,7 @@ export function BookingPage() {
             >
               <h2 className="text-center mb-8 text-gray-900">{t('selectService')}</h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {services.map((service, index) => (
+                {(!loading ? services : []).map((service, index) => (
                   <motion.div
                     key={service.id}
                     initial={{ opacity: 0, scale: 0.9 }}
@@ -160,7 +191,7 @@ export function BookingPage() {
                       onClick={() => setSelectedService(service.id)}
                     >
                       <div className="flex items-start justify-between mb-4">
-                        <h3 className="text-gray-900">{service.name}</h3>
+                        <h3 className="text-gray-900">{service.title || service.name}</h3>
                         {selectedService === service.id && (
                           <CheckCircle className="w-6 h-6 text-pink-500" />
                         )}
@@ -173,7 +204,7 @@ export function BookingPage() {
                         </div>
                       </div>
                       <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white">
-                        {service.price}
+                        {service.priceRange || service.price}
                       </Badge>
                     </Card>
                   </motion.div>
@@ -198,20 +229,20 @@ export function BookingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <h2 className="text-center mb-8 text-gray-900">Select Date & Time</h2>
+              <h2 className="text-center mb-8 text-gray-900">{t('booking.selectDateTimeTitle')}</h2>
               <div className="grid lg:grid-cols-2 gap-12">
                 {/* Calendar */}
                 <Card className="p-6 border-0 shadow-xl">
                   <div className="flex items-center gap-3 mb-6">
                     <CalendarIcon className="w-6 h-6 text-pink-500" />
-                    <h3 className="text-gray-900">Choose a Date</h3>
+                    <h3 className="text-gray-900">{t('booking.chooseDate')}</h3>
                   </div>
                   <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={setSelectedDate}
+                    onSelect={(d: any) => setSelectedDate(d as Date | undefined)}
                     className="rounded-xl border-0"
-                    disabled={(date) => date < new Date()}
+                    disabled={(date: Date) => date < new Date()}
                   />
                 </Card>
 
@@ -219,28 +250,34 @@ export function BookingPage() {
                 <Card className="p-6 border-0 shadow-xl">
                   <div className="flex items-center gap-3 mb-6">
                     <Clock className="w-6 h-6 text-pink-500" />
-                    <h3 className="text-gray-900">Choose a Time</h3>
+                    <h3 className="text-gray-900">{t('booking.chooseTime')}</h3>
                   </div>
                   {selectedDate ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      {timeSlots.map((time) => (
-                        <Button
-                          key={time}
-                          variant={selectedTime === time ? 'default' : 'outline'}
-                          onClick={() => setSelectedTime(time)}
-                          className={`rounded-xl ${
-                            selectedTime === time
-                              ? 'bg-gradient-to-r from-pink-500 to-purple-600'
-                              : ''
-                          }`}
-                        >
-                          {time}
-                        </Button>
-                      ))}
-                    </div>
+                    loadingTimes ? (
+                      <p className="text-gray-500 text-center py-12">Loading times…</p>
+                    ) : availableTimes.length ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        {availableTimes.map((time) => (
+                          <Button
+                            key={time}
+                            variant={selectedTime === time ? 'default' : 'outline'}
+                            onClick={() => setSelectedTime(time)}
+                            className={`rounded-xl ${
+                              selectedTime === time
+                                ? 'bg-gradient-to-r from-pink-500 to-purple-600'
+                                : ''
+                            }`}
+                          >
+                            {time}
+                          </Button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-12">{t('booking.noSlots')}</p>
+                    )
                   ) : (
                     <p className="text-gray-500 text-center py-12">
-                      Please select a date first
+                      {t('booking.selectDateFirst')}
                     </p>
                   )}
                 </Card>
@@ -271,18 +308,18 @@ export function BookingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <h2 className="text-center mb-8 text-gray-900">Your Information</h2>
+              <h2 className="text-center mb-8 text-gray-900">{t('booking.yourInformation')}</h2>
               <div className="grid lg:grid-cols-2 gap-12">
                 {/* Form */}
                 <Card className="p-8 border-0 shadow-xl">
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                      <Label htmlFor="fullname">Full Name*</Label>
+                      <Label htmlFor="fullname">{t('booking.fullNamePlaceholder')}*</Label>
                       <div className="relative mt-2">
                         <User className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5`} />
                         <Input
                           id="fullname"
-                          placeholder="John Doe"
+                          placeholder={t('booking.fullNamePlaceholder')}
                           required
                           className={`${isRTL ? 'pr-10' : 'pl-10'} rounded-xl`}
                         />
@@ -318,7 +355,7 @@ export function BookingPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="notes">Additional Notes</Label>
+                      <Label htmlFor="notes">{t('booking.additionalNotes')}</Label>
                       <div className="relative mt-2">
                         <MessageSquare className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-3 text-gray-400 w-5 h-5`} />
                         <Textarea
@@ -350,12 +387,12 @@ export function BookingPage() {
 
                 {/* Summary */}
                 <Card className="p-8 border-0 shadow-xl bg-gradient-to-br from-pink-50 to-purple-50 h-fit">
-                  <h3 className="mb-6 text-gray-900">Booking Summary</h3>
+                  <h3 className="mb-6 text-gray-900">{t('booking.bookingSummary')}</h3>
                   <div className="space-y-4">
                     <div className="flex justify-between items-start">
                       <span className="text-gray-600">Service:</span>
                       <span className="text-gray-900">
-                        {services.find(s => s.id === selectedService)?.name}
+                        {services.find(s => s.id === selectedService)?.title || services.find(s => s.id === selectedService)?.name}
                       </span>
                     </div>
                     <div className="flex justify-between items-start">
@@ -378,7 +415,7 @@ export function BookingPage() {
                       <div className="flex justify-between items-start">
                         <span className="text-gray-600">Price:</span>
                         <span className="bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                          {services.find(s => s.id === selectedService)?.price}
+                          {services.find(s => s.id === selectedService)?.priceRange || services.find(s => s.id === selectedService)?.price}
                         </span>
                       </div>
                     </div>
@@ -386,7 +423,7 @@ export function BookingPage() {
 
                   <div className="mt-8 p-4 bg-white rounded-xl">
                     <p className="text-gray-600">
-                      <strong>Note:</strong> This is a consultation booking. Final pricing will be discussed during your appointment based on your specific needs.
+                      <strong>{t('booking.note')}:</strong> {config?.disclaimer || t('booking.confirmedBody')}
                     </p>
                   </div>
                 </Card>
@@ -410,18 +447,18 @@ export function BookingPage() {
                 <CheckCircle className="w-16 h-16 text-white" />
               </motion.div>
               
-              <h2 className="mb-4 text-gray-900">Booking Confirmed!</h2>
+              <h2 className="mb-4 text-gray-900">{t('booking.confirmedTitle')}</h2>
               <p className="text-gray-600 mb-8">
-                Thank you for choosing Beauty Implant. We've sent a confirmation email with all the details of your appointment.
+                {t('booking.confirmedBody')}
               </p>
 
               <Card className="p-8 border-0 shadow-xl bg-gradient-to-br from-pink-50 to-purple-50 text-left">
-                <h3 className="mb-6 text-gray-900 text-center">Your Appointment</h3>
+                <h3 className="mb-6 text-gray-900 text-center">{t('booking.yourAppointment')}</h3>
                 <div className="space-y-4">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Service:</span>
                     <span className="text-gray-900">
-                      {services.find(s => s.id === selectedService)?.name}
+                      {services.find(s => s.id === selectedService)?.title || services.find(s => s.id === selectedService)?.name}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -435,7 +472,7 @@ export function BookingPage() {
                     <span className="text-gray-900">{selectedTime}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Confirmation #:</span>
+                    <span className="text-gray-600">{t('booking.confirmationNumber')}:</span>
                     <span className="text-gray-900">BK{Math.floor(Math.random() * 100000)}</span>
                   </div>
                 </div>
@@ -452,12 +489,12 @@ export function BookingPage() {
                   variant="outline"
                   className="rounded-full px-8"
                 >
-                  Book Another
+                  {t('booking.bookAnother')}
                 </Button>
                 <Button
                   className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-full px-8"
                 >
-                  Download Receipt
+                  {t('booking.downloadReceipt')}
                 </Button>
               </div>
             </motion.div>
@@ -470,23 +507,7 @@ export function BookingPage() {
         <section className="py-20 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid md:grid-cols-3 gap-8">
-              {[
-                {
-                  icon: CheckCircle,
-                  title: 'Free Consultation',
-                  description: 'Initial consultation is completely free with no obligations',
-                },
-                {
-                  icon: CalendarIcon,
-                  title: 'Flexible Scheduling',
-                  description: 'Easy rescheduling available up to 24 hours before',
-                },
-                {
-                  icon: Clock,
-                  title: 'Quick Response',
-                  description: 'We confirm all bookings within 2 hours',
-                },
-              ].map((item, index) => (
+              {(infoCards.length ? infoCards : []).map((item, index) => (
                 <motion.div
                   key={index}
                   initial={{ opacity: 0, y: 20 }}
@@ -496,7 +517,7 @@ export function BookingPage() {
                 >
                   <Card className="p-6 text-center border-0 shadow-lg bg-white">
                     <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                      <item.icon className="w-7 h-7 text-white" />
+                      {renderIcon(item.icon)}
                     </div>
                     <h3 className="mb-3 text-gray-900">{item.title}</h3>
                     <p className="text-gray-600">{item.description}</p>

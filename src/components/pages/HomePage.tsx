@@ -7,7 +7,7 @@ import { Card } from '../ui/card';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { api } from '../../api/client';
 
-interface HomeHero { title?: string; subtitle?: string; description?: string; ctaPrimaryLabel?: string; ctaSecondaryLabel?: string; }
+interface HomeHero { title?: string; subtitle?: string; description?: string; ctaPrimaryLabel?: string; ctaSecondaryLabel?: string; imageUrl?: string | null; }
 interface HomeStat { label: string; value: number | string; icon?: string | null; }
 interface HomeFeature { title: string; description?: string; icon?: string | null; }
 interface HomeCTA { heading?: string; subheading?: string; buttonLabel?: string; }
@@ -67,7 +67,7 @@ export function HomePage() {
 
   return (
     <div className="pt-20">
-      {loading && <div className="text-center py-32">Loading...</div>}
+  {loading && <div className="text-center py-32">{t('common.loading')}</div>}
       {error && !loading && <div className="text-center py-32 text-red-600">{error}</div>}
       {!loading && !error && (
         <>
@@ -106,7 +106,11 @@ export function HomePage() {
                 </motion.div>
                 <motion.div initial={{ opacity: 0, x: isRTL ? -50 : 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }} className="relative">
                   <motion.div animate={{ y: [0, -20, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} className="rounded-3xl overflow-hidden shadow-2xl bg-white p-3">
-                    <ImageWithFallback src="https://images.unsplash.com/photo-1673378630655-6a0e8eba07b0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" alt="Beauty treatment" className="rounded-2xl w-full h-auto" />
+                    {hero?.imageUrl ? (
+                      <ImageWithFallback src={hero.imageUrl} alt={t('hero.homeAlt')} className="rounded-2xl w-full h-auto" />
+                    ) : (
+                      <div className="rounded-2xl w-full h-[360px] bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200" aria-label={t('hero.homeAlt')} />
+                    )}
                   </motion.div>
                 </motion.div>
               </div>
@@ -187,7 +191,7 @@ export function HomePage() {
                         <ImageWithFallback src={testimonial.image} alt={testimonial.name} className="w-12 h-12 rounded-full object-cover" />
                         <div>
                           <p className="text-gray-900">{testimonial.name}</p>
-                          <p className="text-gray-500">Verified Client</p>
+                          <p className="text-gray-500">{t('testimonials.verifiedClient')}</p>
                         </div>
                       </div>
                     </Card>
@@ -200,7 +204,7 @@ export function HomePage() {
           <section className="py-20 bg-gradient-to-r from-pink-500 via-purple-600 to-blue-600">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
               <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-                <h2 className="text-white mb-6">{cta?.heading || 'Ready to Transform?'}</h2>
+                <h2 className="text-white mb-6">{cta?.heading || t('services.ctaTitle')}</h2>
                 <p className="text-white/90 mb-8 max-w-2xl mx-auto">{cta?.subheading || ''}</p>
                 {cta?.buttonLabel && <Button className="bg-white text-purple-600 hover:bg-gray-100 rounded-full px-8 shadow-xl">{cta.buttonLabel}</Button>}
               </motion.div>

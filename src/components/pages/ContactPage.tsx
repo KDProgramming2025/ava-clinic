@@ -126,7 +126,7 @@ export function ContactPage() {
               {t('contact')}
             </h1>
             <p className="text-gray-700 max-w-3xl mx-auto">
-              We're here to answer your questions and help you begin your beauty journey
+              {t('contact.subtitle')}
             </p>
           </motion.div>
         </div>
@@ -182,7 +182,7 @@ export function ContactPage() {
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="name">{t('name')}*</Label>
-                      <Input id="name" placeholder="Your name" required className="mt-2 rounded-xl" value={name} onChange={e => setName(e.target.value)} />
+                      <Input id="name" placeholder={t('contact.form.namePlaceholder')} required className="mt-2 rounded-xl" value={name} onChange={e => setName(e.target.value)} />
                     </div>
                     <div>
                       <Label htmlFor="email">{t('email')}*</Label>
@@ -197,12 +197,12 @@ export function ContactPage() {
 
                   <div>
                     <Label htmlFor="subject">Subject*</Label>
-                    <Input id="subject" placeholder="How can we help?" required className="mt-2 rounded-xl" value={subject} onChange={e => setSubject(e.target.value)} />
+                    <Input id="subject" placeholder={t('contact.form.subjectPlaceholder')} required className="mt-2 rounded-xl" value={subject} onChange={e => setSubject(e.target.value)} />
                   </div>
 
                   <div>
                     <Label htmlFor="message">{t('message')}*</Label>
-                    <Textarea id="message" placeholder="Tell us more about your inquiry..." required className="mt-2 rounded-xl min-h-[150px]" value={message} onChange={e => setMessage(e.target.value)} />
+                    <Textarea id="message" placeholder={t('contact.form.messagePlaceholder')} required className="mt-2 rounded-xl min-h-[150px]" value={message} onChange={e => setMessage(e.target.value)} />
                   </div>
 
                   <Button type="submit" disabled={submitting} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl shadow-lg">
@@ -223,10 +223,10 @@ export function ContactPage() {
               {/* Map */}
               <Card className="overflow-hidden border-0 shadow-xl">
                 <div className="h-80 bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
-                  <div className="text-center">
+                    <div className="text-center">
                     <MapPin className="w-16 h-16 text-pink-500 mx-auto mb-4" />
-                    <p className="text-gray-600">Interactive Map</p>
-                    <p className="text-gray-500 mt-2">123 Beauty Street, Medical District</p>
+                    <p className="text-gray-600">{t('contact.map.title')}</p>
+                    <p className="text-gray-500 mt-2">{t('contact.map.addressPlaceholder')}</p>
                   </div>
                 </div>
               </Card>
@@ -239,7 +239,7 @@ export function ContactPage() {
                 <div className="relative z-10">
                   <h3 className="mb-3 text-white">{t('followUs')}</h3>
                   <p className="text-white/90 mb-6">
-                    Stay connected for beauty tips, updates, and exclusive offers
+                    {t('contact.social.subtitle')}
                   </p>
                   <div className="grid grid-cols-4 gap-4">
                     {social.map((s, index) => (
@@ -261,7 +261,7 @@ export function ContactPage() {
 
               {/* Quick Links */}
               <Card className="p-6 border-0 shadow-xl">
-                <h3 className="mb-4 text-gray-900">Quick Actions</h3>
+                <h3 className="mb-4 text-gray-900">{t('contact.quickActions.title')}</h3>
                 <div className="space-y-3">
                   {quickActions.map((qa, idx) => {
                     const Icon = iconForQuickAction(qa);
@@ -281,7 +281,7 @@ export function ContactPage() {
                     );
                   })}
                   {quickActions.length === 0 && (
-                    <p className="text-gray-600">No quick actions configured.</p>
+                    <p className="text-gray-600">{t('contact.quickActions.empty')}</p>
                   )}
                 </div>
               </Card>
@@ -300,10 +300,10 @@ export function ContactPage() {
             className="text-center mb-12"
           >
             <h2 className="mb-4 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-              Frequently Asked Questions
+              {t('contact.faqs.title')}
             </h2>
             <p className="text-gray-600">
-              Quick answers to common questions
+              {t('contact.faqs.subtitle')}
             </p>
           </motion.div>
 
@@ -328,7 +328,7 @@ export function ContactPage() {
             <p className="text-gray-600">
               Have more questions?{' '}
               <button className="text-pink-600 hover:text-pink-700">
-                View all FAQs
+                {t('contact.faqs.viewAll')}
               </button>
             </p>
           </div>

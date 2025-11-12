@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { Navigation } from './components/Navigation';
 import { Footer } from './components/Footer';
 import { LanguageProvider } from './components/LanguageContext';
@@ -6,6 +6,7 @@ import { ChatWidget } from './components/ChatWidget';
 import { ScrollToTop } from './components/ScrollToTop';
 import { Toaster } from './components/ui/sonner';
 import { AdminProvider, useAdmin } from './components/admin/AdminContext';
+import { api } from './api/client';
 
 // Public pages (code-split via lazy)
 const HomePage = lazy(() => import('./components/pages/HomePage').then(m => ({ default: m.HomePage })));
@@ -16,79 +17,41 @@ const MagazinePage = lazy(() => import('./components/pages/MagazinePage').then(m
 const ContactPage = lazy(() => import('./components/pages/ContactPage').then(m => ({ default: m.ContactPage })));
 const BookingPage = lazy(() => import('./components/pages/BookingPage').then(m => ({ default: m.BookingPage })));
 
-// Admin area (code-split)
+// Admin area (single lazy chunk) - reduce initial bundle by loading one entry point
 const AdminLogin = lazy(() => import('./components/admin/AdminLogin').then(m => ({ default: m.AdminLogin })));
-const AdminLayout = lazy(() => import('./components/admin/AdminLayout').then(m => ({ default: m.AdminLayout })));
-const AdminDashboard = lazy(() => import('./components/admin/pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
-const BookingsManagement = lazy(() => import('./components/admin/pages/BookingsManagement').then(m => ({ default: m.BookingsManagement })));
-const ClientsManagement = lazy(() => import('./components/admin/pages/ClientsManagement').then(m => ({ default: m.ClientsManagement })));
-const ServicesManagement = lazy(() => import('./components/admin/pages/ServicesManagement').then(m => ({ default: m.ServicesManagement })));
-const ContentManagement = lazy(() => import('./components/admin/pages/ContentManagement').then(m => ({ default: m.ContentManagement })));
-const MessagesManagement = lazy(() => import('./components/admin/pages/MessagesManagement').then(m => ({ default: m.MessagesManagement })));
-const TeamManagement = lazy(() => import('./components/admin/pages/TeamManagement').then(m => ({ default: m.TeamManagement })));
-const SettingsManagement = lazy(() => import('./components/admin/pages/SettingsManagement').then(m => ({ default: m.SettingsManagement })));
-// Simpler dynamic imports relying on default exports; TS complaints earlier likely due to module resolution config. Keeping consistent pattern used by other pages.
-// Use explicit relative path with .tsx extension to satisfy module resolution for certain TS configs
-const AdminUsersManagement = lazy(() => import('./components/admin/pages/AdminUsersManagement.tsx').then(m => ({ default: m.default || (m as any).AdminUsersManagement })));
-const TestimonialsManagement = lazy(() => import('./components/admin/pages/TestimonialsManagement.tsx').then(m => ({ default: m.default || (m as any).TestimonialsManagement })));
-const HomeContentManagement = lazy(() => import('./components/admin/pages/HomeContentManagement').then(m => ({ default: m.HomeContentManagement })));
-const AboutContentManagement = lazy(() => import('./components/admin/pages/AboutContentManagement').then(m => ({ default: m.AboutContentManagement })));
-const ContactContentManagement = lazy(() => import('./components/admin/pages/ContactContentManagement').then(m => ({ default: m.ContactContentManagement })));
-const NewsletterSettings = lazy(() => import('./components/admin/pages/NewsletterSettings').then(m => ({ default: m.NewsletterSettings })));
-const SEOSettings = lazy(() => import('./components/admin/pages/SEOSettings').then(m => ({ default: m.SEOSettings })));
-const TranslationsManagement = lazy(() => import('./components/admin/pages/TranslationsManagement.tsx').then(m => ({ default: m.default || (m as any).TranslationsManagement })));
-const MediaLibrary = lazy(() => import('./components/admin/pages/MediaLibrary.tsx').then(m => ({ default: m.default || (m as any).MediaLibrary })));
+const AdminModule = lazy(() => import('./components/admin/AdminLayout').then(async layout => {
+  // Dynamically import sub-pages inside same chunk boundary (sequential imports still bundled together by Vite when inside this callback)
+  const [pages] = await Promise.all([
+    import('./components/admin/pages/AdminDashboard'),
+    import('./components/admin/pages/BookingsManagement'),
+    import('./components/admin/pages/ClientsManagement'),
+    import('./components/admin/pages/ServicesManagement'),
+    import('./components/admin/pages/ContentManagement'),
+    import('./components/admin/pages/MessagesManagement'),
+    import('./components/admin/pages/TeamManagement'),
+    import('./components/admin/pages/SettingsManagement'),
+    import('./components/admin/pages/AdminUsersManagement.tsx'),
+    import('./components/admin/pages/TestimonialsManagement.tsx'),
+    import('./components/admin/pages/HomeContentManagement'),
+    import('./components/admin/pages/AboutContentManagement'),
+    import('./components/admin/pages/ContactContentManagement'),
+    import('./components/admin/pages/NewsletterSettings'),
+    import('./components/admin/pages/SEOSettings'),
+    import('./components/admin/pages/TranslationsManagement.tsx'),
+    import('./components/admin/pages/MediaLibrary.tsx'),
+    import('./components/admin/pages/BookingFlowConfig'),
+    import('./components/admin/pages/BookingInfoManagement'),
+    import('./components/admin/pages/NavigationManagement'),
+    import('./components/admin/pages/FooterLinksManagement'),
+  ]);
+  return { default: layout.AdminLayout };
+}));
 
+// Lightweight indirection: actual admin page rendering happens inside AdminLayout chunk; keep minimal placeholder
 function AdminApp() {
-  const [adminPage, setAdminPage] = useState('dashboard');
-
-  const renderAdminPage = () => {
-    switch (adminPage) {
-      case 'dashboard':
-        return <AdminDashboard />;
-      case 'bookings':
-        return <BookingsManagement />;
-      case 'clients':
-        return <ClientsManagement />;
-      case 'services':
-        return <ServicesManagement />;
-      case 'videos':
-      case 'magazine':
-        return <ContentManagement />;
-      case 'messages':
-        return <MessagesManagement />;
-      case 'testimonials':
-        return <TestimonialsManagement />;
-      case 'home-content':
-        return <HomeContentManagement />;
-      case 'about-content':
-        return <AboutContentManagement />;
-      case 'contact-content':
-        return <ContactContentManagement />;
-      case 'seo-settings':
-        return <SEOSettings />;
-      case 'newsletter':
-        return <NewsletterSettings />;
-      case 'translations':
-        return <TranslationsManagement />;
-      case 'team':
-        return <TeamManagement />;
-      case 'media':
-        return <MediaLibrary />;
-      case 'settings':
-        return <SettingsManagement />;
-      case 'admin-users':
-        return <Suspense fallback={<div>Loading Admin Users...</div>}><AdminUsersManagement /></Suspense>;
-      default:
-        return <AdminDashboard />;
-    }
-  };
-
   return (
-    <Suspense fallback={<div className="p-6 text-center text-gray-500">Loading admin…</div>}>
-      <AdminLayout currentPage={adminPage} onNavigate={setAdminPage}>
-        {renderAdminPage()}
-      </AdminLayout>
+    <Suspense fallback={<div className="p-6 text-center text-gray-500" data-robots="noindex">Loading admin…</div>}>
+      <AdminModule />
     </Suspense>
   );
 }
@@ -97,6 +60,132 @@ function MainApp() {
   const [currentPage, setCurrentPage] = useState('home');
   const [viewMode, setViewMode] = useState<'public' | 'admin'>('public');
   const { isAdminAuthenticated } = useAdmin();
+
+  // Runtime SEO/meta updates from settings
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.settings();
+        if (cancelled) return;
+        const meta = data?.settings || {};
+        // Apply per-page override if set, else fallback to site title/description
+        const pathMap: Record<string,string> = {
+          home: '/',
+          about: '/about',
+          services: '/services',
+          'video-gallery': '/videos',
+          magazine: '/magazine',
+          contact: '/contact',
+          booking: '/booking'
+        };
+        const currentPath = pathMap[currentPage] || '/';
+        const perPage = (meta.perPageSeo || {})[currentPath] || {};
+        const title = perPage.title || meta.siteTitle;
+        const description = perPage.description || meta.metaDescription;
+        if (title) document.title = title;
+        const md = document.querySelector('meta[name="description"]');
+        if (description) {
+          if (md) md.setAttribute('content', description);
+          else {
+            const el = document.createElement('meta');
+            el.setAttribute('name', 'description');
+            el.setAttribute('content', description);
+            document.head.appendChild(el);
+          }
+        }
+        const origin = window.location.origin;
+        const canonicalHref = `${origin}${currentPath}`;
+        // Canonical link
+        let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+        if (!canonical) { canonical = document.createElement('link'); canonical.rel = 'canonical'; document.head.appendChild(canonical); }
+        canonical.href = canonicalHref;
+
+        // Open Graph
+        const ensureOg = (property: string, content?: string) => {
+          if (!content) return;
+          let node = document.querySelector(`meta[property="${property}"]`);
+          if (!node) { node = document.createElement('meta'); node.setAttribute('property', property); document.head.appendChild(node); }
+          node.setAttribute('content', content);
+        };
+        ensureOg('og:type', currentPath === '/' ? 'website' : 'article');
+        ensureOg('og:site_name', meta.siteTitle || undefined);
+        ensureOg('og:title', title || undefined);
+        ensureOg('og:description', description || undefined);
+        ensureOg('og:url', canonicalHref);
+        ensureOg('og:image', meta.ogImage || undefined);
+
+        // Twitter Cards
+        const ensureTw = (name: string, content?: string) => {
+          if (!content) return;
+          let node = document.querySelector(`meta[name="${name}"]`);
+          if (!node) { node = document.createElement('meta'); node.setAttribute('name', name); document.head.appendChild(node); }
+          node.setAttribute('content', content);
+        };
+        ensureTw('twitter:card', 'summary_large_image');
+        ensureTw('twitter:title', title || undefined);
+        ensureTw('twitter:description', description || undefined);
+        ensureTw('twitter:image', meta.ogImage || undefined);
+        if (meta.siteTitle) ensureTw('twitter:site', meta.siteTitle);
+
+        // Link sitemap reference (optional hint)
+        let sitemap = document.querySelector('link[rel="sitemap"]');
+        if (!sitemap) { sitemap = document.createElement('link'); sitemap.setAttribute('rel', 'sitemap'); sitemap.setAttribute('type', 'application/xml'); sitemap.setAttribute('href', '/sitemap.xml'); document.head.appendChild(sitemap); }
+
+        // Ensure robots allows indexing on public pages
+        let robots = document.querySelector('meta[name="robots"]');
+        if (!robots) { robots = document.createElement('meta'); robots.setAttribute('name', 'robots'); document.head.appendChild(robots); }
+        robots.setAttribute('content', 'index,follow');
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [currentPage]);
+
+  // Flip robots to noindex for admin view, reset on exit
+  useEffect(() => {
+    const robots = document.querySelector('meta[name="robots"]');
+    if (viewMode === 'admin') {
+      if (robots) robots.setAttribute('content', 'noindex,nofollow');
+      else {
+        const el = document.createElement('meta'); el.setAttribute('name', 'robots'); el.setAttribute('content', 'noindex,nofollow'); document.head.appendChild(el);
+      }
+    }
+  }, [viewMode]);
+
+  // Inject JSON-LD structured data on page changes
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const pathMap: Record<string,string> = {
+          home: '/',
+          about: '/about',
+          services: '/services',
+          'video-gallery': '/videos',
+          magazine: '/magazine',
+          contact: '/contact',
+          booking: '/booking'
+        };
+        const path = pathMap[currentPage] || '/';
+        const res = await fetch(`/api/seo/jsonld?path=${encodeURIComponent(path)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        // Remove previous injected json-ld nodes we created
+        document.querySelectorAll('script[data-jsonld="dynamic"]').forEach(n => n.remove());
+        if (Array.isArray(data)) {
+          for (const chunk of data) {
+            const el = document.createElement('script');
+            el.type = 'application/ld+json';
+            el.dataset.jsonld = 'dynamic';
+            el.textContent = JSON.stringify(chunk);
+            document.head.appendChild(el);
+          }
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [currentPage]);
 
   // Add admin access button (hidden shortcut)
   const checkAdminAccess = (e: React.KeyboardEvent) => {
@@ -128,9 +217,18 @@ function MainApp() {
 
   // Show admin panel if in admin mode
   if (viewMode === 'admin') {
+    // Inject robots noindex meta for admin views
+    const robotsTag = document.querySelector('meta[name="robots"]');
+    if (robotsTag) robotsTag.setAttribute('content', 'noindex,nofollow');
+    else {
+      const el = document.createElement('meta');
+      el.setAttribute('name', 'robots');
+      el.setAttribute('content', 'noindex,nofollow');
+      document.head.appendChild(el);
+    }
     if (!isAdminAuthenticated) {
       return (
-        <Suspense fallback={<div className="p-6 text-center text-gray-500">Loading…</div>}>
+        <Suspense fallback={<div className="p-6 text-center text-gray-500" data-robots="noindex">Loading…</div>}>
           <AdminLogin />
         </Suspense>
       );
@@ -145,7 +243,7 @@ function MainApp() {
         onKeyDown={checkAdminAccess}
         tabIndex={0}
       >
-        <Navigation currentPage={currentPage} onNavigate={setCurrentPage} />
+  <Navigation currentPage={currentPage} onNavigate={setCurrentPage} />
         <main>
           <Suspense fallback={<div className="p-10 text-center text-gray-500">Loading…</div>}>
             {renderPage()}

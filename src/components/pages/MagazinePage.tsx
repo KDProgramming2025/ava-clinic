@@ -74,10 +74,10 @@ export function MagazinePage() {
             className="text-center mb-12"
           >
             <h1 className="mb-6 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-              Beauty Magazine
+              {t('magazine.title')}
             </h1>
             <p className="text-gray-700 max-w-3xl mx-auto">
-              Expert insights, tips, and the latest trends in hair and beauty care
+              {t('magazine.subtitle')}
             </p>
           </motion.div>
 
@@ -98,13 +98,13 @@ export function MagazinePage() {
                   />
                   <div className="absolute top-4 left-4">
                     <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white">
-                      Featured
+                      {t('magazine.featured')}
                     </Badge>
                   </div>
                 </div>
                 <div className="p-8 lg:p-12 flex flex-col justify-center bg-gradient-to-br from-white to-pink-50/30">
                   <Badge className="mb-4 w-fit bg-pink-100 text-pink-700 border-0">
-                    {featured.category?.name || 'General'}
+                    {featured.category?.name || t('magazine.general')}
                   </Badge>
                   <h2 className="mb-4 text-gray-900">{featured.title}</h2>
                   <p className="text-gray-600 mb-6">{featured.excerpt}</p>
@@ -140,7 +140,7 @@ export function MagazinePage() {
           <div className="grid lg:grid-cols-3 gap-12">
             {/* Articles */}
             <div className="lg:col-span-2">
-              <h2 className="mb-8 text-gray-900">Latest Articles</h2>
+              <h2 className="mb-8 text-gray-900">{t('magazine.latest')}</h2>
               <div className="space-y-8">
                 {loading && <div className="text-center py-8">Loading...</div>}
                 {error && !loading && <div className="text-center py-8 text-red-600">{error}</div>}
@@ -163,7 +163,7 @@ export function MagazinePage() {
                         </div>
                         <div className="p-6 flex-1 flex flex-col">
                           <Badge className="mb-3 w-fit bg-purple-100 text-purple-700 border-0">
-                            {article.category?.name || 'General'}
+                            {article.category?.name || t('magazine.general')}
                           </Badge>
                           <h3 className="mb-3 text-gray-900">{article.title}</h3>
                           <p className="text-gray-600 mb-4 flex-1">{article.excerpt}</p>
@@ -179,7 +179,7 @@ export function MagazinePage() {
                               </span>
                             </div>
                             <Button variant="ghost" className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 rounded-full">
-                              Read <ArrowRight className={`w-4 h-4 ${isRTL ? 'mr-2' : 'ml-2'}`} />
+                              {t('readMore')} <ArrowRight className={`w-4 h-4 ${isRTL ? 'mr-2' : 'ml-2'}`} />
                             </Button>
                           </div>
                         </div>
@@ -192,7 +192,7 @@ export function MagazinePage() {
               {/* Load More */}
               <div className="text-center mt-12">
                 <Button variant="outline" className="rounded-full px-8 border-2 border-pink-500 text-pink-600 hover:bg-pink-50">
-                  Load More Articles
+                  {t('magazine.loadMore')}
                 </Button>
               </div>
             </div>
@@ -205,7 +205,7 @@ export function MagazinePage() {
                 animate={{ opacity: 1, x: 0 }}
               >
                 <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-white to-purple-50/30">
-                  <h3 className="mb-6 text-gray-900">Categories</h3>
+                  <h3 className="mb-6 text-gray-900">{t('magazine.categories')}</h3>
                   <div className="space-y-3">
                     {categories.map((category, index) => (
                       <motion.button
@@ -235,7 +235,7 @@ export function MagazinePage() {
                 <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-white to-pink-50/30">
                   <div className="flex items-center gap-2 mb-6">
                     <TrendingUp className="w-5 h-5 text-pink-500" />
-                    <h3 className="text-gray-900">Trending Now</h3>
+                    <h3 className="text-gray-900">{t('magazine.trending')}</h3>
                   </div>
                   <div className="space-y-4">
                     {trending.map((item, index) => (
@@ -289,7 +289,7 @@ export function MagazinePage() {
                 transition={{ delay: 0.5 }}
               >
                 <Card className="p-6 border-0 shadow-lg">
-                  <h3 className="mb-6 text-gray-900">Popular Tags</h3>
+                  <h3 className="mb-6 text-gray-900">{t('magazine.popularTags')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {tags.map((tag, index) => (
                       <motion.button

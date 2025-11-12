@@ -22,6 +22,7 @@ model Service {
   image        String?
   priceRange   String?
   duration     String?
+  durationMinutes Int?
   recovery     String?
   benefits     Benefit[]
   processSteps ProcessStep[]
@@ -159,6 +160,7 @@ model Settings {
   emailConfirmTemplate  String? @db.Text
   emailReminderTemplate String? @db.Text
   contactAutoReply      String? @db.Text
+  perPageSeo      Json?   // { "/services": { title, description }, ... }
 }
 
 model HomeHero {
@@ -168,6 +170,7 @@ model HomeHero {
   description          String? @db.Text
   ctaPrimaryLabel      String?
   ctaSecondaryLabel    String?
+  imageUrl             String?
 }
 
 model HomeStat {
@@ -215,6 +218,8 @@ model AboutMission {
   id         Int     @id @default(1)
   heading    String?
   paragraph  String? @db.Text
+  imageHeroUrl      String?
+  imageSecondaryUrl String?
 }
 
 model AboutMissionBullet {
@@ -395,6 +400,17 @@ model Media {
   updatedAt DateTime @updatedAt
 }
 
+// Operational configuration for booking flow and availability
+model BookingSettings {
+  id                     Int     @id @default(1)
+  timeSlots              Json?
+  blackoutDates          Json?
+  disclaimer             String?
+  bufferMinutes          Int?
+  defaultDurationMinutes Int?    @default(60)
+  businessHours          Json?
+}
+
 enum AdminRole {
   SUPERADMIN
   ADMIN
@@ -411,4 +427,13 @@ model AdminUser {
   active       Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+// Booking page informational cards (admin-managed)
+model BookingInfo {
+  id          String  @id @default(cuid())
+  title       String
+  description String? @db.Text
+  icon        String?
+  order       Int     @default(0)
 }

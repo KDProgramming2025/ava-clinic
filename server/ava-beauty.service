@@ -5,11 +5,21 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/var/www/ava-beauty
-ExecStart=/usr/bin/node -e "import('./server/index.js').then(()=>setInterval(()=>{}, 1<<30))"
-Restart=always
-RestartSec=5
+ExecStart=/usr/bin/node /var/www/ava-beauty/server/index.js
 EnvironmentFile=/var/www/ava-beauty/.env
 Environment=NODE_ENV=production
+Environment=PORT=4000
+Restart=on-failure
+RestartSec=3s
+# Ensure graceful stop
+KillSignal=SIGINT
+TimeoutStopSec=15
+# Lower privileges if a service user exists (adjust as needed)
+# User=www-data
+# Group=www-data
+# Journald logging
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

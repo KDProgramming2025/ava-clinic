@@ -83,16 +83,30 @@ export const api = {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null)).toString();
     return apiFetch(`/bookings${qs ? `?${qs}` : ''}`);
   },
+  bookingConfig: () => apiFetch('/booking-config'),
+  availability: (date: string, serviceId?: string) => {
+    const qs = new URLSearchParams({ date, ...(serviceId ? { serviceId } : {}) }).toString();
+    return apiFetch<string[]>(`/booking-config/availability?${qs}`);
+  },
+  bookingInfo: () => apiFetch('/booking-info'),
+  createBookingInfo: (body: any) => apiFetch('/booking-info', { body }),
+  updateBookingInfo: (id: string, body: any) => apiFetch(`/booking-info/${id}`, { method: 'PUT', body }),
+  deleteBookingInfo: (id: string) => apiFetch(`/booking-info/${id}`, { method: 'DELETE' }),
+  reorderBookingInfo: (items: { id: string; order: number }[]) => apiFetch('/booking-info', { method: 'PUT', body: items }),
   clients: (params: Record<string, any> = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null)).toString();
     return apiFetch(`/clients${qs ? `?${qs}` : ''}`);
   },
+  createClient: (body: any) => apiFetch('/clients', { body }),
+  createBooking: (body: any) => apiFetch('/bookings', { body }),
   messages: (params: Record<string, any> = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null)).toString();
     return apiFetch(`/messages${qs ? `?${qs}` : ''}`);
   },
   settings: () => apiFetch('/settings'),
   newsletter: () => apiFetch('/newsletter'),
+  // SEO
+  seoJsonLd: (path: string) => apiFetch('/seo/jsonld?'+ new URLSearchParams({ path }).toString()),
 };
 
 // Generic hook helpers (minimal, avoids external libs)

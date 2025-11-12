@@ -8,7 +8,7 @@ router.get('/', async (_req, res) => {
     const timeline = await prisma.aboutTimeline.findMany({ orderBy: { year: 'asc' } });
     const values = await prisma.aboutValue.findMany();
     const skills = await prisma.aboutSkill.findMany();
-    const mission = await prisma.aboutMission.findUnique({ where: { id: 1 } });
+  const mission = await prisma.aboutMission.findUnique({ where: { id: 1 } });
     const missionBullets = await prisma.aboutMissionBullet.findMany();
     res.json({ timeline, values, skills, mission, missionBullets });
   } catch (e) {

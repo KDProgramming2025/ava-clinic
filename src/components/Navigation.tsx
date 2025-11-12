@@ -3,6 +3,7 @@ import { Menu, X, ChevronDown, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from './LanguageContext';
 import { Button } from './ui/button';
+import { api } from '../api/client';
 
 interface NavigationProps {
   currentPage: string;
@@ -14,6 +15,9 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isServicesOpen, setIsServicesOpen] = useState(false);
   const { t, toggleLanguage, language, isRTL } = useLanguage();
+  const [navItems, setNavItems] = useState<Array<{ id: string; label: string; path?: string; hasDropdown?: boolean }>>([]);
+  const [services, setServices] = useState<Array<{ id: string; label: string }>>([]);
+  const [brand, setBrand] = useState<{ title?: string; logoUrl?: string }>({});
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,24 +26,42 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const services = [
-    { id: 'hair', label: t('hairImplant') },
-    { id: 'eyebrow', label: t('eyebrowImplant') },
-    { id: 'eyelash', label: t('eyelashImplant') },
-    { id: 'beard', label: t('beardImplant') },
-    { id: 'prp', label: t('prp') },
-    { id: 'mesotherapy', label: t('mesotherapy') },
-  ];
-
-  const navItems = [
-    { id: 'home', label: t('home') },
-    { id: 'about', label: t('about') },
-    { id: 'services', label: t('services'), hasDropdown: true },
-    { id: 'video-gallery', label: t('videoGallery') },
-    { id: 'magazine', label: t('magazine') },
-    { id: 'contact', label: t('contact') },
-  ];
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [settings, svc] = await Promise.all([api.settings(), api.services()]);
+        if (cancelled) return;
+        // Navigation from settings; fallback to defaults
+        const items = (settings?.navigation || []).filter((n: any) => n.visible !== false).sort((a: any,b: any)=> (a.order??0)-(b.order??0));
+        if (items.length) {
+          setNavItems(items.map((n: any) => ({ id: (n.path || n.label || '').replace(/^\//, '') || 'home', label: n.label || n.path || '', hasDropdown: (n.path || '') === '/services' })));
+        } else {
+          setNavItems([
+            { id: 'home', label: t('home') },
+            { id: 'about', label: t('about') },
+            { id: 'services', label: t('services'), hasDropdown: true },
+            { id: 'video-gallery', label: t('videoGallery') },
+            { id: 'magazine', label: t('magazine') },
+            { id: 'contact', label: t('contact') },
+          ]);
+        }
+        setServices((svc || []).map((s: any) => ({ id: s.id, label: s.title })));
+        setBrand({ title: settings?.settings?.siteTitle, logoUrl: settings?.settings?.logoUrl });
+      } catch {
+        setNavItems([
+          { id: 'home', label: t('home') },
+          { id: 'about', label: t('about') },
+          { id: 'services', label: t('services'), hasDropdown: true },
+          { id: 'video-gallery', label: t('videoGallery') },
+          { id: 'magazine', label: t('magazine') },
+          { id: 'contact', label: t('contact') },
+        ]);
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
 
   return (
     <motion.nav
@@ -59,11 +81,15 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
             className="flex items-center cursor-pointer"
             onClick={() => onNavigate('home')}
           >
-            <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-white">✨</span>
-            </div>
+            {brand.logoUrl ? (
+              <img src={brand.logoUrl} alt={brand.title || 'Logo'} className="w-12 h-12 rounded-full object-cover shadow-lg" />
+            ) : (
+              <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                <span className="text-white">✨</span>
+              </div>
+            )}
             <span className={`${isRTL ? 'mr-3' : 'ml-3'} bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent`}>
-              Beauty Implant
+              {brand.title || t('brand.name')}
             </span>
           </motion.div>
 

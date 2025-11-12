@@ -10,12 +10,12 @@ import { api } from '../../api/client';
 interface TimelineItem { id?: string; year: number; title: string; description?: string | null; }
 interface ValueItem { id?: string; title: string; description?: string | null; icon?: string | null; }
 interface SkillItem { id?: string; name: string; level: number; }
-interface Mission { heading?: string | null; paragraph?: string | null; }
+interface Mission { heading?: string | null; paragraph?: string | null; imageHeroUrl?: string | null; imageSecondaryUrl?: string | null; }
 interface MissionBullet { id?: string; text: string; }
 interface TeamMember { id?: string; name: string; role: string; bio?: string | null; image?: string | null; active?: boolean; }
 
 export function AboutPage() {
-  const { isRTL } = useLanguage();
+  const { isRTL, t } = useLanguage();
 
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [values, setValues] = useState<ValueItem[]>([]);
@@ -72,7 +72,7 @@ export function AboutPage() {
 
   return (
     <div className="pt-20 min-h-screen">
-      {loading && <div className="text-center py-32">Loading...</div>}
+  {loading && <div className="text-center py-32">{t('common.loading')}</div>}
       {error && !loading && <div className="text-center py-32 text-red-600">{error}</div>}
       {!loading && !error && (
         <>
@@ -85,10 +85,11 @@ export function AboutPage() {
             className="text-center mb-16"
           >
             <h1 className="mb-6 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-              About Us
+              { /* Use translation for hero title */ }
+              {t('about.title')}
             </h1>
             <p className="text-gray-700 max-w-3xl mx-auto">
-              For over 15 years, we've been dedicated to helping our clients achieve natural, beautiful results through advanced hair and eyebrow implant procedures.
+              {mission?.paragraph || t('about.lead')}
             </p>
           </motion.div>
 
@@ -98,11 +99,15 @@ export function AboutPage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <ImageWithFallback
-                src="https://images.unsplash.com/photo-1758691463333-c79215e8bc3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800"
-                alt="Our clinic"
-                className="rounded-3xl shadow-2xl"
-              />
+              {mission?.imageHeroUrl ? (
+                <ImageWithFallback
+                  src={mission.imageHeroUrl}
+                  alt={t('about.missionHeroAlt')}
+                  className="rounded-3xl shadow-2xl"
+                />
+              ) : (
+                <div className="rounded-3xl shadow-2xl h-[360px] bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200" aria-label={t('about.missionHeroAlt')} />
+              )}
             </motion.div>
 
             <motion.div
@@ -111,9 +116,9 @@ export function AboutPage() {
               transition={{ delay: 0.3 }}
               className="space-y-6"
             >
-              <h2 className="text-gray-900">{mission?.heading || 'Our Mission'}</h2>
+              <h2 className="text-gray-900">{mission?.heading || t('about.skillsTitle')}</h2>
               <p className="text-gray-700">
-                {mission?.paragraph || 'We strive to provide world-class services that restore confidence and enhance natural beauty with medical expertise and artistic vision.'}
+                {mission?.paragraph || t('about.skillsSubtitle')}
               </p>
               <div className="space-y-4">
                 {(missionBullets || []).map((b, index) => (
@@ -144,10 +149,10 @@ export function AboutPage() {
             className="text-center mb-16"
           >
             <h2 className="mb-4 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-              Our Core Values
+              {t('about.valuesTitle')}
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              The principles that guide everything we do
+              {t('about.valuesSubtitle')}
             </p>
           </motion.div>
 
@@ -187,10 +192,10 @@ export function AboutPage() {
             className="text-center mb-16"
           >
             <h2 className="mb-4 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-              Our Journey
+              {t('about.timelineTitle')}
             </h2>
             <p className="text-gray-600">
-              A legacy of excellence and innovation
+              {t('about.timelineSubtitle')}
             </p>
           </motion.div>
 
@@ -233,10 +238,10 @@ export function AboutPage() {
               viewport={{ once: true }}
             >
               <h2 className="mb-6 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                Our Expertise
+                {t('about.skillsTitle')}
               </h2>
               <p className="text-gray-700 mb-8">
-                We pride ourselves on maintaining the highest levels of proficiency across all our services, ensuring exceptional results for every client.
+                {t('about.skillsSubtitle')}
               </p>
               <div className="space-y-6">
                 {skills.map((skill, index) => (
@@ -262,11 +267,15 @@ export function AboutPage() {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
             >
-              <ImageWithFallback
-                src="https://images.unsplash.com/photo-1664549761426-6a1cb1032854?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800"
-                alt="Treatment"
-                className="rounded-3xl shadow-2xl"
-              />
+              {mission?.imageSecondaryUrl ? (
+                <ImageWithFallback
+                  src={mission.imageSecondaryUrl}
+                  alt={t('about.missionSecondaryAlt')}
+                  className="rounded-3xl shadow-2xl"
+                />
+              ) : (
+                <div className="rounded-3xl shadow-2xl h-[360px] bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200" aria-label={t('about.missionSecondaryAlt')} />
+              )}
             </motion.div>
           </div>
         </div>
@@ -282,10 +291,10 @@ export function AboutPage() {
             className="text-center mb-16"
           >
             <h2 className="mb-4 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-              Meet Our Team
+              {t('about.teamTitle')}
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Our board-certified specialists are dedicated to your care
+              {t('about.teamSubtitle')}
             </p>
           </motion.div>
 
@@ -341,7 +350,7 @@ export function AboutPage() {
                 );
               })}
               {stats.length === 0 && (
-                <div className="col-span-4 text-center text-white/80">No stats available</div>
+                <div className="col-span-4 text-center text-white/80">{t('about.noStats')}</div>
               )}
             </div>
           </div>

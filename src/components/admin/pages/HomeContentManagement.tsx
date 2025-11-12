@@ -11,7 +11,7 @@ import { Badge } from '../../ui/badge';
 import { toast } from 'sonner';
 import { apiFetch } from '../../../api/client';
 
-interface HomeHero { title?: string|null; subtitle?: string|null; description?: string|null; ctaPrimaryLabel?: string|null; ctaSecondaryLabel?: string|null; }
+interface HomeHero { title?: string|null; subtitle?: string|null; description?: string|null; ctaPrimaryLabel?: string|null; ctaSecondaryLabel?: string|null; imageUrl?: string|null }
 interface HomeStat { id: string; label: string; value: number; icon?: string|null; }
 interface HomeFeature { id: string; title: string; description?: string|null; icon?: string|null; }
 interface HomeCTA { heading?: string|null; subheading?: string|null; buttonLabel?: string|null; }
@@ -24,7 +24,7 @@ export function HomeContentManagement() {
   const [dirty, setDirty] = useState(false);
 
   // Local editable copies
-  const [hero, setHero] = useState<HomeHero>({ title: '', subtitle: '', description: '', ctaPrimaryLabel: '', ctaSecondaryLabel: '' });
+  const [hero, setHero] = useState<HomeHero>({ title: '', subtitle: '', description: '', ctaPrimaryLabel: '', ctaSecondaryLabel: '', imageUrl: '' });
   const [stats, setStats] = useState<HomeStat[]>([]);
   const [features, setFeatures] = useState<HomeFeature[]>([]);
   const [cta, setCta] = useState<HomeCTA>({ heading: '', subheading: '', buttonLabel: '' });
@@ -47,6 +47,7 @@ export function HomeContentManagement() {
         description: res.hero?.description || '',
         ctaPrimaryLabel: res.hero?.ctaPrimaryLabel || '',
         ctaSecondaryLabel: res.hero?.ctaSecondaryLabel || '',
+        imageUrl: res.hero?.imageUrl || '',
       });
       setStats(res.stats || []);
       setFeatures(res.features || []);
@@ -98,6 +99,7 @@ export function HomeContentManagement() {
           description: hero.description?.trim() || null,
           ctaPrimaryLabel: hero.ctaPrimaryLabel?.trim() || null,
           ctaSecondaryLabel: hero.ctaSecondaryLabel?.trim() || null,
+          imageUrl: hero.imageUrl?.trim() || null,
         },
         stats: stats.map(s => ({ label: s.label, value: s.value, icon: s.icon || null })),
         features: features.map(f => ({ title: f.title, description: f.description || null, icon: f.icon || null })),
@@ -121,6 +123,7 @@ export function HomeContentManagement() {
       description: data.hero?.description || '',
       ctaPrimaryLabel: data.hero?.ctaPrimaryLabel || '',
       ctaSecondaryLabel: data.hero?.ctaSecondaryLabel || '',
+      imageUrl: data.hero?.imageUrl || '',
     });
     setStats(data.stats || []);
     setFeatures(data.features || []);
@@ -161,6 +164,10 @@ export function HomeContentManagement() {
               <div className="md:col-span-2">
                 <Label>Description</Label>
                 <Textarea value={hero.description || ''} onChange={(e)=> { setHero(h=>({...h,description:e.target.value})); setDirty(true);} } className="mt-2 rounded-xl" rows={3} />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Hero Image URL</Label>
+                <Input value={hero.imageUrl || ''} onChange={(e)=> { setHero(h=>({...h,imageUrl:e.target.value})); setDirty(true);} } className="mt-2 rounded-xl" placeholder="https://..." />
               </div>
               <div>
                 <Label>Primary CTA Label</Label>

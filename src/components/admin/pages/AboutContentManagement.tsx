@@ -14,7 +14,7 @@ import { apiFetch } from '../../../api/client';
 interface AboutTimeline { id?: string; year: number; title: string; description?: string|null }
 interface AboutValue { id?: string; title: string; description?: string|null; icon?: string|null }
 interface AboutSkill { id?: string; name: string; level: number }
-interface AboutMission { heading?: string|null; paragraph?: string|null }
+interface AboutMission { heading?: string|null; paragraph?: string|null; imageHeroUrl?: string|null; imageSecondaryUrl?: string|null }
 interface AboutBullet { id?: string; text: string }
 interface AboutData { timeline: AboutTimeline[]; values: AboutValue[]; skills: AboutSkill[]; mission?: AboutMission|null; missionBullets: AboutBullet[] }
 
@@ -28,7 +28,7 @@ export function AboutContentManagement() {
   const [timeline, setTimeline] = useState<AboutTimeline[]>([]);
   const [values, setValues] = useState<AboutValue[]>([]);
   const [skills, setSkills] = useState<AboutSkill[]>([]);
-  const [mission, setMission] = useState<AboutMission>({ heading: '', paragraph: '' });
+  const [mission, setMission] = useState<AboutMission>({ heading: '', paragraph: '', imageHeroUrl: '', imageSecondaryUrl: '' });
   const [bullets, setBullets] = useState<AboutBullet[]>([]);
 
   // dialogs state
@@ -54,7 +54,7 @@ export function AboutContentManagement() {
       setTimeline((res.timeline || []).sort((a,b)=>a.year-b.year));
       setValues(res.values || []);
       setSkills(res.skills || []);
-      setMission({ heading: res.mission?.heading || '', paragraph: res.mission?.paragraph || '' });
+  setMission({ heading: res.mission?.heading || '', paragraph: res.mission?.paragraph || '', imageHeroUrl: (res as any).mission?.imageHeroUrl || '', imageSecondaryUrl: (res as any).mission?.imageSecondaryUrl || '' });
       setBullets(res.missionBullets || []);
       setDirty(false);
     } catch (e: any) {
@@ -120,7 +120,7 @@ export function AboutContentManagement() {
         timeline: timeline.sort((a,b)=>a.year-b.year).map(t => ({ year: t.year, title: t.title, description: t.description || null })),
         values: values.map(v => ({ title: v.title, description: v.description || null, icon: v.icon || null })),
         skills: skills.map(s => ({ name: s.name, level: s.level })),
-        mission: { heading: mission.heading?.trim() || null, paragraph: mission.paragraph?.trim() || null },
+  mission: { heading: mission.heading?.trim() || null, paragraph: mission.paragraph?.trim() || null, imageHeroUrl: mission.imageHeroUrl?.trim() || null, imageSecondaryUrl: mission.imageSecondaryUrl?.trim() || null },
         missionBullets: bullets.map(b => ({ text: b.text })),
       };
       await apiFetch('/about', { method: 'PUT', body: payload });
@@ -134,7 +134,7 @@ export function AboutContentManagement() {
     setTimeline((data.timeline || []).sort((a,b)=>a.year-b.year));
     setValues(data.values || []);
     setSkills(data.skills || []);
-    setMission({ heading: data.mission?.heading || '', paragraph: data.mission?.paragraph || '' });
+  setMission({ heading: data.mission?.heading || '', paragraph: data.mission?.paragraph || '', imageHeroUrl: (data as any).mission?.imageHeroUrl || '', imageSecondaryUrl: (data as any).mission?.imageSecondaryUrl || '' });
     setBullets(data.missionBullets || []);
     setDirty(false);
   };
@@ -242,6 +242,14 @@ export function AboutContentManagement() {
               <div className="md:col-span-2">
                 <Label>Paragraph</Label>
                 <Textarea value={mission.paragraph || ''} onChange={(e)=> { setMission(m=>({ ...m, paragraph: e.target.value })); setDirty(true);} } className="mt-2 rounded-xl" rows={3} />
+              </div>
+              <div>
+                <Label>Hero Image URL</Label>
+                <Input value={mission.imageHeroUrl || ''} onChange={(e)=> { setMission(m=>({ ...m, imageHeroUrl: e.target.value })); setDirty(true);} } className="mt-2 rounded-xl" placeholder="https://..." />
+              </div>
+              <div>
+                <Label>Secondary Image URL</Label>
+                <Input value={mission.imageSecondaryUrl || ''} onChange={(e)=> { setMission(m=>({ ...m, imageSecondaryUrl: e.target.value })); setDirty(true);} } className="mt-2 rounded-xl" placeholder="https://..." />
               </div>
             </div>
             <div className="flex items-center justify-between">

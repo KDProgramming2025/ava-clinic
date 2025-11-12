@@ -16,7 +16,7 @@ import {
 } from '../ui/select';
 
 export function VideoGalleryPage() {
-  const { isRTL } = useLanguage();
+  const { isRTL, t } = useLanguage();
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -33,8 +33,8 @@ export function VideoGalleryPage() {
         setLoading(true);
         const [vids, cats] = await Promise.all([api.videos(), api.videoCategories()]);
         if (cancelled) return;
-        setVideos(vids || []);
-        setCategories([{ id: 'all', name: 'All Videos', slug: 'all' }, ...(cats || [])]);
+  setVideos(vids || []);
+  setCategories([{ id: 'all', name: t('videos.all'), slug: 'all' }, ...(cats || [])]);
       } catch (e: any) {
         if (!cancelled) setError(e.message || 'Failed to load videos');
       } finally {
@@ -78,10 +78,10 @@ export function VideoGalleryPage() {
             className="text-center"
           >
             <h1 className="mb-6 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-              Video Gallery
+              {t('videos.title')}
             </h1>
             <p className="text-gray-700 max-w-3xl mx-auto">
-              Watch real procedures, patient testimonials, and expert guidance
+              {t('videos.subtitle')}
             </p>
           </motion.div>
         </div>
@@ -96,7 +96,7 @@ export function VideoGalleryPage() {
               <div className="relative">
                 <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5`} />
                 <Input
-                  placeholder="Search videos..."
+                  placeholder={t('videos.searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={`${isRTL ? 'pr-10' : 'pl-10'} rounded-full`}
@@ -142,7 +142,7 @@ export function VideoGalleryPage() {
 
           {/* Results Count */}
           <p className="text-gray-600 mt-4">
-            Showing {filteredVideos.length} video{filteredVideos.length !== 1 ? 's' : ''}
+            {t('videos.title')}: {filteredVideos.length}
           </p>
         </div>
       </section>
@@ -248,7 +248,7 @@ export function VideoGalleryPage() {
 
           {filteredVideos.length === 0 && (
             <div className="text-center py-20">
-              <p className="text-gray-500">No videos found matching your criteria</p>
+              <p className="text-gray-500">{t('videos.noResults')}</p>
             </div>
           )}
         </div>

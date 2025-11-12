@@ -51,7 +51,7 @@ export function ServicesPage() {
               {t('ourServices')}
             </h1>
             <p className="text-gray-700 max-w-3xl mx-auto">
-              Comprehensive beauty solutions using advanced techniques and personalized care
+              {t('services.subtitle')}
             </p>
           </motion.div>
         </div>
@@ -191,7 +191,7 @@ export function ServicesPage() {
                 animate={{ opacity: 1, y: 0 }}
               >
                 <Card className="p-8 bg-white shadow-xl">
-                  <h2 className="mb-8 text-center text-gray-900">Treatment Process</h2>
+                  <h2 className="mb-8 text-center text-gray-900">{t('services.processTitle')}</h2>
                   <div className="max-w-3xl mx-auto">
                     {(services[selectedService]?.processSteps || services[selectedService]?.process || []).map((step: any, index: number) => (
                       <motion.div
@@ -225,7 +225,7 @@ export function ServicesPage() {
                 animate={{ opacity: 1, y: 0 }}
               >
                 <Card className="p-8 bg-white shadow-xl">
-                  <h2 className="mb-8 text-center text-gray-900">Frequently Asked Questions</h2>
+                  <h2 className="mb-8 text-center text-gray-900">{t('services.faqTitle')}</h2>
                   <div className="max-w-3xl mx-auto space-y-6">
                     {(services[selectedService]?.faq || []).map((faq: any, index: number) => (
                       <motion.div
@@ -256,17 +256,17 @@ export function ServicesPage() {
             viewport={{ once: true }}
           >
             <h2 className="text-white mb-6">
-              Ready to Get Started?
+              {t('services.ctaTitle')}
             </h2>
             <p className="text-white/90 mb-8 max-w-2xl mx-auto">
-              Book a free consultation to discuss your goals and create a personalized treatment plan
+              {t('services.ctaBody')}
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button className="bg-white text-purple-600 hover:bg-gray-100 rounded-full px-8 shadow-xl">
-                Book Consultation
+                {t('services.ctaPrimary')}
               </Button>
               <Button variant="outline" className="border-2 border-white text-white hover:bg-white/10 rounded-full px-8">
-                Contact Us
+                {t('services.ctaSecondary')}
               </Button>
             </div>
           </motion.div>
