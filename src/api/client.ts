@@ -61,7 +61,8 @@ export async function apiFetch<T = any>(path: string, options: RequestOptions = 
 // Convenience endpoint helpers
 export const api = {
   auth: {
-    login: async (email: string, password: string) => apiFetch<{ token: string; role: string; email: string }>('auth/login', { body: { email, password } }),
+    login: async (identifier: string, password: string) =>
+      apiFetch<{ token: string; user: { id: string; email?: string; username?: string; role?: string } }>('auth/login', { body: { identifier, password } }),
   },
   home: () => apiFetch('/home'),
   services: () => apiFetch('/services'),

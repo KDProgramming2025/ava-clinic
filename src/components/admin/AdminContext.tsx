@@ -26,13 +26,15 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const adminLogin = async (emailIn: string, password: string): Promise<boolean> => {
+  const adminLogin = async (identifierIn: string, password: string): Promise<boolean> => {
     try {
-      const res = await api.auth.login(emailIn, password);
+      const cleanId = identifierIn.trim();
+      const res = await api.auth.login(cleanId, password);
       setAuthToken(res.token);
       setToken(res.token);
-      setRole(res.role || null);
-      setEmail(res.email || emailIn);
+      const user = (res as any).user || {};
+      setRole(user.role || null);
+      setEmail(user.email || user.username || cleanId);
       setIsAdminAuthenticated(true);
       return true;
     } catch (e) {

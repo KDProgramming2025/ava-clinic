@@ -16,7 +16,7 @@ export function AdminLogin() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await adminLogin(identifier, password);
+  const success = await adminLogin(identifier, password);
     if (success) toast.success('Welcome back!'); else toast.error('Invalid credentials');
   };
 
