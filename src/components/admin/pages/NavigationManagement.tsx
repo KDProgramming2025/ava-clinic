@@ -7,10 +7,20 @@ import { Input } from '../../ui/input';
 import { Checkbox } from '../../ui/checkbox';
 import { toast } from 'sonner';
 import { apiFetch } from '../../../api/client';
+import { useLanguage } from '../../LanguageContext';
 
-interface NavItem { id?: string; label: string; path: string; order: number; visible: boolean; }
+interface NavItem {
+  id?: string;
+  label?: string;
+  labelEn?: string;
+  labelFa?: string;
+  path: string;
+  order: number;
+  visible: boolean;
+}
 
 export default function NavigationManagement() {
+  const { t } = useLanguage();
   const [items, setItems] = useState<NavItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -20,18 +30,34 @@ export default function NavigationManagement() {
       setLoading(true);
       const data = await apiFetch<any>('/settings');
       const nav = Array.isArray(data?.navigation) ? data.navigation : [];
-      // Ensure order
-      const normalized = nav.map((n: any, i: number) => ({ id: n.id, label: n.label || '', path: n.path || '/', order: n.order ?? i, visible: n.visible ?? true }))
+      // Ensure order and bilingual fallbacks
+      const normalized = nav.map((n: any, i: number) => ({
+        id: n.id,
+        label: n.label || '',
+        labelEn: n.labelEn || n.label || '',
+        labelFa: n.labelFa || n.label || '',
+        path: n.path || '/',
+        order: n.order ?? i,
+        visible: n.visible ?? true,
+      }))
         .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
       setItems(normalized);
     } catch (e: any) {
-      toast.error(e?.message || 'Failed to load navigation');
+      toast.error(e?.message || t('admin.navigationManagement.loadFailed'));
     } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
 
   const add = () => {
-    setItems(prev => [...prev, { label: 'New', path: '/', order: prev.length, visible: true }]);
+    const defaultLabel = t('admin.navigationManagement.label');
+    setItems(prev => [...prev, {
+      label: defaultLabel,
+      labelEn: defaultLabel,
+      labelFa: defaultLabel,
+      path: '/',
+      order: prev.length,
+      visible: true,
+    }]);
   };
   const update = (index: number, patch: Partial<NavItem>) => {
     setItems(prev => prev.map((it, i) => i === index ? { ...it, ...patch } : it));
@@ -46,38 +72,58 @@ export default function NavigationManagement() {
   const save = async () => {
     try {
       setSaving(true);
-      const payload = items.map((n, i) => ({ label: n.label.trim(), path: n.path.trim() || '/', order: i, visible: !!n.visible }));
+      const payload = items.map((n, i) => {
+        const labelEn = (n.labelEn || '').trim();
+        const labelFa = (n.labelFa || '').trim();
+        const fallback = (n.label || '').trim();
+        return {
+          label: labelFa || labelEn || fallback || t('admin.navigationManagement.label'),
+          labelEn: labelEn || null,
+          labelFa: labelFa || null,
+          path: (n.path || '').trim() || '/',
+          order: i,
+          visible: !!n.visible,
+        };
+      });
       await apiFetch('/settings', { method: 'PUT', body: { navigation: payload } });
-      toast.success('Navigation saved');
+  toast.success(t('admin.navigationManagement.saved'));
       await load();
-    } catch (e: any) { toast.error(e?.message || 'Save failed'); }
+  } catch (e: any) { toast.error(e?.message || t('admin.navigationManagement.saveFailed')); }
     finally { setSaving(false); }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-gray-900">Navigation</h1>
+  <h1 className="text-gray-900">{t('admin.navigationManagement.title')}</h1>
         <div className="flex gap-2">
-          <Button onClick={add} className="rounded-xl"><Plus className="w-4 h-4 mr-2"/>Add Item</Button>
-          <Button onClick={save} disabled={saving} className="rounded-xl bg-gradient-to-r from-pink-500 to-purple-600">{saving? 'Saving…':'Save'}</Button>
+          <Button onClick={add} className="rounded-xl"><Plus className="w-4 h-4 mr-2"/>{t('admin.navigationManagement.addItem')}</Button>
+          <Button onClick={save} disabled={saving} className="rounded-xl bg-gradient-to-r from-pink-500 to-purple-600">{saving? t('admin.navigationManagement.saving'): t('admin.navigationManagement.save')}</Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="p-4 text-gray-500">Loading…</div>
+  <div className="p-4 text-gray-500">{t('common.loading')}</div>
       ) : (
         <div className="space-y-4">
           {items.map((it, idx) => (
             <motion.div key={idx} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
               <Card className="p-4">
                 <div className="grid md:grid-cols-12 gap-3 items-center">
-                  <div className="md:col-span-3">
-                    <label className="text-sm text-gray-600">Label</label>
-                    <Input value={it.label} onChange={(e)=> update(idx, { label: e.target.value })} className="mt-1" />
+                  <div className="md:col-span-4">
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-sm text-gray-600">{t('admin.navigationManagement.label')} (EN)</label>
+                        <Input value={it.labelEn || ''} onChange={(e)=> update(idx, { labelEn: e.target.value })} className="mt-1" />
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-600">{t('admin.navigationManagement.label')} (FA)</label>
+                        <Input dir="rtl" value={it.labelFa || ''} onChange={(e)=> update(idx, { labelFa: e.target.value })} className="mt-1 text-right" />
+                      </div>
+                    </div>
                   </div>
                   <div className="md:col-span-5">
-                    <label className="text-sm text-gray-600">Path</label>
+                    <label className="text-sm text-gray-600">{t('admin.navigationManagement.path')}</label>
                     <div className="relative mt-1">
                       <LinkIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <Input value={it.path} onChange={(e)=> update(idx, { path: e.target.value })} className="pl-9" />
@@ -85,7 +131,7 @@ export default function NavigationManagement() {
                   </div>
                   <div className="md:col-span-2 flex items-center gap-2 mt-6 md:mt-0">
                     <Checkbox id={`vis-${idx}`} checked={!!it.visible} onCheckedChange={(v: boolean | 'indeterminate' | undefined)=> update(idx, { visible: !!v })} />
-                    <label htmlFor={`vis-${idx}`} className="text-sm">Visible</label>
+                    <label htmlFor={`vis-${idx}`} className="text-sm">{t('admin.navigationManagement.visible')}</label>
                   </div>
                   <div className="md:col-span-2 flex items-center justify-end gap-2">
                     <Button size="icon" variant="outline" disabled={idx===0} onClick={()=> move(idx, idx-1)}><ArrowUp className="w-4 h-4"/></Button>

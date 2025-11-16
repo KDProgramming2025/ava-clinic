@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { ChangeEvent, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Briefcase, Plus, Edit, Trash2, DollarSign, Clock, Image as ImageIcon } from 'lucide-react';
+import { Briefcase, Plus, Edit, Trash2, DollarSign, Clock, Image as ImageIcon, UploadCloud } from 'lucide-react';
 import { Card } from '../../ui/card';
+import { useLanguage } from '../../LanguageContext';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { Input } from '../../ui/input';
@@ -16,52 +17,107 @@ import {
 } from '../../ui/dialog';
 import { toast } from 'sonner';
 import { apiFetch } from '../../../api/client';
+import { resolveMediaUrl } from '../../../utils/media';
 
 type Service = {
   id: string;
   title: string;
+  titleEn?: string | null;
+  titleFa?: string | null;
   subtitle?: string | null;
+  subtitleEn?: string | null;
+  subtitleFa?: string | null;
   slug: string;
   description: string;
+  descriptionEn?: string | null;
+  descriptionFa?: string | null;
   image?: string | null;
   priceRange?: string | null;
+  priceRangeEn?: string | null;
+  priceRangeFa?: string | null;
   duration?: string | null;
+  durationEn?: string | null;
+  durationFa?: string | null;
   recovery?: string | null;
+  recoveryEn?: string | null;
+  recoveryFa?: string | null;
+  durationMinutes?: number | null;
   createdAt?: string;
-  benefits?: { id: string; text: string }[];
-  processSteps?: { id: string; stepNumber: number; title?: string | null; description: string }[];
-  faq?: { id: string; question: string; answer: string }[];
+  benefits?: { id: string; text: string; textEn?: string | null; textFa?: string | null }[];
+  processSteps?: { id: string; stepNumber: number; title?: string | null; description: string; descriptionEn?: string | null; descriptionFa?: string | null }[];
+  faq?: { id: string; question: string; answer: string; questionEn?: string | null; questionFa?: string | null; answerEn?: string | null; answerFa?: string | null }[];
+};
+
+type BenefitForm = { textEn: string; textFa: string };
+type StepForm = { stepNumber?: number; title?: string; descriptionEn: string; descriptionFa: string };
+type FaqForm = { questionEn: string; questionFa: string; answerEn: string; answerFa: string };
+
+const emptyForm = {
+  titleEn: '',
+  titleFa: '',
+  subtitleEn: '',
+  subtitleFa: '',
+  slug: '',
+  descriptionEn: '',
+  descriptionFa: '',
+  image: '',
+  priceRangeEn: '',
+  priceRangeFa: '',
+  durationEn: '',
+  durationFa: '',
+  durationMinutes: '',
+  recoveryEn: '',
+  recoveryFa: '',
 };
 
 export function ServicesManagement() {
+  const { t } = useLanguage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [form, setForm] = useState<Partial<Service>>({
-    title: '',
-    subtitle: '',
-    slug: '',
-    description: '',
-    image: '',
-    priceRange: '',
-    duration: '',
-    recovery: '',
-  });
-  const [benefits, setBenefits] = useState<{ text: string }[]>([]);
-  const [steps, setSteps] = useState<{ stepNumber?: number; title?: string; description: string }[]>([]);
-  const [faqs, setFaqs] = useState<{ question: string; answer: string }[]>([]);
+  const [form, setForm] = useState<typeof emptyForm>(emptyForm);
+  const [benefits, setBenefits] = useState<BenefitForm[]>([]);
+  const [steps, setSteps] = useState<StepForm[]>([]);
+  const [faqs, setFaqs] = useState<FaqForm[]>([]);
+  const [imageUploading, setImageUploading] = useState(false);
+
+  const handleImageFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      setImageUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const alt = form.titleFa || form.titleEn || form.slug;
+      if (alt) formData.append('alt', alt);
+      formData.append('labels', JSON.stringify(['service']));
+      const uploaded = await apiFetch<{ url?: string; publicUrl?: string }>('/media/upload', { method: 'POST', body: formData });
+      const nextUrl = uploaded?.url || uploaded?.publicUrl;
+      if (nextUrl) {
+        setForm((prev) => ({ ...prev, image: nextUrl }));
+        toast.success(t('admin.media.uploaded'));
+      } else {
+        toast.error(t('admin.media.uploadFailed'));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || t('admin.media.uploadFailed'));
+    } finally {
+      setImageUploading(false);
+      event.target.value = '';
+    }
+  };
 
   const fetchServices = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiFetch<Service[]>('/services');
+      const data = await apiFetch<Service[]>('/services?includeTranslations=1');
       setServices(data);
     } catch (e: any) {
-      setError(e?.message || 'Failed to load services');
+  setError(e?.message || t('admin.saveFailed'));
     } finally {
       setLoading(false);
     }
@@ -73,7 +129,7 @@ export function ServicesManagement() {
 
   const openAddDialog = () => {
     setEditingService(null);
-    setForm({ title: '', subtitle: '', slug: '', description: '', image: '', priceRange: '', duration: '', recovery: '' });
+    setForm({ ...emptyForm });
     setBenefits([]);
     setSteps([]);
     setFaqs([]);
@@ -83,64 +139,159 @@ export function ServicesManagement() {
   const openEditDialog = (svc: Service) => {
     setEditingService(svc);
     setForm({
-      title: svc.title,
-      subtitle: svc.subtitle || '',
+      titleEn: svc.titleEn || svc.title || '',
+      titleFa: svc.titleFa || svc.title || '',
+      subtitleEn: svc.subtitleEn || svc.subtitle || '',
+      subtitleFa: svc.subtitleFa || svc.subtitle || '',
       slug: svc.slug,
-      description: svc.description,
+      descriptionEn: svc.descriptionEn || svc.description || '',
+      descriptionFa: svc.descriptionFa || svc.description || '',
       image: svc.image || '',
-      priceRange: svc.priceRange || '',
-      duration: svc.duration || '',
-      recovery: svc.recovery || '',
+      priceRangeEn: (svc as any).priceRangeEn || svc.priceRange || '',
+      priceRangeFa: (svc as any).priceRangeFa || svc.priceRange || '',
+      durationEn: (svc as any).durationEn || svc.duration || '',
+      durationFa: (svc as any).durationFa || svc.duration || '',
+      durationMinutes: svc.durationMinutes ? String(svc.durationMinutes) : '',
+      recoveryEn: (svc as any).recoveryEn || svc.recovery || '',
+      recoveryFa: (svc as any).recoveryFa || svc.recovery || '',
     });
-    setBenefits((svc.benefits || []).map(b => ({ text: b.text })));
-    setSteps((svc.processSteps || []).sort((a,b)=>a.stepNumber-b.stepNumber).map(s => ({ stepNumber: s.stepNumber, title: s.title || '', description: s.description })));
-    setFaqs((svc.faq || []).map(f => ({ question: f.question, answer: f.answer })));
+    setBenefits((svc.benefits || []).map((b: any) => ({
+      textEn: b.textEn || b.text || '',
+      textFa: b.textFa || b.text || '',
+    })));
+    setSteps((svc.processSteps || [])
+      .sort((a, b) => (a.stepNumber ?? 0) - (b.stepNumber ?? 0))
+      .map((s: any) => ({
+        stepNumber: s.stepNumber,
+        title: s.title || '',
+        descriptionEn: s.descriptionEn || s.description || '',
+        descriptionFa: s.descriptionFa || s.description || '',
+      })));
+    setFaqs((svc.faq || []).map((f: any) => ({
+      questionEn: f.questionEn || f.question || '',
+      questionFa: f.questionFa || f.question || '',
+      answerEn: f.answerEn || f.answer || '',
+      answerFa: f.answerFa || f.answer || '',
+    })));
     setIsDialogOpen(true);
   };
 
   const handleSave = async () => {
-    try {
-      const payload = {
-        title: form.title?.trim(),
-        subtitle: form.subtitle?.trim() || undefined,
-        slug: form.slug?.trim(),
-        description: form.description?.trim(),
-        image: form.image?.trim() || undefined,
-        priceRange: form.priceRange?.trim() || undefined,
-        duration: form.duration?.trim() || undefined,
-        recovery: form.recovery?.trim() || undefined,
-        benefits: benefits.filter(b => b.text?.trim()).map(b => ({ text: b.text.trim() })),
-        processSteps: steps.filter(s => s.description?.trim()).map((s, idx) => ({ stepNumber: s.stepNumber ?? idx + 1, title: s.title?.trim() || undefined, description: s.description.trim() })),
-        faq: faqs.filter(f => f.question?.trim() && f.answer?.trim()).map(f => ({ question: f.question.trim(), answer: f.answer.trim() })),
-      };
-      if (!payload.title || !payload.slug || !payload.description) {
-        toast.error('Please fill required fields: Title, Slug, Description');
-        return;
+    const trimInput = (value?: string | null) => (typeof value === 'string' ? value.trim() : '');
+    const prefer = (...values: Array<string | null | undefined>) => {
+      for (const value of values) {
+        const trimmed = trimInput(value);
+        if (trimmed) return trimmed;
       }
+      return '';
+    };
+
+    const benefitsPayload = benefits
+      .map((b) => {
+        const textEn = trimInput(b.textEn);
+        const textFa = trimInput(b.textFa);
+        const text = prefer(textEn, textFa);
+        if (!text) return null;
+        return { text, textEn: textEn || undefined, textFa: textFa || undefined };
+      })
+      .filter((item): item is { text: string; textEn?: string; textFa?: string } => Boolean(item));
+
+    const stepsPayload = steps
+      .map((s, idx) => {
+        const descriptionEn = trimInput(s.descriptionEn);
+        const descriptionFa = trimInput(s.descriptionFa);
+        const description = prefer(descriptionEn, descriptionFa);
+        if (!description) return null;
+        return {
+          stepNumber: s.stepNumber ?? idx + 1,
+          title: trimInput(s.title) || undefined,
+          description,
+          descriptionEn: descriptionEn || undefined,
+          descriptionFa: descriptionFa || undefined,
+        };
+      })
+      .filter((item): item is { stepNumber: number; title?: string; description: string; descriptionEn?: string; descriptionFa?: string } => Boolean(item));
+
+    const faqPayload = faqs
+      .map((f) => {
+        const questionEn = trimInput(f.questionEn);
+        const questionFa = trimInput(f.questionFa);
+        const answerEn = trimInput(f.answerEn);
+        const answerFa = trimInput(f.answerFa);
+        const question = prefer(questionEn, questionFa);
+        const answer = prefer(answerEn, answerFa);
+        if (!question || !answer) return null;
+        return {
+          question,
+          questionEn: questionEn || undefined,
+          questionFa: questionFa || undefined,
+          answer,
+          answerEn: answerEn || undefined,
+          answerFa: answerFa || undefined,
+        };
+      })
+      .filter((item): item is { question: string; questionEn?: string; questionFa?: string; answer: string; answerEn?: string; answerFa?: string } => Boolean(item));
+
+    const rawDurationMinutes = trimInput(form.durationMinutes);
+    const durationMinutesValue = rawDurationMinutes && Number.isFinite(Number(rawDurationMinutes)) ? Number(rawDurationMinutes) : undefined;
+
+    const payload = {
+      title: prefer(form.titleEn, form.titleFa),
+      titleEn: trimInput(form.titleEn) || undefined,
+      titleFa: trimInput(form.titleFa) || undefined,
+      subtitle: prefer(form.subtitleEn, form.subtitleFa) || undefined,
+      subtitleEn: trimInput(form.subtitleEn) || undefined,
+      subtitleFa: trimInput(form.subtitleFa) || undefined,
+      slug: trimInput(form.slug),
+      description: prefer(form.descriptionEn, form.descriptionFa),
+      descriptionEn: trimInput(form.descriptionEn) || undefined,
+      descriptionFa: trimInput(form.descriptionFa) || undefined,
+      image: trimInput(form.image) || undefined,
+      priceRange: prefer(form.priceRangeEn, form.priceRangeFa) || undefined,
+      priceRangeEn: trimInput(form.priceRangeEn) || undefined,
+      priceRangeFa: trimInput(form.priceRangeFa) || undefined,
+      duration: prefer(form.durationEn, form.durationFa) || undefined,
+      durationEn: trimInput(form.durationEn) || undefined,
+      durationFa: trimInput(form.durationFa) || undefined,
+      durationMinutes: durationMinutesValue,
+      recovery: prefer(form.recoveryEn, form.recoveryFa) || undefined,
+      recoveryEn: trimInput(form.recoveryEn) || undefined,
+      recoveryFa: trimInput(form.recoveryFa) || undefined,
+      benefits: benefitsPayload,
+      processSteps: stepsPayload,
+      faq: faqPayload,
+    };
+
+    if ((!payload.titleEn && !payload.titleFa) || !payload.slug || (!payload.descriptionEn && !payload.descriptionFa)) {
+      toast.error(t('admin.requiredFieldsMissing'));
+      return;
+    }
+
+    try {
       if (editingService) {
         await apiFetch(`/services/${editingService.id}`, { method: 'PUT', body: payload });
-        toast.success('Service updated');
+        toast.success(t('admin.serviceUpdated'));
       } else {
         await apiFetch('/services', { method: 'POST', body: payload });
-        toast.success('Service created');
+        toast.success(t('admin.serviceCreated'));
       }
       setIsDialogOpen(false);
       setEditingService(null);
       await fetchServices();
     } catch (e: any) {
-      if (e?.code === 'slug_conflict') toast.error('Slug already exists');
-      else toast.error(e?.message || 'Save failed');
+      if (e?.code === 'slug_conflict') toast.error(t('admin.slugConflict'));
+      else toast.error(e?.message || t('admin.saveFailed'));
     }
   };
 
   const handleDelete = async (svc: Service) => {
-    if (!confirm(`Delete service "${svc.title}"?`)) return;
+  if (!confirm(`${t('admin.deleteServiceConfirm')} "${svc.title}"?`)) return;
     try {
       await apiFetch(`/services/${svc.id}`, { method: 'DELETE' });
-      toast.success('Service deleted');
+  toast.success(t('admin.serviceDeleted'));
       setServices(prev => prev.filter(s => s.id !== svc.id));
     } catch (e: any) {
-      toast.error(e?.message || 'Delete failed');
+  toast.error(e?.message || t('admin.deleteFailed'));
     }
   };
 
@@ -149,24 +300,24 @@ export function ServicesManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-gray-900">Services Management</h1>
-          <p className="text-gray-600">Manage all services and procedures</p>
+          <h1 className="mb-2 text-gray-900">{t('admin.servicesManagement')}</h1>
+          <p className="text-gray-600">{t('admin.servicesManagementSubtitle')}</p>
         </div>
         <Button
           onClick={openAddDialog}
           className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl"
         >
           <Plus className="w-4 h-4 mr-2" />
-          Add Service
+          {t('admin.addService')}
         </Button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
-          { label: 'Total Services', value: services.length, color: 'from-pink-500 to-rose-600' },
-          { label: 'With Price Range', value: services.filter((s) => !!s.priceRange).length, color: 'from-purple-500 to-violet-600' },
-          { label: 'With Duration', value: services.filter((s) => !!s.duration).length, color: 'from-blue-500 to-cyan-600' },
+          { label: t('admin.totalServices'), value: services.length, color: 'from-pink-500 to-rose-600' },
+          { label: t('admin.withPriceRange'), value: services.filter((s) => !!s.priceRange).length, color: 'from-purple-500 to-violet-600' },
+          { label: t('admin.withDuration'), value: services.filter((s) => !!s.duration).length, color: 'from-blue-500 to-cyan-600' },
         ].map((stat, index) => (
           <motion.div
             key={index}
@@ -186,7 +337,7 @@ export function ServicesManagement() {
 
       {/* Services Grid */}
       {loading && (
-        <div className="p-6 text-gray-500">Loading services…</div>
+  <div className="p-6 text-gray-500">{t('admin.loadingServices')}</div>
       )}
       {error && (
         <div className="p-6 text-red-600">{error}</div>
@@ -213,21 +364,21 @@ export function ServicesManagement() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-gray-600">
                     <DollarSign className="w-4 h-4 text-pink-500" />
-                    <span>Price Range</span>
+                    <span>{t('admin.priceRange')}</span>
                   </div>
                   <span className="text-gray-900">{service.priceRange || '-'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-gray-600">
                     <Clock className="w-4 h-4 text-purple-500" />
-                    <span>Duration</span>
+                    <span>{t('admin.duration')}</span>
                   </div>
                   <span className="text-gray-900">{service.duration || '-'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-gray-600">
                     <Briefcase className="w-4 h-4 text-blue-500" />
-                    <span>Recovery</span>
+                    <span>{t('admin.recovery')}</span>
                   </div>
                   <span className="text-gray-900">{service.recovery || '-'}</span>
                 </div>
@@ -242,7 +393,7 @@ export function ServicesManagement() {
                   onClick={() => openEditDialog(service)}
                 >
                   <Edit className="w-4 h-4 mr-2" />
-                  Edit
+                  {t('admin.edit')}
                 </Button>
                 <Button
                   variant="outline"
@@ -251,7 +402,7 @@ export function ServicesManagement() {
                   onClick={() => handleDelete(service)}
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
+                  {t('admin.delete')}
                 </Button>
               </div>
             </Card>
@@ -270,42 +421,84 @@ export function ServicesManagement() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {editingService ? 'Edit Service' : 'Add New Service'}
+              {editingService ? t('admin.editService') : t('admin.addNewService')}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="service-name">Service Name*</Label>
-              <Input
-                id="service-name"
-                placeholder="e.g., Hair Implant"
-                value={form.title || ''}
-                onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
-                className="mt-2 rounded-xl"
-              />
+            {/* Titles */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="service-name-en">{t('admin.serviceNameLabel')} (EN)</Label>
+                <Input
+                  id="service-name-en"
+                  placeholder="e.g., Hair Implant"
+                  value={form.titleEn || ''}
+                  onChange={(e) => setForm((f: any) => ({ ...f, titleEn: e.target.value }))}
+                  className="mt-2 rounded-xl"
+                />
+              </div>
+              <div>
+                <Label htmlFor="service-name-fa">{t('admin.serviceNameLabel')} (FA)</Label>
+                <Input
+                  id="service-name-fa"
+                  placeholder="مثلاً کاشت مو"
+                  dir="rtl"
+                  className="mt-2 rounded-xl text-right"
+                  value={form.titleFa || ''}
+                  onChange={(e) => setForm((f: any) => ({ ...f, titleFa: e.target.value }))}
+                />
+              </div>
+            </div>
+            {/* Subtitles */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="service-subtitle-en">{t('admin.subtitleLabel')} (EN)</Label>
+                <Input
+                  id="service-subtitle-en"
+                  placeholder="Short subheading"
+                  value={form.subtitleEn || ''}
+                  onChange={(e) => setForm((f: any) => ({ ...f, subtitleEn: e.target.value }))}
+                  className="mt-2 rounded-xl"
+                />
+              </div>
+              <div>
+                <Label htmlFor="service-subtitle-fa">{t('admin.subtitleLabel')} (FA)</Label>
+                <Input
+                  id="service-subtitle-fa"
+                  placeholder="زیرعنوان کوتاه"
+                  dir="rtl"
+                  className="mt-2 rounded-xl text-right"
+                  value={form.subtitleFa || ''}
+                  onChange={(e) => setForm((f: any) => ({ ...f, subtitleFa: e.target.value }))}
+                />
+              </div>
+            </div>
+            {/* Descriptions */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="service-desc-en">{t('admin.descriptionLabel')} (EN)</Label>
+                <Textarea
+                  id="service-desc-en"
+                  placeholder="Describe the service..."
+                  value={form.descriptionEn || ''}
+                  onChange={(e) => setForm((f: any) => ({ ...f, descriptionEn: e.target.value }))}
+                  className="mt-2 rounded-xl"
+                />
+              </div>
+              <div>
+                <Label htmlFor="service-desc-fa">{t('admin.descriptionLabel')} (FA)</Label>
+                <Textarea
+                  id="service-desc-fa"
+                  placeholder="توضیح خدمت..."
+                  dir="rtl"
+                  className="mt-2 rounded-xl text-right"
+                  value={form.descriptionFa || ''}
+                  onChange={(e) => setForm((f: any) => ({ ...f, descriptionFa: e.target.value }))}
+                />
+              </div>
             </div>
             <div>
-              <Label htmlFor="service-subtitle">Subtitle</Label>
-              <Input
-                id="service-subtitle"
-                placeholder="Short subheading"
-                value={form.subtitle || ''}
-                onChange={(e) => setForm(f => ({ ...f, subtitle: e.target.value }))}
-                className="mt-2 rounded-xl"
-              />
-            </div>
-            <div>
-              <Label htmlFor="service-desc">Description*</Label>
-              <Textarea
-                id="service-desc"
-                placeholder="Describe the service..."
-                value={form.description || ''}
-                onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-                className="mt-2 rounded-xl"
-              />
-            </div>
-            <div>
-              <Label htmlFor="service-slug">Slug*</Label>
+              <Label htmlFor="service-slug">{t('admin.slugLabel')}</Label>
               <Input
                 id="service-slug"
                 placeholder="hair-implant"
@@ -316,73 +509,138 @@ export function ServicesManagement() {
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="service-price">Starting Price*</Label>
+                <Label htmlFor="service-price-en">{t('admin.startingPriceLabel')} (EN)</Label>
                 <Input
-                  id="service-price"
+                  id="service-price-en"
                   placeholder="$0"
-                  value={form.priceRange || ''}
-                  onChange={(e) => setForm(f => ({ ...f, priceRange: e.target.value }))}
+                  value={form.priceRangeEn || ''}
+                  onChange={(e) => setForm(f => ({ ...f, priceRangeEn: e.target.value }))}
                   className="mt-2 rounded-xl"
                 />
               </div>
               <div>
-                <Label htmlFor="service-duration">Duration*</Label>
+                <Label htmlFor="service-price-fa">{t('admin.startingPriceLabel')} (FA)</Label>
                 <Input
-                  id="service-duration"
+                  id="service-price-fa"
+                  placeholder="مثلاً ۵ میلیون"
+                  dir="rtl"
+                  className="mt-2 rounded-xl text-right"
+                  value={form.priceRangeFa || ''}
+                  onChange={(e) => setForm(f => ({ ...f, priceRangeFa: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="service-duration-en">{t('admin.durationLabel')} (EN)</Label>
+                <Input
+                  id="service-duration-en"
                   placeholder="e.g., 2-4 hours"
-                  value={form.duration || ''}
-                  onChange={(e) => setForm(f => ({ ...f, duration: e.target.value }))}
+                  value={form.durationEn || ''}
+                  onChange={(e) => setForm(f => ({ ...f, durationEn: e.target.value }))}
+                  className="mt-2 rounded-xl"
+                />
+              </div>
+              <div>
+                <Label htmlFor="service-duration-fa">{t('admin.durationLabel')} (FA)</Label>
+                <Input
+                  id="service-duration-fa"
+                  placeholder="مثلاً ۲ تا ۴ ساعت"
+                  dir="rtl"
+                  className="mt-2 rounded-xl text-right"
+                  value={form.durationFa || ''}
+                  onChange={(e) => setForm(f => ({ ...f, durationFa: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="service-duration-minutes">{t('admin.durationLabel')} (minutes)</Label>
+                <Input
+                  id="service-duration-minutes"
+                  type="number"
+                  min="0"
+                  placeholder="120"
+                  value={form.durationMinutes || ''}
+                  onChange={(e) => setForm(f => ({ ...f, durationMinutes: e.target.value }))}
+                  className="mt-2 rounded-xl"
+                />
+              </div>
+              <div>
+                <Label htmlFor="service-recovery-en">{t('admin.recoveryTimeLabel')} (EN)</Label>
+                <Input
+                  id="service-recovery-en"
+                  placeholder="e.g., 5-7 days"
+                  value={form.recoveryEn || ''}
+                  onChange={(e) => setForm(f => ({ ...f, recoveryEn: e.target.value }))}
                   className="mt-2 rounded-xl"
                 />
               </div>
             </div>
             <div>
-              <Label htmlFor="service-recovery">Recovery Time*</Label>
+              <Label htmlFor="service-recovery-fa">{t('admin.recoveryTimeLabel')} (FA)</Label>
               <Input
-                id="service-recovery"
-                placeholder="e.g., 5-7 days"
-                value={form.recovery || ''}
-                onChange={(e) => setForm(f => ({ ...f, recovery: e.target.value }))}
-                className="mt-2 rounded-xl"
+                id="service-recovery-fa"
+                placeholder="مثلاً ۵ تا ۷ روز"
+                dir="rtl"
+                className="mt-2 rounded-xl text-right"
+                value={form.recoveryFa || ''}
+                onChange={(e) => setForm(f => ({ ...f, recoveryFa: e.target.value }))}
               />
             </div>
             <div>
-              <Label htmlFor="service-image">Image URL</Label>
-              <div className="relative mt-2 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-gray-400" />
-                <Input
-                  id="service-image"
-                  placeholder="https://..."
-                  value={form.image || ''}
-                  onChange={(e) => setForm(f => ({ ...f, image: e.target.value }))}
-                  className="rounded-xl"
-                />
+              <Label htmlFor="service-image">{t('admin.imageUrlLabel')}</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <div className="flex-1 min-w-[220px] flex items-center gap-2 rounded-xl border bg-white px-3 py-2">
+                  <ImageIcon className="w-4 h-4 text-gray-400" />
+                  <Input
+                    id="service-image"
+                    placeholder="https://..."
+                    value={form.image || ''}
+                    onChange={(e) => setForm(f => ({ ...f, image: e.target.value }))}
+                    className="border-0 focus-visible:ring-0 px-0"
+                  />
+                </div>
+                <label className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium cursor-pointer ${imageUploading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-gray-50'}`}>
+                  <UploadCloud className="w-4 h-4" />
+                  {imageUploading ? t('admin.media.uploading') : t('admin.media.uploadImage')}
+                  <input type="file" accept="image/*" className="sr-only" onChange={handleImageFileChange} disabled={imageUploading} />
+                </label>
               </div>
               {form.image && (
-                <img src={form.image} alt="preview" className="mt-3 h-24 w-full object-cover rounded-xl border" />
+                <img src={resolveMediaUrl(form.image)} alt="preview" className="mt-3 h-24 w-full object-cover rounded-xl border" />
               )}
             </div>
             {/* Nested Editors */}
             <div className="pt-4 border-t border-gray-200 space-y-6">
               <div>
-                <Label>Benefits</Label>
+                <Label>{t('admin.benefitsLabel')}</Label>
                 <div className="mt-2 space-y-2">
                   {benefits.map((b, idx) => (
-                    <div key={idx} className="flex gap-2">
+                    <div key={idx} className="rounded-xl bg-gray-50 p-3 space-y-2">
                       <Input
-                        value={b.text}
-                        onChange={(e) => setBenefits(arr => arr.map((x,i)=> i===idx? { text: e.target.value }: x))}
-                        placeholder="Benefit text"
-                        className="flex-1 rounded-xl"
+                        value={b.textEn}
+                        onChange={(e) => setBenefits(arr => arr.map((x,i)=> i===idx? { ...x, textEn: e.target.value }: x))}
+                        placeholder={`${t('admin.benefitPlaceholder')} (EN)`}
+                        className="rounded-xl"
                       />
-                      <Button variant="outline" size="sm" className="rounded-xl text-red-600 hover:bg-red-50" onClick={() => setBenefits(arr => arr.filter((_,i)=>i!==idx))}>✕</Button>
+                      <Input
+                        value={b.textFa}
+                        dir="rtl"
+                        onChange={(e) => setBenefits(arr => arr.map((x,i)=> i===idx? { ...x, textFa: e.target.value }: x))}
+                        placeholder={`${t('admin.benefitPlaceholder')} (FA)`}
+                        className="rounded-xl text-right"
+                      />
+                      <div className="flex justify-end">
+                        <Button variant="outline" size="sm" className="rounded-xl text-red-600 hover:bg-red-50" onClick={() => setBenefits(arr => arr.filter((_,i)=>i!==idx))}>{t('admin.remove')}</Button>
+                      </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setBenefits(arr => [...arr,{ text: '' }])}>Add Benefit</Button>
+                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setBenefits(arr => [...arr,{ textEn: '', textFa: '' }])}>{t('admin.addBenefit')}</Button>
                 </div>
               </div>
               <div>
-                <Label>Process Steps</Label>
+                <Label>{t('admin.processStepsLabel')}</Label>
                 <div className="mt-2 space-y-3">
                   {steps.map((s, idx) => (
                     <div key={idx} className="p-3 rounded-xl bg-gray-50 space-y-2">
@@ -398,46 +656,67 @@ export function ServicesManagement() {
                           value={s.title || ''}
                           onChange={(e) => setSteps(arr => arr.map((x,i)=> i===idx? { ...x, title: e.target.value }: x))}
                           className="md:col-span-2 rounded-xl"
-                          placeholder="Title (optional)"
+                          placeholder={t('admin.subtitleLabel')}
                         />
                         <Textarea
-                          value={s.description}
-                          onChange={(e) => setSteps(arr => arr.map((x,i)=> i===idx? { ...x, description: e.target.value }: x))}
+                          value={s.descriptionEn}
+                          onChange={(e) => setSteps(arr => arr.map((x,i)=> i===idx? { ...x, descriptionEn: e.target.value }: x))}
                           className="md:col-span-2 rounded-xl"
-                          placeholder="Description*"
+                          placeholder={`${t('admin.descriptionLabel')} (EN)`}
+                        />
+                        <Textarea
+                          value={s.descriptionFa}
+                          dir="rtl"
+                          onChange={(e) => setSteps(arr => arr.map((x,i)=> i===idx? { ...x, descriptionFa: e.target.value }: x))}
+                          className="md:col-span-2 rounded-xl text-right"
+                          placeholder={`${t('admin.descriptionLabel')} (FA)`}
                         />
                       </div>
                       <div className="flex justify-end">
-                        <Button variant="outline" size="sm" className="rounded-xl text-red-600 hover:bg-red-50" onClick={() => setSteps(arr => arr.filter((_,i)=>i!==idx))}>Remove</Button>
+                        <Button variant="outline" size="sm" className="rounded-xl text-red-600 hover:bg-red-50" onClick={() => setSteps(arr => arr.filter((_,i)=>i!==idx))}>{t('admin.remove')}</Button>
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setSteps(arr => [...arr,{ description: '' }])}>Add Step</Button>
+                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setSteps(arr => [...arr,{ descriptionEn: '', descriptionFa: '' }])}>{t('admin.addStep')}</Button>
                 </div>
               </div>
               <div>
-                <Label>FAQ</Label>
+                <Label>{t('admin.faqLabel')}</Label>
                 <div className="mt-2 space-y-3">
                   {faqs.map((f, idx) => (
                     <div key={idx} className="p-3 rounded-xl bg-gray-50 space-y-2">
                       <Input
-                        value={f.question}
-                        onChange={(e) => setFaqs(arr => arr.map((x,i)=> i===idx? { ...x, question: e.target.value }: x))}
-                        placeholder="Question*"
+                        value={f.questionEn}
+                        onChange={(e) => setFaqs(arr => arr.map((x,i)=> i===idx? { ...x, questionEn: e.target.value }: x))}
+                        placeholder={`${t('admin.questionPlaceholder')} (EN)`}
+                        className="rounded-xl"
+                      />
+                      <Input
+                        value={f.questionFa}
+                        dir="rtl"
+                        onChange={(e) => setFaqs(arr => arr.map((x,i)=> i===idx? { ...x, questionFa: e.target.value }: x))}
+                        placeholder={`${t('admin.questionPlaceholder')} (FA)`}
+                        className="rounded-xl text-right"
+                      />
+                      <Textarea
+                        value={f.answerEn}
+                        onChange={(e) => setFaqs(arr => arr.map((x,i)=> i===idx? { ...x, answerEn: e.target.value }: x))}
+                        placeholder={`${t('admin.answerPlaceholder')} (EN)`}
                         className="rounded-xl"
                       />
                       <Textarea
-                        value={f.answer}
-                        onChange={(e) => setFaqs(arr => arr.map((x,i)=> i===idx? { ...x, answer: e.target.value }: x))}
-                        placeholder="Answer*"
-                        className="rounded-xl"
+                        value={f.answerFa}
+                        dir="rtl"
+                        onChange={(e) => setFaqs(arr => arr.map((x,i)=> i===idx? { ...x, answerFa: e.target.value }: x))}
+                        placeholder={`${t('admin.answerPlaceholder')} (FA)`}
+                        className="rounded-xl text-right"
                       />
                       <div className="flex justify-end">
-                        <Button variant="outline" size="sm" className="rounded-xl text-red-600 hover:bg-red-50" onClick={() => setFaqs(arr => arr.filter((_,i)=>i!==idx))}>Remove</Button>
+                        <Button variant="outline" size="sm" className="rounded-xl text-red-600 hover:bg-red-50" onClick={() => setFaqs(arr => arr.filter((_,i)=>i!==idx))}>{t('admin.remove')}</Button>
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setFaqs(arr => [...arr,{ question: '', answer: '' }])}>Add FAQ</Button>
+                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setFaqs(arr => [...arr,{ questionEn: '', questionFa: '', answerEn: '', answerFa: '' }])}>{t('admin.addFaq')}</Button>
                 </div>
               </div>
             </div>
@@ -450,13 +729,13 @@ export function ServicesManagement() {
                 setEditingService(null);
               }}
             >
-              Cancel
+              {t('admin.cancel')}
             </Button>
             <Button
               className="bg-gradient-to-r from-pink-500 to-purple-600"
               onClick={handleSave}
             >
-              {editingService ? 'Update' : 'Create'}
+              {editingService ? t('admin.update') : t('admin.create')}
             </Button>
           </DialogFooter>
         </DialogContent>

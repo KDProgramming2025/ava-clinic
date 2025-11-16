@@ -7,6 +7,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { api } from '../../api/client';
+import { SEO } from '../SEO';
 import {
   Select,
   SelectContent,
@@ -16,7 +17,7 @@ import {
 } from '../ui/select';
 
 export function VideoGalleryPage() {
-  const { isRTL, t } = useLanguage();
+  const { isRTL, t, trc } = useLanguage();
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -31,12 +32,12 @@ export function VideoGalleryPage() {
     (async () => {
       try {
         setLoading(true);
-        const [vids, cats] = await Promise.all([api.videos(), api.videoCategories()]);
+    const [vids, cats] = await Promise.all([api.videos(), api.videoCategories()]);
         if (cancelled) return;
   setVideos(vids || []);
   setCategories([{ id: 'all', name: t('videos.all'), slug: 'all' }, ...(cats || [])]);
       } catch (e: any) {
-        if (!cancelled) setError(e.message || 'Failed to load videos');
+        if (!cancelled) setError(e.message || t('videos.loadFailed'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -69,6 +70,34 @@ export function VideoGalleryPage() {
 
   return (
     <div className="pt-20 min-h-screen">
+      {/* SEO Meta */}
+      {(() => {
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.example.com';
+        const canonical = `${origin}/videos`;
+        const alternates = [
+          { hrefLang: 'fa', href: `${origin}/videos` },
+          { hrefLang: 'en', href: `${origin}/videos?lang=en` }
+        ];
+        const breadcrumb = {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: t('home'), item: origin + '/' },
+            { '@type': 'ListItem', position: 2, name: t('videos.title'), item: canonical }
+          ]
+        };
+        return (
+          <SEO
+            title={t('videos.title')}
+            description={t('videos.subtitle')}
+            canonical={canonical}
+            alternates={alternates}
+            image="/og-image.jpg"
+            type="website"
+            jsonLd={breadcrumb}
+          />
+        );
+      })()}
       {/* Hero */}
       <section className="py-20 bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -113,7 +142,7 @@ export function VideoGalleryPage() {
               <SelectContent>
                 {categories.map(cat => (
                   <SelectItem key={cat.id} value={cat.slug || cat.id}>
-                    {cat.name}
+                    {cat.id === 'all' ? t('videos.all') : trc(`video.category.${cat.id}.name`, cat.name)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -150,13 +179,12 @@ export function VideoGalleryPage() {
       {/* Video Gallery */}
       <section className="py-12 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {loading && <div className="text-center py-20">Loading videos...</div>}
-          {error && !loading && <div className="text-center py-20 text-red-600">{error}</div>}
+          {error && <div className="text-center py-20 text-red-600">{error}</div>}
           {viewMode === 'grid' ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {!loading && !error && filteredVideos.map((video, index) => (
+              {(filteredVideos.length ? filteredVideos : loading ? Array.from({length:6}).map(()=>({})) : []).map((video: any, index) => (
                 <motion.div
-                  key={video.id}
+                  key={video.id || index}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.05 }}
@@ -165,37 +193,55 @@ export function VideoGalleryPage() {
                   <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer">
                     <div
                       className="relative h-56 overflow-hidden group"
-                      onClick={() => setSelectedVideo(video.id)}
+                      onClick={() => !loading && video.id && setSelectedVideo(video.id)}
                     >
-                      <ImageWithFallback
-                        src={video.thumbnail || ''}
-                        alt={video.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      />
-                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
-                      
-                      {/* Play Button */}
-                      <motion.div
-                        whileHover={{ scale: 1.1 }}
-                        className="absolute inset-0 flex items-center justify-center"
-                      >
-                        <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-xl">
-                          <Play className="w-8 h-8 text-pink-500 ml-1" fill="currentColor" />
-                        </div>
-                      </motion.div>
-
-                      {/* Duration */}
-                      <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {formatDuration(video.durationSeconds)}
-                      </div>
+                      {loading ? (
+                        <div className="w-full h-full bg-gray-200 animate-pulse" />
+                      ) : (
+                        <>
+                          <ImageWithFallback
+                            src={video.thumbnail || ''}
+                            alt={trc(`video.${video.id}.title`, video.title)}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          />
+                          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
+                          {/* Play Button */}
+                          <motion.div
+                            whileHover={{ scale: 1.1 }}
+                            className="absolute inset-0 flex items-center justify-center"
+                          >
+                            <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-xl">
+                              <Play className="w-8 h-8 text-pink-500 ml-1" fill="currentColor" />
+                            </div>
+                          </motion.div>
+                          {/* Duration */}
+                          <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> {formatDuration(video.durationSeconds)}
+                          </div>
+                        </>
+                      )}
                     </div>
                     <div className="p-4">
-                      <h3 className="mb-2 text-gray-900 line-clamp-2">{video.title}</h3>
-                      <p className="text-gray-600 mb-3 line-clamp-2">{video.description}</p>
-                      <div className="flex items-center justify-between text-gray-500">
-                        <span>{formatViews(video.views)} views</span>
-                        <span className="text-pink-500 capitalize">{video.category?.name || 'Uncategorized'}</span>
-                      </div>
+                      {loading ? (
+                        <>
+                          <div className="h-5 w-5/6 bg-gray-200 rounded mb-2 animate-pulse" />
+                          <div className="h-4 w-full bg-gray-200 rounded mb-2 animate-pulse" />
+                          <div className="h-4 w-4/5 bg-gray-200 rounded mb-3 animate-pulse" />
+                          <div className="flex items-center justify-between text-gray-500">
+                            <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+                            <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <h3 className="mb-2 text-gray-900 line-clamp-2">{trc(`video.${video.id}.title`, video.title)}</h3>
+                          <p className="text-gray-600 mb-3 line-clamp-2">{trc(`video.${video.id}.description`, video.description || '')}</p>
+                          <div className="flex items-center justify-between text-gray-500">
+                            <span>{formatViews(video.views)} {t('videos.viewsSuffix')}</span>
+                            <span className="text-pink-500 capitalize">{trc(`video.category.${video.category?.id || video.categoryId || 'uncategorized'}.name`, video.category?.name || t('videos.uncategorized'))}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </Card>
                 </motion.div>
@@ -203,41 +249,61 @@ export function VideoGalleryPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {!loading && !error && filteredVideos.map((video, index) => (
+              {(filteredVideos.length ? filteredVideos : loading ? Array.from({length:5}).map(()=>({})) : []).map((video: any, index) => (
                 <motion.div
-                  key={video.id}
+                  key={video.id || index}
                   initial={{ opacity: 0, x: isRTL ? 50 : -50 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
                   <Card
                     className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer"
-                    onClick={() => setSelectedVideo(video.id)}
+                    onClick={() => !loading && video.id && setSelectedVideo(video.id)}
                   >
                     <div className="flex flex-col md:flex-row">
                       <div className="relative md:w-80 h-48 overflow-hidden group flex-shrink-0">
-                        <ImageWithFallback
-                          src={video.thumbnail || ''}
-                          alt={video.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-xl">
-                            <Play className="w-8 h-8 text-pink-500 ml-1" fill="currentColor" />
-                          </div>
-                        </div>
-                        <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {formatDuration(video.durationSeconds)}
-                        </div>
+                        {loading ? (
+                          <div className="w-full h-full bg-gray-200 animate-pulse" />
+                        ) : (
+                          <>
+                            <ImageWithFallback
+                              src={video.thumbnail || ''}
+                              alt={trc(`video.${video.id}.title`, video.title)}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            />
+                            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-xl">
+                                <Play className="w-8 h-8 text-pink-500 ml-1" fill="currentColor" />
+                              </div>
+                            </div>
+                            <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> {formatDuration(video.durationSeconds)}
+                            </div>
+                          </>
+                        )}
                       </div>
                       <div className="p-6 flex-1">
-                        <h3 className="mb-3 text-gray-900">{video.title}</h3>
-                        <p className="text-gray-600 mb-4">{video.description}</p>
-                        <div className="flex items-center gap-4 text-gray-500">
-                          <span>{formatViews(video.views)} views</span>
-                          <span className="text-pink-500 capitalize">{video.category?.name || 'Uncategorized'}</span>
-                        </div>
+                        {loading ? (
+                          <>
+                            <div className="h-6 w-2/3 bg-gray-200 rounded mb-3 animate-pulse" />
+                            <div className="h-4 w-full bg-gray-200 rounded mb-2 animate-pulse" />
+                            <div className="h-4 w-5/6 bg-gray-200 rounded mb-4 animate-pulse" />
+                            <div className="flex items-center gap-4 text-gray-500">
+                              <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+                              <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <h3 className="mb-3 text-gray-900">{trc(`video.${video.id}.title`, video.title)}</h3>
+                            <p className="text-gray-600 mb-4">{trc(`video.${video.id}.description`, video.description || '')}</p>
+                            <div className="flex items-center gap-4 text-gray-500">
+                              <span>{formatViews(video.views)} {t('videos.viewsSuffix')}</span>
+                              <span className="text-pink-500 capitalize">{trc(`video.category.${video.category?.id || video.categoryId || 'uncategorized'}.name`, video.category?.name || t('videos.uncategorized'))}</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </Card>
@@ -246,7 +312,7 @@ export function VideoGalleryPage() {
             </div>
           )}
 
-          {filteredVideos.length === 0 && (
+          {!loading && filteredVideos.length === 0 && (
             <div className="text-center py-20">
               <p className="text-gray-500">{t('videos.noResults')}</p>
             </div>
@@ -282,9 +348,9 @@ export function VideoGalleryPage() {
               <div className="aspect-video bg-gray-900 flex items-center justify-center">
                 <div className="text-center">
                   <Play className="w-20 h-20 text-white/50 mx-auto mb-4" />
-                  <p className="text-white/70">Video Player</p>
+                  <p className="text-white/70">{t('videos.playerPlaceholder')}</p>
                   <p className="text-white/50 mt-2">
-                    {videos.find(v => v.id === selectedVideo)?.title}
+                    {(() => { const v = videos.find(v => v.id === selectedVideo); return trc(`video.${v?.id}.title`, v?.title || ''); })()}
                   </p>
                 </div>
               </div>
@@ -292,15 +358,15 @@ export function VideoGalleryPage() {
               {/* Video Info */}
               <div className="p-6 bg-gray-900 text-white">
                 <h3 className="mb-2">
-                  {videos.find(v => v.id === selectedVideo)?.title}
+                  {(() => { const v = videos.find(v => v.id === selectedVideo); return trc(`video.${v?.id}.title`, v?.title || ''); })()}
                 </h3>
                 <p className="text-white/70 mb-4">
-                  {videos.find(v => v.id === selectedVideo)?.description}
+                  {(() => { const v = videos.find(v => v.id === selectedVideo); return trc(`video.${v?.id}.description`, v?.description || ''); })()}
                 </p>
                 <div className="flex items-center gap-4 text-white/60">
                   <span>{formatViews(videos.find(v => v.id === selectedVideo)?.views)} views</span>
                   <span>•</span>
-                  <span className="capitalize">{videos.find(v => v.id === selectedVideo)?.category?.name || 'Uncategorized'}</span>
+                  <span className="capitalize">{(() => { const v = videos.find(v => v.id === selectedVideo); return trc(`video.category.${v?.category?.id || v?.categoryId || 'uncategorized'}.name`, v?.category?.name || t('videos.uncategorized')); })()}</span>
                 </div>
               </div>
             </motion.div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, memo } from 'react';
 import { motion } from 'motion/react';
 import { BookOpen, Search, Plus, Save, RefreshCcw } from 'lucide-react';
 import { Card } from '../../ui/card';
@@ -10,11 +10,16 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { ScrollArea } from '../../ui/scroll-area';
 import { apiFetch } from '../../../api/client';
 import { toast } from 'sonner';
+import { useLanguage } from '../../LanguageContext';
 
 interface TranslationMap { [key: string]: Record<string, string>; }
 interface Row { key: string; values: Record<string, string>; dirty?: boolean; new?: boolean; }
+// RTL language helper
+const RTL_LANGS = new Set(['fa', 'fa-ir', 'ar', 'ar-sa', 'he', 'he-il', 'ur', 'ps']);
+const isRtlLang = (lang: string) => RTL_LANGS.has((lang || '').toLowerCase());
 
 export function TranslationsManagement() {
+  const { t } = useLanguage();
   const [rows, setRows] = useState<Row[]>([]);
   const [filtered, setFiltered] = useState<Row[]>([]);
   const [languages, setLanguages] = useState<string[]>(['en']);
@@ -50,7 +55,7 @@ export function TranslationsManagement() {
       setRows(newRows);
       setFiltered(newRows);
     } catch (e: any) {
-      toast.error(e?.message || 'Failed to load translations');
+      toast.error(e?.message || t('magazine.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -58,13 +63,27 @@ export function TranslationsManagement() {
 
   useEffect(()=>{ load(); }, []);
 
-  useEffect(()=>{
-    debounce(search, (q) => {
-      const lower = q.toLowerCase();
-      setFiltered(rows.filter(r => r.key.toLowerCase().includes(lower) || Object.values(r.values).some(v => v.toLowerCase().includes(lower))));
+  // Keep filtered list in sync with rows cheaply when no search is active
+  useEffect(() => {
+    if (!search.trim()) {
+      setFiltered(rows);
+    }
+  }, [rows, search]);
+
+  // Recompute expensive filter only when search changes (and when rows structurally change)
+  useEffect(() => {
+    const q = search.trim();
+    if (!q) return; // handled by cheap sync above
+    debounce(q, (query) => {
+      const lower = query.toLowerCase();
+      // Use latest rows snapshot: filter by key or any language value
+      setFiltered(rows.filter(r =>
+        r.key.toLowerCase().includes(lower) ||
+        Object.values(r.values).some(v => (v || '').toLowerCase().includes(lower))
+      ));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, rows]);
+  }, [search, rows.length]);
 
   const markDirty = (key: string, lang: string, value: string) => {
     setRows(prev => prev.map(r => r.key === key ? { ...r, values: { ...r.values, [lang]: value }, dirty: true } : r));
@@ -78,8 +97,8 @@ export function TranslationsManagement() {
 
   const addRow = () => {
     const key = newKey.trim();
-    if (!key) { toast.error('Key required'); return; }
-    if (rows.some(r => r.key === key)) { toast.error('Key already exists'); return; }
+    if (!key) { toast.error(t('admin.translations.keyRequired')); return; }
+    if (rows.some(r => r.key === key)) { toast.error(t('admin.translations.keyExists')); return; }
     const row: Row = { key, values: { ...newValues }, dirty: true, new: true };
     setRows(prev => [row, ...prev]);
     setFiltered(prev => [row, ...prev]);
@@ -89,16 +108,20 @@ export function TranslationsManagement() {
   const dirtyCount = rows.filter(r => r.dirty).length;
 
   const bulkSave = async () => {
-    if (!dirtyCount) { toast.message('Nothing to save'); return; }
+    if (!dirtyCount) { toast.message(t('admin.translations.nothingToSave')); return; }
     try {
       setSaving(true);
+      // Ensure the currently edited field commits its value
+      if (typeof document !== 'undefined' && document.activeElement instanceof HTMLTextAreaElement) {
+        (document.activeElement as HTMLTextAreaElement).blur();
+      }
       const payload: TranslationMap = {};
       rows.forEach(r => { if (r.dirty) payload[r.key] = r.values; });
       await apiFetch('/translations', { method: 'PUT', body: payload });
-      toast.success('Translations saved');
+      toast.success(t('admin.translations.saved'));
       setRows(prev => prev.map(r => ({ ...r, dirty: false, new: false })));
     } catch (e: any) {
-      toast.error(e?.message || 'Save failed');
+      toast.error(e?.message || t('admin.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -108,25 +131,25 @@ export function TranslationsManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-gray-900">Translations</h1>
-          <p className="text-gray-600">Manage multi-language key/value strings used across the site</p>
+          <h1 className="mb-2 text-gray-900">{t('admin.translations.title')}</h1>
+          <p className="text-gray-600">{t('admin.translations.subtitle')}</p>
         </div>
         <div className="flex gap-3">
           <Button onClick={openAdd} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">
-            <Plus className="w-4 h-4 mr-2" /> Add Key
+            <Plus className="w-4 h-4 mr-2" /> {t('admin.translations.addKey')}
           </Button>
           <Button variant="outline" onClick={load} className="rounded-xl" disabled={loading}>
-            <RefreshCcw className="w-4 h-4 mr-2" /> Reload
+            <RefreshCcw className="w-4 h-4 mr-2" /> {t('admin.reload')}
           </Button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[{ label: 'Total Keys', value: rows.length, color: 'from-pink-500 to-rose-600' },
-          { label: 'Dirty', value: dirtyCount, color: 'from-yellow-500 to-orange-600' },
-          { label: 'Languages', value: languages.length, color: 'from-purple-500 to-violet-600' },
-          { label: 'Filtered', value: filtered.length, color: 'from-green-500 to-emerald-600' }].map((stat, idx) => (
+        {[{ label: t('admin.translations.totalKeys'), value: rows.length, color: 'from-pink-500 to-rose-600' },
+          { label: t('admin.translations.dirty'), value: dirtyCount, color: 'from-yellow-500 to-orange-600' },
+          { label: t('admin.translations.languages'), value: languages.length, color: 'from-purple-500 to-violet-600' },
+          { label: t('admin.translations.filtered'), value: filtered.length, color: 'from-green-500 to-emerald-600' }].map((stat, idx) => (
           <motion.div key={stat.label} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay: idx * 0.05 }}>
             <Card className="p-4 border-0 shadow-lg">
               <p className="text-gray-600 mb-2">{stat.label}</p>
@@ -142,7 +165,7 @@ export function TranslationsManagement() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
-              placeholder="Search keys or values..."
+              placeholder={t('admin.translations.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 rounded-xl"
@@ -154,7 +177,7 @@ export function TranslationsManagement() {
           onClick={bulkSave}
           className="rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
         >
-          <Save className="w-4 h-4 mr-2" /> {saving ? 'Saving...' : `Save (${dirtyCount})`}
+          <Save className="w-4 h-4 mr-2" /> {saving ? t('admin.saving') : `${t('admin.save')} (${dirtyCount})`}
         </Button>
       </Card>
 
@@ -164,7 +187,7 @@ export function TranslationsManagement() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 w-56">Key</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 w-56">{t('admin.translations.key')}</th>
                 {languages.map(l => (
                   <th key={l} className="text-left px-4 py-3 font-medium text-gray-600">{l.toUpperCase()}</th>
                 ))}
@@ -172,37 +195,17 @@ export function TranslationsManagement() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row, idx) => (
-                <motion.tr key={row.key} initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay: idx * 0.01 }} className={row.dirty ? 'bg-yellow-50' : ''}>
-                  <td className="align-top px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Badge className={row.new ? 'bg-pink-500 text-white' : 'bg-gray-200 text-gray-700'}>{row.new ? 'NEW' : 'KEY'}</Badge>
-                      <span className="text-gray-900 font-mono break-all">{row.key}</span>
-                    </div>
-                  </td>
-                  {languages.map(l => (
-                    <td key={l} className="px-4 py-3">
-                      <Textarea
-                        rows={3}
-                        value={row.values[l]}
-                        onChange={(e) => markDirty(row.key, l, e.target.value)}
-                        className="rounded-md text-xs"
-                      />
-                    </td>
-                  ))}
-                  <td className="px-4 py-3 text-right">
-                    {row.dirty && <span className="text-xs text-yellow-600">Modified</span>}
-                  </td>
-                </motion.tr>
+              {filtered.map((row) => (
+                <TranslationRow key={row.key} row={row} languages={languages} setRows={setRows} modifiedLabel={t('admin.translations.modified')} badgeNewLabel={t('admin.translations.badgeNew')} badgeKeyLabel={t('admin.translations.badgeKey')} />
               ))}
               {!filtered.length && !loading && (
                 <tr>
-                  <td colSpan={languages.length + 2} className="px-4 py-10 text-center text-gray-500">No translation keys match your search.</td>
+                  <td colSpan={languages.length + 2} className="px-4 py-10 text-center text-gray-500">{t('admin.translations.noResults')}</td>
                 </tr>
               )}
               {loading && (
                 <tr>
-                  <td colSpan={languages.length + 2} className="px-4 py-10 text-center text-gray-500">Loading translations…</td>
+                  <td colSpan={languages.length + 2} className="px-4 py-10 text-center text-gray-500">{t('admin.translations.loading')}</td>
                 </tr>
               )}
             </tbody>
@@ -214,11 +217,11 @@ export function TranslationsManagement() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add Translation Key</DialogTitle>
+            <DialogTitle>{t('admin.translations.addDialogTitle')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Input
-              placeholder="unique.key.example"
+              placeholder={t('admin.translations.keyPlaceholder')}
               value={newKey}
               onChange={(e) => setNewKey(e.target.value)}
               className="rounded-xl"
@@ -226,9 +229,11 @@ export function TranslationsManagement() {
             <div className="grid gap-4">
               {languages.map(l => (
                 <div key={l}>
-                  <label className="text-xs text-gray-500 mb-1 block">{l.toUpperCase()} Value</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{l.toUpperCase()} {t('admin.translations.valueLabel')}</label>
                   <Textarea
                     rows={3}
+                    dir={isRtlLang(l) ? 'rtl' : 'ltr'}
+                    className={isRtlLang(l) ? 'text-right' : ''}
                     value={newValues[l]}
                     onChange={(e) => setNewValues(prev => ({ ...prev, [l]: e.target.value }))}
                   />
@@ -237,8 +242,8 @@ export function TranslationsManagement() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" className="rounded-xl" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button onClick={addRow} className="rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700">Add Key</Button>
+            <Button variant="outline" className="rounded-xl" onClick={() => setAddOpen(false)}>{t('admin.translations.cancel')}</Button>
+            <Button onClick={addRow} className="rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700">{t('admin.translations.add')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -247,3 +252,43 @@ export function TranslationsManagement() {
 }
 
 export default TranslationsManagement;
+
+type RowType = Row;
+
+const TranslationRow = memo(function TranslationRow({ row, languages, setRows, modifiedLabel, badgeNewLabel, badgeKeyLabel }: {
+  row: RowType;
+  languages: string[];
+  setRows: React.Dispatch<React.SetStateAction<RowType[]>>;
+  modifiedLabel: string;
+  badgeNewLabel: string;
+  badgeKeyLabel: string;
+}) {
+  const onCommit = (lang: string, value: string) => {
+    setRows(prev => prev.map(r => r.key === row.key ? { ...r, values: { ...r.values, [lang]: value }, dirty: true } : r));
+  };
+  return (
+    <tr className={row.dirty ? 'bg-yellow-50' : ''}>
+      <td className="align-top px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Badge className={row.new ? 'bg-pink-500 text-white' : 'bg-gray-200 text-gray-700'}>{row.new ? badgeNewLabel : badgeKeyLabel}</Badge>
+          <span className="text-gray-900 font-mono break-all">{row.key}</span>
+        </div>
+      </td>
+      {languages.map(l => (
+        <td key={l} className="px-4 py-3">
+          <Textarea
+            key={`${row.key}-${l}`}
+            rows={3}
+            defaultValue={row.values[l]}
+            onBlur={(e) => onCommit(l, e.target.value)}
+            dir={isRtlLang(l) ? 'rtl' : 'ltr'}
+            className={`rounded-md text-xs ${isRtlLang(l) ? 'text-right' : ''}`}
+          />
+        </td>
+      ))}
+      <td className="px-4 py-3 text-right">
+        {row.dirty && <span className="text-xs text-yellow-600">{modifiedLabel}</span>}
+      </td>
+    </tr>
+  );
+});

@@ -18,9 +18,10 @@ import {
 import { toast } from 'sonner';
 import { Badge } from '../ui/badge';
 import { api } from '../../api/client';
+import { SEO } from '../SEO';
 
 export function BookingPage() {
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, trc } = useLanguage();
   const [step, setStep] = useState(1);
   const [services, setServices] = useState<any[]>([]);
   const [selectedService, setSelectedService] = useState('');
@@ -90,7 +91,7 @@ export function BookingPage() {
       const email = (form.querySelector('#email-booking') as HTMLInputElement)?.value || '';
       const phone = (form.querySelector('#phone-booking') as HTMLInputElement)?.value || '';
       const notes = (form.querySelector('#notes') as HTMLTextAreaElement)?.value || '';
-      if (!selectedService || !selectedDate || !selectedTime) { toast.error('Please select service, date and time'); return; }
+  if (!selectedService || !selectedDate || !selectedTime) { toast.error(t('booking.selectServiceError')); return; }
       const client = await api.createClient({ name: fullname, email, phone });
       const [h, m] = selectedTime.split(':').map(Number);
       const start = new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), selectedDate.getUTCDate(), h, m, 0));
@@ -106,10 +107,10 @@ export function BookingPage() {
         status: 'PENDING',
         notes,
       });
-      toast.success('Booking submitted! We will confirm shortly.');
+  toast.success(t('booking.submitSuccess'));
       setStep(4);
     } catch (err: any) {
-      toast.error(err?.message || 'Booking failed');
+  toast.error(err?.message || t('booking.submitFailed'));
     }
   };
 
@@ -143,6 +144,34 @@ export function BookingPage() {
 
   return (
     <div className="pt-20 min-h-screen">
+      {/* SEO Meta */}
+      {(() => {
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.example.com';
+        const canonical = `${origin}/booking`;
+        const alternates = [
+          { hrefLang: 'fa', href: `${origin}/booking` },
+          { hrefLang: 'en', href: `${origin}/booking?lang=en` }
+        ];
+        const breadcrumb = {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: t('home'), item: origin + '/' },
+            { '@type': 'ListItem', position: 2, name: t('booking'), item: canonical }
+          ]
+        };
+        return (
+          <SEO
+            title={t('booking')}
+            description={t('booking.subtitle')}
+            canonical={canonical}
+            alternates={alternates}
+            image="/og-image.jpg"
+            type="website"
+            jsonLd={breadcrumb}
+          />
+        );
+      })()}
       {/* Hero */}
       <section className="py-20 bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -191,20 +220,20 @@ export function BookingPage() {
                       onClick={() => setSelectedService(service.id)}
                     >
                       <div className="flex items-start justify-between mb-4">
-                        <h3 className="text-gray-900">{service.title || service.name}</h3>
+                        <h3 className="text-gray-900">{trc(`service.${service.slug || service.id}.title`, service.title || service.name)}</h3>
                         {selectedService === service.id && (
                           <CheckCircle className="w-6 h-6 text-pink-500" />
                         )}
                       </div>
-                      <p className="text-gray-600 mb-4">{service.description}</p>
+                      <p className="text-gray-600 mb-4">{trc(`service.${service.slug || service.id}.description`, service.description || '')}</p>
                       <div className="flex items-center gap-4 text-gray-500 mb-3">
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-pink-500" />
-                          <span>{service.duration}</span>
+                          <span>{trc(`service.${service.slug || service.id}.duration`, service.duration || '')}</span>
                         </div>
                       </div>
                       <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white">
-                        {service.priceRange || service.price}
+                        {trc(`service.${service.slug || service.id}.priceRange`, service.priceRange || service.price || '')}
                       </Badge>
                     </Card>
                   </motion.div>
@@ -216,7 +245,7 @@ export function BookingPage() {
                   disabled={!selectedService}
                   className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-full px-12 shadow-lg disabled:opacity-50"
                 >
-                  Continue
+                  {t('common.continue')}
                   <ChevronRight className={`w-5 h-5 ${isRTL ? 'mr-2' : 'ml-2'}`} />
                 </Button>
               </div>
@@ -288,14 +317,14 @@ export function BookingPage() {
                   variant="outline"
                   className="rounded-full px-8"
                 >
-                  Back
+                  {t('common.back')}
                 </Button>
                 <Button
                   onClick={() => setStep(3)}
                   disabled={!selectedDate || !selectedTime}
                   className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-full px-12 shadow-lg disabled:opacity-50"
                 >
-                  Continue
+                  {t('common.continue')}
                   <ChevronRight className={`w-5 h-5 ${isRTL ? 'mr-2' : 'ml-2'}`} />
                 </Button>
               </div>
@@ -327,7 +356,7 @@ export function BookingPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="email-booking">Email*</Label>
+                      <Label htmlFor="email-booking">{t('email')}*</Label>
                       <div className="relative mt-2">
                         <Mail className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5`} />
                         <Input
@@ -341,7 +370,7 @@ export function BookingPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="phone-booking">Phone*</Label>
+                      <Label htmlFor="phone-booking">{t('phone')}*</Label>
                       <div className="relative mt-2">
                         <Phone className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5`} />
                         <Input
@@ -360,7 +389,7 @@ export function BookingPage() {
                         <MessageSquare className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-3 text-gray-400 w-5 h-5`} />
                         <Textarea
                           id="notes"
-                          placeholder="Any specific concerns or questions..."
+                          placeholder={t('booking.additionalNotesPlaceholder')}
                           className={`${isRTL ? 'pr-10' : 'pl-10'} rounded-xl min-h-[100px]`}
                         />
                       </div>
@@ -373,7 +402,7 @@ export function BookingPage() {
                         variant="outline"
                         className="flex-1 rounded-xl"
                       >
-                        Back
+                        {t('common.back')}
                       </Button>
                       <Button
                         type="submit"
@@ -390,32 +419,32 @@ export function BookingPage() {
                   <h3 className="mb-6 text-gray-900">{t('booking.bookingSummary')}</h3>
                   <div className="space-y-4">
                     <div className="flex justify-between items-start">
-                      <span className="text-gray-600">Service:</span>
+                      <span className="text-gray-600">{t('booking.summary.service')}</span>
                       <span className="text-gray-900">
-                        {services.find(s => s.id === selectedService)?.title || services.find(s => s.id === selectedService)?.name}
+                        {(() => { const s = services.find(s => s.id === selectedService); return trc(`service.${s?.slug || s?.id}.title`, s?.title || s?.name || ''); })()}
                       </span>
                     </div>
                     <div className="flex justify-between items-start">
-                      <span className="text-gray-600">Date:</span>
+                      <span className="text-gray-600">{t('booking.summary.date')}</span>
                       <span className="text-gray-900">
                         {selectedDate?.toLocaleDateString()}
                       </span>
                     </div>
                     <div className="flex justify-between items-start">
-                      <span className="text-gray-600">Time:</span>
+                      <span className="text-gray-600">{t('booking.summary.time')}</span>
                       <span className="text-gray-900">{selectedTime}</span>
                     </div>
                     <div className="flex justify-between items-start">
-                      <span className="text-gray-600">Duration:</span>
+                      <span className="text-gray-600">{t('booking.summary.duration')}</span>
                       <span className="text-gray-900">
-                        {services.find(s => s.id === selectedService)?.duration}
+                        {(() => { const s = services.find(s => s.id === selectedService); return trc(`service.${s?.slug || s?.id}.duration`, s?.duration || ''); })()}
                       </span>
                     </div>
                     <div className="border-t border-gray-300 pt-4 mt-4">
                       <div className="flex justify-between items-start">
-                        <span className="text-gray-600">Price:</span>
+                        <span className="text-gray-600">{t('booking.summary.price')}</span>
                         <span className="bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                          {services.find(s => s.id === selectedService)?.priceRange || services.find(s => s.id === selectedService)?.price}
+                          {(() => { const s = services.find(s => s.id === selectedService); return trc(`service.${s?.slug || s?.id}.priceRange`, s?.priceRange || s?.price || ''); })()}
                         </span>
                       </div>
                     </div>
@@ -423,7 +452,7 @@ export function BookingPage() {
 
                   <div className="mt-8 p-4 bg-white rounded-xl">
                     <p className="text-gray-600">
-                      <strong>{t('booking.note')}:</strong> {config?.disclaimer || t('booking.confirmedBody')}
+                      <strong>{t('booking.note')}:</strong> {trc('booking.disclaimer', config?.disclaimer || t('booking.confirmedBody'))}
                     </p>
                   </div>
                 </Card>
@@ -520,7 +549,7 @@ export function BookingPage() {
                       {renderIcon(item.icon)}
                     </div>
                     <h3 className="mb-3 text-gray-900">{item.title}</h3>
-                    <p className="text-gray-600">{item.description}</p>
+                    <p className="text-gray-600">{trc(`booking.info.${item.id || index}.description`, item.description || '')}</p>
                   </Card>
                 </motion.div>
               ))}

@@ -11,6 +11,7 @@ import { Label } from '../../ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../ui/dialog';
 import { apiFetch } from '../../../api/client';
 import { useEffect, useState } from 'react';
+import { useLanguage } from '../../LanguageContext';
 
 type Article = {
   id: string;
@@ -40,6 +41,8 @@ export function MagazineManagement() {
     title: '', slug: '', excerpt: '', image: '', readTimeMinutes: '', status: 'DRAFT', featured: false, categoryId: '', tagIds: []
   });
 
+  const { t } = useLanguage();
+
   const fetchAll = async () => {
     try {
       setLoading(true); setError(null);
@@ -50,7 +53,7 @@ export function MagazineManagement() {
       ]);
       setArticles(arts); setCategories(cats); setTags(tgs);
     } catch (e: any) {
-      setError(e?.message || 'Failed to load content');
+      setError(e?.message || t('admin.magazine.loadFailed'));
     } finally { setLoading(false); }
   };
   useEffect(() => { fetchAll(); }, []);
@@ -77,7 +80,7 @@ export function MagazineManagement() {
   };
   const saveArticle = async () => {
     try {
-      if (!form.title.trim() || !form.slug.trim()) { toast.error('Title & Slug required'); return; }
+  if (!form.title.trim() || !form.slug.trim()) { toast.error(t('admin.magazine.titleRequired')); return; }
       const payload = {
         title: form.title.trim(),
         slug: form.slug.trim(),
@@ -91,39 +94,39 @@ export function MagazineManagement() {
       };
       if (editing) {
         await apiFetch(`/articles/${editing.id}`, { method: 'PUT', body: payload });
-        toast.success('Article updated');
+        toast.success(t('admin.magazine.updated'));
       } else {
         await apiFetch('/articles', { method: 'POST', body: payload });
-        toast.success('Article created');
+        toast.success(t('admin.magazine.created'));
       }
       setIsDialogOpen(false); setEditing(null); await fetchAll();
     } catch (e: any) {
-      if (e?.code === 'slug_conflict') toast.error('Slug already exists'); else toast.error(e?.message || 'Save failed');
+      if (e?.code === 'slug_conflict') toast.error(t('admin.magazine.slugConflict')); else toast.error(e?.message || t('admin.magazine.saveFailed'));
     }
   };
   const toggleFeatured = async (a: Article) => {
     try {
       const updated = await apiFetch<Article>(`/articles/${a.id}/feature`, { method: 'PATCH', body: { featured: !a.featured } });
       setArticles(prev => prev.map(x => x.id === a.id ? updated : x));
-      toast.success(updated.featured ? 'Marked featured' : 'Unfeatured');
-    } catch (e: any) { toast.error(e?.message || 'Feature toggle failed'); }
+      toast.success(updated.featured ? t('admin.magazine.featureed') : t('admin.magazine.unfeature'));
+    } catch (e: any) { toast.error(e?.message || t('admin.magazine.featureToggleFailed')); }
   };
   const handleDelete = async (a: Article) => {
-    if (!confirm(`Delete article "${a.title}"?`)) return;
-    try { await apiFetch(`/articles/${a.id}`, { method: 'DELETE' }); setArticles(prev => prev.filter(x => x.id !== a.id)); toast.success('Deleted'); }
-    catch (e: any) { toast.error(e?.message || 'Delete failed'); }
+    if (!confirm(`${t('admin.magazine.deleteConfirm')} "${a.title}"?`)) return;
+    try { await apiFetch(`/articles/${a.id}`, { method: 'DELETE' }); setArticles(prev => prev.filter(x => x.id !== a.id)); toast.success(t('admin.deleted')); }
+    catch (e: any) { toast.error(e?.message || t('admin.magazine.deleteFailed')); }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-gray-600">{articles.length} articles total</p>
+        <p className="text-gray-600">{articles.length} {t('admin.magazine.totalSuffix')}</p>
         <Button onClick={openNew} className="bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl">
           <Plus className="w-4 h-4 mr-2" />
-          New Article
+          {t('admin.magazine.newArticle')}
         </Button>
       </div>
-      {loading && <div className="p-4 text-gray-500">Loading…</div>}
+      {loading && <div className="p-4 text-gray-500">{t('common.loading')}</div>}
       {error && <div className="p-4 text-red-600">{error}</div>}
       {!loading && !error && (
       <div className="grid md:grid-cols-2 gap-6">
@@ -146,7 +149,7 @@ export function MagazineManagement() {
                     <Badge className="absolute top-2 left-2 bg-blue-500 text-white">{article.category.name}</Badge>
                   )}
                   {article.featured && (
-                    <Badge className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 flex items-center gap-1"><Star className="w-3 h-3" /> Featured</Badge>
+                    <Badge className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 flex items-center gap-1"><Star className="w-3 h-3" /> {t('admin.magazine.featured')}</Badge>
                   )}
                 </div>
                 <div className="p-4 flex-1 flex flex-col">
@@ -157,7 +160,7 @@ export function MagazineManagement() {
                     ))}
                   </div>
                   <div className="flex items-center gap-4 text-gray-600 mb-4">
-                    {article.readTimeMinutes && <span>{article.readTimeMinutes} min read</span>}
+                    {article.readTimeMinutes && <span>{article.readTimeMinutes} {t('magazine.minReadSuffix')}</span>}
                     <span>•</span>
                     <span>{article.status.toLowerCase()}</span>
                   </div>
@@ -169,11 +172,11 @@ export function MagazineManagement() {
                     <div className="flex gap-2 mt-3">
                       <Button variant="outline" size="sm" className="flex-1 rounded-xl" onClick={() => openEdit(article)}>
                         <Edit className="w-4 h-4 mr-2" />
-                        Edit
+                        {t('admin.edit')}
                       </Button>
                       <Button variant="outline" size="sm" className="rounded-xl" onClick={() => toggleFeatured(article)}>
                         <Star className={`w-4 h-4 mr-2 ${article.featured ? 'text-yellow-500' : 'text-gray-400'}`} />
-                        {article.featured ? 'Unfeature' : 'Feature'}
+                        {article.featured ? t('admin.magazine.unfeature') : t('admin.magazine.feature')}
                       </Button>
                       <Button
                         variant="outline"
@@ -182,7 +185,7 @@ export function MagazineManagement() {
                         onClick={() => handleDelete(article)}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
+                        {t('admin.delete')}
                       </Button>
                     </div>
                   </div>
@@ -197,33 +200,33 @@ export function MagazineManagement() {
   <Dialog open={isDialogOpen} onOpenChange={(o: boolean) => { if(!o){ setIsDialogOpen(false); setEditing(null); } }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Edit Article' : 'New Article'}</DialogTitle>
+            <DialogTitle>{editing ? t('admin.magazine.editArticle') : t('admin.magazine.newArticle')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
             <div>
-              <Label htmlFor="a-title">Title*</Label>
-              <Input id="a-title" value={form.title} onChange={(e)=> setForm(f=>({...f,title:e.target.value}))} placeholder="Article title" className="mt-2 rounded-xl" />
+              <Label htmlFor="a-title">{t('admin.magazine.titleLabel')}</Label>
+              <Input id="a-title" value={form.title} onChange={(e)=> setForm(f=>({...f,title:e.target.value}))} placeholder={t('admin.magazine.titleLabel')} className="mt-2 rounded-xl" />
             </div>
             <div>
-              <Label htmlFor="a-slug">Slug*</Label>
+              <Label htmlFor="a-slug">{t('admin.magazine.slugLabel')}</Label>
               <Input id="a-slug" value={form.slug} onChange={(e)=> setForm(f=>({...f,slug:e.target.value.replace(/\s+/g,'-').toLowerCase()}))} placeholder="article-slug" className="mt-2 rounded-xl" />
             </div>
             <div>
-              <Label htmlFor="a-excerpt">Excerpt</Label>
-              <Textarea id="a-excerpt" value={form.excerpt} onChange={(e)=> setForm(f=>({...f,excerpt:e.target.value}))} placeholder="Short summary" className="mt-2 rounded-xl" />
+              <Label htmlFor="a-excerpt">{t('admin.magazine.excerptLabel')}</Label>
+              <Textarea id="a-excerpt" value={form.excerpt} onChange={(e)=> setForm(f=>({...f,excerpt:e.target.value}))} placeholder={t('admin.magazine.excerptLabel')} className="mt-2 rounded-xl" />
             </div>
             <div>
-              <Label htmlFor="a-image">Image URL</Label>
+              <Label htmlFor="a-image">{t('admin.magazine.imageUrlLabel')}</Label>
               <Input id="a-image" value={form.image} onChange={(e)=> setForm(f=>({...f,image:e.target.value}))} placeholder="https://..." className="mt-2 rounded-xl" />
               {form.image && <img src={form.image} alt="preview" className="mt-2 h-32 w-full object-cover rounded-xl border" />}
             </div>
             <div className="grid md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="a-read">Read Time (min)</Label>
+                <Label htmlFor="a-read">{t('admin.magazine.readTimeLabel')}</Label>
                 <Input id="a-read" value={form.readTimeMinutes} onChange={(e)=> setForm(f=>({...f,readTimeMinutes:e.target.value}))} placeholder="10" className="mt-2 rounded-xl" />
               </div>
               <div>
-                <Label>Status</Label>
+                <Label>{t('admin.magazine.statusLabel')}</Label>
                 <select value={form.status} onChange={(e)=> setForm(f=>({...f,status:e.target.value}))} className="mt-2 rounded-xl w-full border-gray-300">
                   <option value="DRAFT">DRAFT</option>
                   <option value="PUBLISHED">PUBLISHED</option>
@@ -231,18 +234,18 @@ export function MagazineManagement() {
               </div>
               <div className="flex items-center pt-6 gap-2">
                 <input type="checkbox" id="a-featured" checked={form.featured} onChange={(e)=> setForm(f=>({...f,featured:e.target.checked}))} className="rounded" />
-                <Label htmlFor="a-featured" className="cursor-pointer flex items-center gap-1"><Star className="w-4 h-4" /> Featured</Label>
+                <Label htmlFor="a-featured" className="cursor-pointer flex items-center gap-1"><Star className="w-4 h-4" /> {t('admin.magazine.featuredLabel')}</Label>
               </div>
             </div>
             <div>
-              <Label>Category</Label>
+              <Label>{t('admin.magazine.categoryLabel')}</Label>
               <select value={form.categoryId} onChange={(e)=> setForm(f=>({...f,categoryId:e.target.value}))} className="mt-2 rounded-xl w-full border-gray-300">
                 <option value="">None</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
-              <Label>Tags</Label>
+              <Label>{t('admin.magazine.tagsLabel')}</Label>
               <div className="mt-2 flex flex-wrap gap-2">
                 {tags.map(t => {
                   const active = form.tagIds.includes(t.id);
@@ -255,13 +258,13 @@ export function MagazineManagement() {
                     >{t.name}</button>
                   );
                 })}
-                {!tags.length && <div className="text-xs text-gray-500">No tags</div>}
+                {!tags.length && <div className="text-xs text-gray-500">{t('admin.magazine.noTags')}</div>}
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={()=> { setIsDialogOpen(false); setEditing(null);} }>Cancel</Button>
-            <Button className="bg-gradient-to-r from-pink-500 to-purple-600" onClick={saveArticle}>{editing ? 'Update' : 'Create'}</Button>
+            <Button variant="outline" onClick={()=> { setIsDialogOpen(false); setEditing(null);} }>{t('admin.cancel')}</Button>
+            <Button className="bg-gradient-to-r from-pink-500 to-purple-600" onClick={saveArticle}>{editing ? t('admin.magazine.update') : t('admin.magazine.create')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

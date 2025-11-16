@@ -49,6 +49,7 @@ import {
 
 // API
 import { apiFetch } from '../../../api/client';
+import { useLanguage } from '../../LanguageContext';
 
 type BookingStatus = 'PENDING'|'CONFIRMED'|'COMPLETED'|'CANCELLED';
 interface BookingItem {
@@ -67,6 +68,7 @@ interface ClientItem { id: string; name: string; email?: string|null; phone?: st
 interface ServiceItem { id: string; title: string }
 
 export function BookingsManagement() {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all'|BookingStatus>('all');
   const [selectedBooking, setSelectedBooking] = useState<BookingItem|null>(null);
@@ -92,7 +94,7 @@ export function BookingsManagement() {
       setBookings(items);
       setServices(svc as any);
       setClients(cls);
-    } catch (e: any) { setError(e?.message || 'Failed to load bookings'); }
+  } catch (e: any) { setError(e?.message || t('admin.saveFailed')); }
     finally { setLoading(false); }
   };
   useEffect(()=>{ load(); }, []);
@@ -116,9 +118,9 @@ export function BookingsManagement() {
     try {
       const updated = await apiFetch<BookingItem>(`/bookings/${id}/status`, { method: 'PATCH', body: { status } });
       setBookings(prev => prev.map(b => b.id === id ? updated : b));
-      toast.success(`Status updated to ${status.toLowerCase()}`);
+  toast.success(t('admin.bookingUpdated'));
     } catch (e: any) {
-      toast.error(e?.message || 'Failed to update status');
+  toast.error(e?.message || t('admin.saveFailed'));
     }
   };
 
@@ -161,7 +163,7 @@ export function BookingsManagement() {
 
   const saveBooking = async () => {
     try {
-      if (!form.clientId || !form.startTime) { toast.error('Client and start time are required'); return; }
+  if (!form.clientId || !form.startTime) { toast.error(t('admin.clientRequired')); return; }
       const body = {
         clientId: form.clientId,
         serviceId: form.serviceId || undefined,
@@ -174,29 +176,29 @@ export function BookingsManagement() {
       if (editing) {
         const updated = await apiFetch<BookingItem>(`/bookings/${editing.id}`, { method: 'PUT', body });
         setBookings(prev => prev.map(b => b.id === editing.id ? updated : b));
-        toast.success('Booking updated');
+  toast.success(t('admin.bookingUpdated'));
       } else {
         const created = await apiFetch<BookingItem>('/bookings', { method: 'POST', body });
         setBookings(prev => [created, ...prev]);
-        toast.success('Booking created');
+  toast.success(t('admin.bookingCreated'));
       }
       setEditOpen(false); setEditing(null);
     } catch (e: any) {
-      toast.error(e?.message || 'Save failed');
+  toast.error(e?.message || t('admin.saveFailed'));
     }
   };
 
   const deleteBooking = async (b: BookingItem) => {
-    if (!confirm('Delete this booking?')) return;
-    try { await apiFetch(`/bookings/${b.id}`, { method: 'DELETE' }); setBookings(prev => prev.filter(x => x.id !== b.id)); toast.success('Deleted'); }
-    catch (e: any) { toast.error(e?.message || 'Delete failed'); }
+  if (!confirm(t('admin.deleteBookingConfirm'))) return;
+  try { await apiFetch(`/bookings/${b.id}`, { method: 'DELETE' }); setBookings(prev => prev.filter(x => x.id !== b.id)); toast.success(t('admin.deleted')); }
+  catch (e: any) { toast.error(e?.message || t('admin.deleteFailed')); }
   };
 
   const stats = [
-    { label: 'Total Bookings', value: bookings.length, color: 'from-pink-500 to-rose-600' },
-    { label: 'Confirmed', value: bookings.filter((b) => b.status === 'CONFIRMED').length, color: 'from-green-500 to-emerald-600' },
-    { label: 'Pending', value: bookings.filter((b) => b.status === 'PENDING').length, color: 'from-yellow-500 to-orange-600' },
-    { label: 'Cancelled', value: bookings.filter((b) => b.status === 'CANCELLED').length, color: 'from-red-500 to-rose-600' },
+    { label: t('admin.totalBookings') || t('admin.bookings'), value: bookings.length, color: 'from-pink-500 to-rose-600' },
+    { label: t('admin.confirmed'), value: bookings.filter((b) => b.status === 'CONFIRMED').length, color: 'from-green-500 to-emerald-600' },
+    { label: t('admin.pending'), value: bookings.filter((b) => b.status === 'PENDING').length, color: 'from-yellow-500 to-orange-600' },
+    { label: t('admin.cancelled'), value: bookings.filter((b) => b.status === 'CANCELLED').length, color: 'from-red-500 to-rose-600' },
   ];
 
   return (
@@ -204,11 +206,11 @@ export function BookingsManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-gray-900">Bookings Management</h1>
-          <p className="text-gray-600">Manage all appointments and reservations</p>
+          <h1 className="mb-2 text-gray-900">{t('admin.bookingsManagement')}</h1>
+          <p className="text-gray-600">{t('admin.bookingsManagementSubtitle')}</p>
         </div>
         <Button onClick={openCreate} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">
-          New Booking
+          {t('admin.newBookingAction')}
         </Button>
       </div>
 
@@ -238,7 +240,7 @@ export function BookingsManagement() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <Input
-                placeholder="Search by client, ID, or service..."
+                placeholder={t('admin.searchBookingsPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 rounded-xl"
@@ -251,16 +253,16 @@ export function BookingsManagement() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="all">{t('admin.allStatus')}</SelectItem>
+              <SelectItem value="CONFIRMED">{t('admin.confirmed')}</SelectItem>
+              <SelectItem value="PENDING">{t('admin.pending')}</SelectItem>
+              <SelectItem value="CANCELLED">{t('admin.cancelled')}</SelectItem>
+              <SelectItem value="COMPLETED">{t('admin.completed')}</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" className="rounded-xl">
             <Download className="w-4 h-4 mr-2" />
-            Export
+            {t('admin.export')}
           </Button>
         </div>
       </Card>
@@ -272,13 +274,13 @@ export function BookingsManagement() {
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Service</TableHead>
-                <TableHead>Date & Time</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('admin.client')}</TableHead>
+                <TableHead>{t('admin.service')}</TableHead>
+                <TableHead>{t('admin.dateTime')}</TableHead>
+                <TableHead>{t('admin.duration')}</TableHead>
+                <TableHead>{t('admin.price')}</TableHead>
+                <TableHead>{t('admin.status')}</TableHead>
+                <TableHead className="text-right">{t('admin.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -329,25 +331,25 @@ export function BookingsManagement() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => setSelectedBooking(booking)}>
                           <Eye className="w-4 h-4 mr-2" />
-                          View Details
+                          {t('admin.viewDetails')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openEdit(booking)}>
                           <Edit className="w-4 h-4 mr-2" />
-                          Edit
+                          {t('admin.edit')}
                         </DropdownMenuItem>
                         {booking.status === 'PENDING' && (
                           <DropdownMenuItem onClick={() => handleConfirm(booking.id)}>
                             <CheckCircle className="w-4 h-4 mr-2" />
-                            Confirm
+                            {t('admin.confirm')}
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem onClick={() => handleCancel(booking.id)} className="text-red-600">
                           <XCircle className="w-4 h-4 mr-2" />
-                          Cancel
+                          {t('admin.cancel')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => deleteBooking(booking)} className="text-red-600">
                           <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
+                          {t('admin.delete')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -363,62 +365,62 @@ export function BookingsManagement() {
       <Dialog open={!!selectedBooking} onOpenChange={(o: boolean) => { if (!o) setSelectedBooking(null); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Booking Details - {selectedBooking?.id}</DialogTitle>
+            <DialogTitle>{t('admin.bookingDetails')} - {selectedBooking?.id}</DialogTitle>
           </DialogHeader>
           {selectedBooking && (
             <div className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-gray-600 mb-1">Client Name</p>
+                  <p className="text-gray-600 mb-1">{t('admin.clientName')}</p>
                   <p className="text-gray-900">{selectedBooking.client?.name}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600 mb-1">Email</p>
+                  <p className="text-gray-600 mb-1">{t('admin.email')}</p>
                   <p className="text-gray-900">{selectedBooking.client?.email || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600 mb-1">Phone</p>
+                  <p className="text-gray-600 mb-1">{t('admin.phone')}</p>
                   <p className="text-gray-900">{selectedBooking.client?.phone || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600 mb-1">Service</p>
+                  <p className="text-gray-600 mb-1">{t('admin.service')}</p>
                   <p className="text-gray-900">{selectedBooking.service?.title || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600 mb-1">Date</p>
+                  <p className="text-gray-600 mb-1">{t('admin.date')}</p>
                   <p className="text-gray-900">{fmtDate(selectedBooking.startTime)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600 mb-1">Time</p>
+                  <p className="text-gray-600 mb-1">{t('admin.time')}</p>
                   <p className="text-gray-900">{fmtTime(selectedBooking.startTime)}{selectedBooking.endTime ? ` - ${fmtTime(selectedBooking.endTime)}` : ''}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600 mb-1">Duration</p>
+                  <p className="text-gray-600 mb-1">{t('admin.duration')}</p>
                   <p className="text-gray-900">{selectedBooking.endTime ? `${fmtTime(selectedBooking.startTime)} - ${fmtTime(selectedBooking.endTime)}` : '—'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600 mb-1">Price</p>
+                  <p className="text-gray-600 mb-1">{t('admin.price')}</p>
                   <p className="text-gray-900">{fmtPrice(selectedBooking.priceCents)}</p>
                 </div>
               </div>
               <div>
-                <p className="text-gray-600 mb-1">Status</p>
+                <p className="text-gray-600 mb-1">{t('admin.status')}</p>
                 <Badge className={getStatusColor(selectedBooking.status)}>
                   {selectedBooking.status}
                 </Badge>
               </div>
               <div>
-                <p className="text-gray-600 mb-1">Notes</p>
+                <p className="text-gray-600 mb-1">{t('admin.notes')}</p>
                 <p className="text-gray-900">{selectedBooking.notes || '—'}</p>
               </div>
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedBooking(null)}>
-              Close
+              {t('admin.close')}
             </Button>
             <Button onClick={() => { if (selectedBooking) openEdit(selectedBooking); }} className="bg-gradient-to-r from-pink-500 to-purple-600">
-              Edit Booking
+              {t('admin.editBooking')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -428,18 +430,18 @@ export function BookingsManagement() {
       <Dialog open={editOpen} onOpenChange={(o: boolean)=> { if (!o) { setEditOpen(false); setEditing(null);} }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Edit Booking' : 'New Booking'}</DialogTitle>
+            <DialogTitle>{editing ? t('admin.editBooking') : t('admin.newBookingAction')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm text-gray-700">Client*</label>
+              <label className="text-sm text-gray-700">{t('admin.client')}*</label>
               <select value={form.clientId} onChange={(e)=> setForm(f=>({ ...f, clientId: e.target.value }))} className="mt-2 w-full rounded-xl border-gray-300">
-                <option value="">Select client…</option>
+                <option value="">{t('admin.clientName')}</option>
                 {clients.map(c => (<option key={c.id} value={c.id}>{c.name} {c.email ? `(${c.email})` : ''}</option>))}
               </select>
             </div>
             <div>
-              <label className="text-sm text-gray-700">Service</label>
+              <label className="text-sm text-gray-700">{t('admin.service')}</label>
               <select value={form.serviceId || ''} onChange={(e)=> setForm(f=>({ ...f, serviceId: e.target.value }))} className="mt-2 w-full rounded-xl border-gray-300">
                 <option value="">—</option>
                 {services.map(s => (<option key={s.id} value={s.id}>{s.title}</option>))}
@@ -447,17 +449,17 @@ export function BookingsManagement() {
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-gray-700">Start*</label>
+                <label className="text-sm text-gray-700">{t('admin.start')}</label>
                 <input type="datetime-local" value={form.startTime} onChange={(e)=> setForm(f=>({ ...f, startTime: e.target.value }))} className="mt-2 w-full rounded-xl border-gray-300" />
               </div>
               <div>
-                <label className="text-sm text-gray-700">End</label>
+                <label className="text-sm text-gray-700">{t('admin.end') || 'End'}</label>
                 <input type="datetime-local" value={form.endTime || ''} onChange={(e)=> setForm(f=>({ ...f, endTime: e.target.value }))} className="mt-2 w-full rounded-xl border-gray-300" />
               </div>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-gray-700">Status</label>
+                <label className="text-sm text-gray-700">{t('admin.status')}</label>
                 <select value={form.status} onChange={(e)=> setForm(f=>({ ...f, status: e.target.value as BookingStatus }))} className="mt-2 w-full rounded-xl border-gray-300">
                   <option value="PENDING">PENDING</option>
                   <option value="CONFIRMED">CONFIRMED</option>
@@ -466,18 +468,18 @@ export function BookingsManagement() {
                 </select>
               </div>
               <div>
-                <label className="text-sm text-gray-700">Price (USD)</label>
+                <label className="text-sm text-gray-700">{t('admin.price')} (USD)</label>
                 <input type="number" step="0.01" value={form.price || ''} onChange={(e)=> setForm(f=>({ ...f, price: e.target.value }))} className="mt-2 w-full rounded-xl border-gray-300" />
               </div>
             </div>
             <div>
-              <label className="text-sm text-gray-700">Notes</label>
+              <label className="text-sm text-gray-700">{t('admin.notes')}</label>
               <textarea value={form.notes || ''} onChange={(e)=> setForm(f=>({ ...f, notes: e.target.value }))} className="mt-2 w-full rounded-xl border-gray-300" rows={3} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={()=> { setEditOpen(false); setEditing(null);} }>Cancel</Button>
-            <Button className="bg-gradient-to-r from-pink-500 to-purple-600" onClick={saveBooking}>{editing ? 'Update' : 'Create'}</Button>
+            <Button variant="outline" onClick={()=> { setEditOpen(false); setEditing(null);} }>{t('admin.cancel')}</Button>
+            <Button className="bg-gradient-to-r from-pink-500 to-purple-600" onClick={saveBooking}>{editing ? t('admin.update') : t('admin.create')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

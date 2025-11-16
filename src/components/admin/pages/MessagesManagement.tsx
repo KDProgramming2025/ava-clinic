@@ -5,6 +5,7 @@ import { Card } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { Avatar, AvatarFallback } from '../../ui/avatar';
+import { useLanguage } from '../../LanguageContext';
 import { ScrollArea } from '../../ui/scroll-area';
 import { Separator } from '../../ui/separator';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog';
@@ -28,6 +29,7 @@ interface MessageItem {
 
 export function MessagesManagement() {
   const [selectedMessage, setSelectedMessage] = useState<MessageItem | null>(null);
+  const { t } = useLanguage();
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function MessagesManagement() {
       const items = await apiFetch<MessageItem[]>('/messages');
       setMessages(items);
     } catch (e: any) {
-      setError(e?.message || 'Failed to load messages');
+  setError(e?.message || t('admin.messages.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -69,39 +71,39 @@ export function MessagesManagement() {
   const handleReply = async (m: MessageItem) => {
       // Open reply modal with a prefilled template; user can copy text and then mark as replied
       const firstName = m.fromName?.split(' ')[0] || 'there';
-      setReplySubject(`Re: ${m.subject || 'Your inquiry'}`);
+      setReplySubject(`Re: ${m.subject || t('admin.messages.subjectPlaceholder')}`);
       setReplyBody(
-        `Hi ${firstName},\n\n` +
-        `Thanks for reaching out to Ava Beauty Clinic. We've received your message and our team will get back to you shortly.\n\n` +
-        `Summary of your inquiry:\n${m.body}\n\n` +
-        `If you need immediate assistance, feel free to call us at the numbers listed on our Contact page.\n\n` +
-        `Best regards,\nAva Beauty Clinic`
+        `${t('admin.messages.template.line1')} ${firstName},\n\n` +
+        `${t('admin.messages.template.line2')}\n\n` +
+        `${t('admin.messages.template.summaryHeading')}\n${m.body}\n\n` +
+        `${t('admin.messages.template.line3')}\n\n` +
+        `${t('admin.messages.template.signature')}\n${t('admin.messages.template.brand')}`
       );
       setReplyOpen(true);
     };
   const handleDelete = async (m: MessageItem) => {
-      if (!confirm('Delete this message?')) return;
-      try { await apiFetch(`/messages/${m.id}`, { method: 'DELETE' }); setMessages(prev => prev.filter(x => x.id !== m.id)); setSelectedMessage(null); toast.success('Message deleted'); }
-      catch (e: any) { toast.error(e?.message || 'Delete failed'); }
+      if (!confirm(t('admin.messages.deleteConfirm'))) return;
+      try { await apiFetch(`/messages/${m.id}`, { method: 'DELETE' }); setMessages(prev => prev.filter(x => x.id !== m.id)); setSelectedMessage(null); toast.success(t('admin.messages.deleteSuccess')); }
+      catch (e: any) { toast.error(e?.message || t('admin.messages.deleteFailed')); }
     };
   const handleToggleStar = async (m: MessageItem) => {
-      try { const updated = await apiFetch<MessageItem>(`/messages/${m.id}/star`, { method: 'PATCH', body: { starred: !m.starred } }); setMessages(prev => prev.map(x => x.id === m.id ? updated : x)); toast.success(updated.starred ? 'Starred' : 'Unstarred'); }
-      catch (e: any) { toast.error(e?.message || 'Failed to update'); }
+      try { const updated = await apiFetch<MessageItem>(`/messages/${m.id}/star`, { method: 'PATCH', body: { starred: !m.starred } }); setMessages(prev => prev.map(x => x.id === m.id ? updated : x)); toast.success(updated.starred ? t('admin.messages.starredToast') : t('admin.messages.unstarredToast')); }
+      catch (e: any) { toast.error(e?.message || t('admin.messages.updateFailed')); }
     };
 
   return (
       <div className="space-y-6">
         <div>
-          <h1 className="mb-2 text-gray-900">Messages & Inquiries</h1>
-          <p className="text-gray-600">Manage all customer messages and contact requests</p>
+          <h1 className="mb-2 text-gray-900">{t('admin.messagesManagement.title')}</h1>
+          <p className="text-gray-600">{t('admin.messagesManagement.subtitle')}</p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[{ label: 'Total Messages', value: messages.length, color: 'from-pink-500 to-rose-600' },
-            { label: 'New', value: messages.filter(m => m.status === 'NEW').length, color: 'from-yellow-500 to-orange-600' },
-            { label: 'Replied', value: messages.filter(m => m.status === 'REPLIED').length, color: 'from-green-500 to-emerald-600' },
-            { label: 'Starred', value: messages.filter(m => m.starred).length, color: 'from-purple-500 to-violet-600' }].map((stat, index) => (
+          {[{ label: t('admin.messages.total'), value: messages.length, color: 'from-pink-500 to-rose-600' },
+            { label: t('admin.messages.new'), value: messages.filter(m => m.status === 'NEW').length, color: 'from-yellow-500 to-orange-600' },
+            { label: t('admin.messages.replied'), value: messages.filter(m => m.status === 'REPLIED').length, color: 'from-green-500 to-emerald-600' },
+            { label: t('admin.messages.starred'), value: messages.filter(m => m.starred).length, color: 'from-purple-500 to-violet-600' }].map((stat, index) => (
             <motion.div key={index} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay: index * 0.1 }}>
               <Card className="p-4 border-0 shadow-lg">
                 <p className="text-gray-600 mb-2">{stat.label}</p>
@@ -116,7 +118,7 @@ export function MessagesManagement() {
           {/* Inbox */}
           <Card className="lg:col-span-1 border-0 shadow-lg overflow-hidden">
             <div className="p-4 border-b border-gray-200">
-              <h3 className="text-gray-900">Inbox</h3>
+              <h3 className="text-gray-900">{t('admin.messages.inbox')}</h3>
             </div>
             <ScrollArea className="h-[600px]">
               <div className="p-2">
@@ -146,7 +148,7 @@ export function MessagesManagement() {
                           </p>
                           {message.starred && <Star className="w-4 h-4 text-yellow-500 flex-shrink-0" fill="currentColor" />}
                         </div>
-                        <p className="text-gray-900 truncate mb-1">{message.subject || '—'}</p>
+                        <p className="text-gray-900 truncate mb-1">{message.subject || t('common.emDash')}</p>
                         <p className="text-gray-600 truncate">{message.body}</p>
                         <div className="flex items-center gap-2 mt-2">
                           <Badge className={getStatusColor(message.status)}>
@@ -208,17 +210,17 @@ export function MessagesManagement() {
                   </div>
                 </div>
                 <div className="p-6">
-                  <h2 className="mb-4 text-gray-900">{selectedMessage.subject || '—'}</h2>
+                  <h2 className="mb-4 text-gray-900">{selectedMessage.subject || t('common.emDash')}</h2>
                   <p className="text-gray-700 leading-relaxed mb-6">{selectedMessage.body}</p>
                   <Separator className="my-6" />
                   <div className="flex gap-3">
                     <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl" onClick={() => handleReply(selectedMessage)}>
                       <Reply className="w-4 h-4 mr-2" />
-                      Reply
+                      {t('admin.messages.replyButton')}
                     </Button>
                     <Button variant="outline" className="rounded-xl">
                       <Archive className="w-4 h-4 mr-2" />
-                      Archive
+                      {t('admin.messages.archiveButton')}
                     </Button>
                   </div>
                 </div>
@@ -227,7 +229,7 @@ export function MessagesManagement() {
               <div className="h-[700px] flex items-center justify-center text-gray-500">
                 <div className="text-center">
                   <MessageSquare className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                  <p>Select a message to view details</p>
+                  <p>{t('admin.messages.selectPrompt')}</p>
                 </div>
               </div>
             )}
@@ -238,11 +240,11 @@ export function MessagesManagement() {
       <Dialog open={replyOpen} onOpenChange={setReplyOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Reply to {selectedMessage?.fromName}</DialogTitle>
+            <DialogTitle>{t('admin.messages.replyTo')} {selectedMessage?.fromName}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Input
-              placeholder="Subject"
+              placeholder={t('admin.messages.subjectLabel')}
               value={replySubject}
               onChange={(e) => setReplySubject(e.target.value)}
               className="rounded-xl"
@@ -254,7 +256,7 @@ export function MessagesManagement() {
               className="rounded-xl"
             />
             <p className="text-sm text-gray-500">
-              This modal provides a reply template you can edit and copy into your email client. It does not send an email directly.
+              {t('admin.messages.templateNote')}
             </p>
           </div>
           <DialogFooter>
@@ -263,14 +265,14 @@ export function MessagesManagement() {
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(`Subject: ${replySubject}\n\n${replyBody}`);
-                  toast.success('Copied to clipboard');
+                  toast.success(t('admin.messages.copied'));
                 } catch {
-                  toast.error('Failed to copy');
+                  toast.error(t('admin.messages.copyFailed'));
                 }
               }}
               className="rounded-xl"
             >
-              Copy to clipboard
+              {t('admin.messages.copyToClipboardButton')}
             </Button>
             <Button
               className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl"
@@ -283,13 +285,13 @@ export function MessagesManagement() {
                   });
                   setMessages(prev => prev.map(x => x.id === updated.id ? updated : x));
                   setReplyOpen(false);
-                  toast.success('Marked as replied');
+                  toast.success(t('admin.messages.markedReplied'));
                 } catch (e: any) {
-                  toast.error(e?.message || 'Failed to update');
+                  toast.error(e?.message || t('admin.messages.updateFailed'));
                 }
               }}
             >
-              Mark as Replied
+              {t('admin.messages.markRepliedButton')}
             </Button>
           </DialogFooter>
         </DialogContent>

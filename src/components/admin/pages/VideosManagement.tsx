@@ -11,6 +11,7 @@ import { Label } from '../../ui/label';
 import { Textarea } from '../../ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../ui/dialog';
 import { apiFetch } from '../../../api/client';
+import { useLanguage } from '../../LanguageContext';
 
 type Video = {
   id: string;
@@ -26,6 +27,7 @@ type Video = {
 type VideoCategory = { id: string; name: string; slug: string };
 
 export function VideosManagement() {
+  const { t } = useLanguage();
   const [videos, setVideos] = useState<Video[]>([]);
   const [categories, setCategories] = useState<VideoCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,7 @@ export function VideosManagement() {
       ]);
       setVideos(vids); setCategories(cats);
     } catch (e: any) {
-      setError(e?.message || 'Failed to load videos');
+  setError(e?.message || t('admin.videos.saveFailed'));
     } finally { setLoading(false); }
   };
   useEffect(() => { fetchAll(); }, []);
@@ -70,7 +72,7 @@ export function VideosManagement() {
   };
   const saveVideo = async () => {
     try {
-      if (!form.title.trim()) { toast.error('Title is required'); return; }
+  if (!form.title.trim()) { toast.error(t('admin.videos.titleRequired')); return; }
       const payload = {
         title: form.title.trim(),
         slug: form.slug.trim() || undefined,
@@ -82,20 +84,20 @@ export function VideosManagement() {
       };
       if (editing) {
         await apiFetch(`/videos/${editing.id}`, { method: 'PUT', body: payload });
-        toast.success('Video updated');
+  toast.success(t('admin.videos.videoUpdated'));
       } else {
         await apiFetch('/videos', { method: 'POST', body: payload });
-        toast.success('Video created');
+  toast.success(t('admin.videos.videoCreated'));
       }
       setIsDialogOpen(false); setEditing(null); await fetchAll();
     } catch (e: any) {
-      toast.error(e?.message || 'Save failed');
+  toast.error(e?.message || t('admin.videos.saveFailed'));
     }
   };
   const handleDelete = async (v: Video) => {
-    if (!confirm(`Delete video "${v.title}"?`)) return;
-    try { await apiFetch(`/videos/${v.id}`, { method: 'DELETE' }); setVideos(prev => prev.filter(x => x.id !== v.id)); toast.success('Deleted'); }
-    catch (e: any) { toast.error(e?.message || 'Delete failed'); }
+  if (!confirm(`${t('admin.videos.deleteConfirm')} "${v.title}"?`)) return;
+  try { await apiFetch(`/videos/${v.id}`, { method: 'DELETE' }); setVideos(prev => prev.filter(x => x.id !== v.id)); toast.success(t('admin.videos.deleted')); }
+  catch (e: any) { toast.error(e?.message || t('admin.videos.deleteFailed')); }
   };
 
   const fmtDuration = (s?: number | null) => {
@@ -106,15 +108,15 @@ export function VideosManagement() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-gray-600">{videos.length} videos total</p>
+  <p className="text-gray-600">{videos.length} {t('admin.videos.totalSuffix')}</p>
         <Button onClick={openNew} className="bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl">
           <Plus className="w-4 h-4 mr-2" />
-          New Video
+          {t('admin.videos.newVideo')}
         </Button>
       </div>
 
-      {loading && <div className="p-4 text-gray-500">Loading…</div>}
-      {error && <div className="p-4 text-red-600">{error}</div>}
+  {loading && <div className="p-4 text-gray-500">{t('common.loading')}</div>}
+  {error && <div className="p-4 text-red-600">{error}</div>}
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {videos.map((video, index) => (
@@ -144,7 +146,7 @@ export function VideosManagement() {
               <div className="p-4">
                 <h3 className="mb-2 text-gray-900 line-clamp-2">{video.title}</h3>
                 <div className="flex items-center justify-between text-gray-600 mb-4">
-                  <span>{(video.views ?? 0).toLocaleString()} views</span>
+                  <span>{(video.views ?? 0).toLocaleString()} {t('admin.videos.viewsSuffix')}</span>
                   <Badge className={video.status === 'PUBLISHED' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
                     {video.status}
                   </Badge>
@@ -152,7 +154,7 @@ export function VideosManagement() {
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1 rounded-xl" onClick={() => openEdit(video)}>
                     <Edit className="w-4 h-4 mr-2" />
-                    Edit
+                    {t('admin.edit')}
                   </Button>
                   <Button
                     variant="outline"
@@ -161,7 +163,7 @@ export function VideosManagement() {
                     onClick={() => handleDelete(video)}
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
+                    {t('admin.delete')}
                   </Button>
                 </div>
               </div>
@@ -173,50 +175,50 @@ export function VideosManagement() {
   <Dialog open={isDialogOpen} onOpenChange={(o: boolean)=> { if(!o){ setIsDialogOpen(false); setEditing(null);} }}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Edit Video' : 'New Video'}</DialogTitle>
+            <DialogTitle>{editing ? t('admin.videos.editVideo') : t('admin.videos.newVideo')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="v-title">Title*</Label>
-              <Input id="v-title" value={form.title} onChange={(e)=> setForm(f=>({...f,title:e.target.value}))} className="mt-2 rounded-xl" placeholder="Video title" />
+              <Label htmlFor="v-title">{t('admin.videos.titleLabel')}</Label>
+              <Input id="v-title" value={form.title} onChange={(e)=> setForm(f=>({...f,title:e.target.value}))} className="mt-2 rounded-xl" placeholder={t('admin.videos.titlePlaceholder')} />
             </div>
             <div>
-              <Label htmlFor="v-slug">Slug</Label>
-              <Input id="v-slug" value={form.slug} onChange={(e)=> setForm(f=>({...f,slug:e.target.value.replace(/\s+/g,'-').toLowerCase()}))} className="mt-2 rounded-xl" placeholder="optional-slug" />
+              <Label htmlFor="v-slug">{t('admin.videos.slugLabel')}</Label>
+              <Input id="v-slug" value={form.slug} onChange={(e)=> setForm(f=>({...f,slug:e.target.value.replace(/\s+/g,'-').toLowerCase()}))} className="mt-2 rounded-xl" placeholder={t('admin.videos.slugPlaceholder')} />
             </div>
             <div>
-              <Label htmlFor="v-desc">Description</Label>
-              <Textarea id="v-desc" value={form.description} onChange={(e)=> setForm(f=>({...f,description:e.target.value}))} className="mt-2 rounded-xl" placeholder="Short description" />
+              <Label htmlFor="v-desc">{t('admin.videos.descriptionLabel')}</Label>
+              <Textarea id="v-desc" value={form.description} onChange={(e)=> setForm(f=>({...f,description:e.target.value}))} className="mt-2 rounded-xl" placeholder={t('admin.videos.descriptionPlaceholder')} />
             </div>
             <div>
-              <Label htmlFor="v-thumb">Thumbnail URL</Label>
+              <Label htmlFor="v-thumb">{t('admin.videos.thumbnailLabel')}</Label>
               <Input id="v-thumb" value={form.thumbnail} onChange={(e)=> setForm(f=>({...f,thumbnail:e.target.value}))} className="mt-2 rounded-xl" placeholder="https://..." />
               {form.thumbnail && <img src={form.thumbnail} alt="preview" className="mt-2 h-28 w-full object-cover rounded-xl border" />}
             </div>
             <div className="grid md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="v-duration">Duration (sec)</Label>
+                <Label htmlFor="v-duration">{t('admin.videos.durationSecondsLabel')}</Label>
                 <Input id="v-duration" value={form.durationSeconds} onChange={(e)=> setForm(f=>({...f,durationSeconds:e.target.value}))} className="mt-2 rounded-xl" placeholder="300" />
               </div>
               <div>
-                <Label>Status</Label>
+                <Label>{t('admin.videos.statusLabel')}</Label>
                 <select value={form.status} onChange={(e)=> setForm(f=>({...f,status:e.target.value as 'DRAFT'|'PUBLISHED'}))} className="mt-2 rounded-xl w-full border-gray-300">
                   <option value="DRAFT">DRAFT</option>
                   <option value="PUBLISHED">PUBLISHED</option>
                 </select>
               </div>
               <div>
-                <Label>Category</Label>
+                <Label>{t('admin.videos.categoryLabel')}</Label>
                 <select value={form.categoryId} onChange={(e)=> setForm(f=>({...f,categoryId:e.target.value}))} className="mt-2 rounded-xl w-full border-gray-300">
-                  <option value="">None</option>
+                  <option value="">{t('admin.videos.none')}</option>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={()=> { setIsDialogOpen(false); setEditing(null); }}>Cancel</Button>
-            <Button className="bg-gradient-to-r from-pink-500 to-purple-600" onClick={saveVideo}>{editing ? 'Update' : 'Create'}</Button>
+            <Button variant="outline" onClick={()=> { setIsDialogOpen(false); setEditing(null); }}>{t('admin.cancel')}</Button>
+            <Button className="bg-gradient-to-r from-pink-500 to-purple-600" onClick={saveVideo}>{editing ? t('admin.update') : t('admin.create')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

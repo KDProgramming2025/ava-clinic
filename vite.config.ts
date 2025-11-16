@@ -67,6 +67,8 @@
     build: {
       target: 'esnext',
       outDir: 'build',
+      // Generate source maps to make production errors traceable to original source
+      sourcemap: true,
       rollupOptions: {
         output: {
           // Keep only a dedicated admin chunk; let Vite default splitting handle libs

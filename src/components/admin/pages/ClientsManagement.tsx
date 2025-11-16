@@ -30,6 +30,7 @@ import {
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog';
 import { Textarea } from '../../ui/textarea';
 import { apiFetch } from '../../../api/client';
+import { useLanguage } from '../../LanguageContext';
 import { toast } from 'sonner';
 
 type ClientStatus = 'ACTIVE' | 'INACTIVE';
@@ -45,6 +46,7 @@ interface ClientItem {
 }
 
 export function ClientsManagement() {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'ACTIVE' | 'INACTIVE'>('all');
   const [clients, setClients] = useState<ClientItem[]>([]);
@@ -67,7 +69,7 @@ export function ClientsManagement() {
     try {
       setLoading(true);
       setError(null);
-      const params: Record<string, any> = {};
+      const params: Record<string, any> = {}; 
       if (q) params.search = q;
       if (status && status !== 'all') params.status = status;
       const data = await apiFetch<ClientItem[]>('/clients', { method: 'GET', body: undefined, headers: undefined, auth: undefined });
@@ -80,7 +82,7 @@ export function ClientsManagement() {
       });
       setClients(result);
     } catch (e: any) {
-      setError(e?.message || 'Failed to load clients');
+      setError(e?.message || t('admin.saveFailed'));
     } finally {
       setLoading(false);
     }
@@ -122,10 +124,10 @@ export function ClientsManagement() {
     return dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth();
   };
   const stats = [
-    { label: 'Total Clients', value: clients.length, color: 'from-pink-500 to-rose-600' },
-    { label: 'Active', value: clients.filter((c) => c.status === 'ACTIVE').length, color: 'from-green-500 to-emerald-600' },
-    { label: 'Inactive', value: clients.filter((c) => c.status === 'INACTIVE').length, color: 'from-purple-500 to-violet-600' },
-    { label: 'New This Month', value: clients.filter((c) => isSameMonth(c.joinDate)).length, color: 'from-blue-500 to-cyan-600' },
+    { label: t('admin.totalClients'), value: clients.length, color: 'from-pink-500 to-rose-600' },
+    { label: t('admin.active'), value: clients.filter((c) => c.status === 'ACTIVE').length, color: 'from-green-500 to-emerald-600' },
+    { label: t('admin.inactive'), value: clients.filter((c) => c.status === 'INACTIVE').length, color: 'from-purple-500 to-violet-600' },
+    { label: t('admin.newThisMonth'), value: clients.filter((c) => isSameMonth(c.joinDate)).length, color: 'from-blue-500 to-cyan-600' },
   ];
 
   const openCreate = () => {
@@ -140,33 +142,33 @@ export function ClientsManagement() {
   };
   const saveClient = async () => {
     try {
-      if (!form.name || !form.name.trim()) { toast.error('Name is required'); return; }
+  if (!form.name || !form.name.trim()) { toast.error(t('admin.nameRequired')); return; }
       if (editing) {
         const updated = await apiFetch<ClientItem>(`/clients/${editing.id}`, { method: 'PUT', body: {
           name: form.name, email: form.email, phone: form.phone, status: form.status, notes: form.notes, lastVisit: form.lastVisit,
         }});
         setClients(prev => prev.map(c => c.id === updated.id ? updated : c));
-        toast.success('Client updated');
+        toast.success(t('admin.clientUpdated'));
       } else {
         const created = await apiFetch<ClientItem>('/clients', { method: 'POST', body: {
           name: form.name, email: form.email, phone: form.phone, status: form.status, notes: form.notes,
         }});
         setClients(prev => [created, ...prev]);
-        toast.success('Client added');
+        toast.success(t('admin.clientAdded'));
       }
       setEditOpen(false);
     } catch (e: any) {
-      toast.error(e?.message || 'Save failed');
+      toast.error(e?.message || t('admin.saveFailed'));
     }
   };
   const deleteClient = async (c: ClientItem) => {
-    if (!confirm(`Delete client ${c.name}?`)) return;
+  if (!confirm(`${t('admin.deleteConfirm')} ${c.name}?`)) return;
     try {
       await apiFetch(`/clients/${c.id}`, { method: 'DELETE' });
       setClients(prev => prev.filter(x => x.id !== c.id));
-      toast.success('Client deleted');
+      toast.success(t('admin.clientDeleted'));
     } catch (e: any) {
-      toast.error(e?.message || 'Delete failed');
+      toast.error(e?.message || t('admin.deleteFailed'));
     }
   };
 
@@ -175,12 +177,12 @@ export function ClientsManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-gray-900">Clients Management</h1>
-          <p className="text-gray-600">Manage all client information and history</p>
+          <h1 className="mb-2 text-gray-900">{t('admin.clientsManagement')}</h1>
+          <p className="text-gray-600">{t('admin.clientsManagementSubtitle')}</p>
         </div>
         <Button onClick={openCreate} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">
           <UserPlus className="w-4 h-4 mr-2" />
-          Add Client
+          {t('admin.addClient')}
         </Button>
       </div>
 
@@ -210,7 +212,7 @@ export function ClientsManagement() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <Input
-                placeholder="Search by name, email, or ID..."
+                placeholder={t('admin.searchClientsPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 rounded-xl"
@@ -223,14 +225,14 @@ export function ClientsManagement() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Clients</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="INACTIVE">Inactive</SelectItem>
+              <SelectItem value="all">{t('admin.allClients')}</SelectItem>
+              <SelectItem value="ACTIVE">{t('admin.active')}</SelectItem>
+              <SelectItem value="INACTIVE">{t('admin.inactive')}</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" className="rounded-xl">
             <Download className="w-4 h-4 mr-2" />
-            Export
+            {t('admin.export')}
           </Button>
         </div>
       </Card>
@@ -241,13 +243,13 @@ export function ClientsManagement() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Join Date</TableHead>
+                <TableHead>{t('admin.client')}</TableHead>
+                <TableHead>{t('admin.contact')}</TableHead>
+                <TableHead>{t('admin.joinDate')}</TableHead>
                 
-                <TableHead>Last Visit</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('admin.lastVisit') || 'Last Visit'}</TableHead>
+                <TableHead>{t('admin.status')}</TableHead>
+                <TableHead className="text-right">{t('admin.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -290,7 +292,7 @@ export function ClientsManagement() {
                       {new Date(client.joinDate).toLocaleDateString()}
                     </div>
                   </TableCell>
-                  <TableCell className="text-gray-600">{client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : '—'}</TableCell>
+                  <TableCell className="text-gray-600">{client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : t('admin.inactiveDash')}</TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(client.status)}>
                       {client.status}
@@ -306,23 +308,23 @@ export function ClientsManagement() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem>
                           <Eye className="w-4 h-4 mr-2" />
-                          View Profile
+                          {t('admin.viewProfile')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openEdit(client)}>
                           <Edit className="w-4 h-4 mr-2" />
-                          Edit
+                          {t('admin.edit')}
                         </DropdownMenuItem>
                         <DropdownMenuItem>
                           <Mail className="w-4 h-4 mr-2" />
-                          Send Email
+                          {t('admin.sendEmail')}
                         </DropdownMenuItem>
                         <DropdownMenuItem>
                           <Calendar className="w-4 h-4 mr-2" />
-                          Book Appointment
+                          {t('admin.bookAppointment')}
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-red-600" onClick={() => deleteClient(client)}>
                           <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
+                          {t('admin.delete')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -338,24 +340,24 @@ export function ClientsManagement() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Edit Client' : 'Add Client'}</DialogTitle>
+            <DialogTitle>{editing ? t('admin.editClient') : t('admin.addClient')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Input
-              placeholder="Full name"
+              placeholder={t('admin.fullName')}
               value={form.name || ''}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="rounded-xl"
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
-                placeholder="Email"
+                placeholder={t('admin.email')}
                 value={form.email || ''}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="rounded-xl"
               />
               <Input
-                placeholder="Phone"
+                placeholder={t('admin.phone')}
                 value={form.phone || ''}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 className="rounded-xl"
@@ -363,29 +365,29 @@ export function ClientsManagement() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
               <div>
-                <label className="text-sm text-gray-600 mb-1 block">Status</label>
+                <label className="text-sm text-gray-600 mb-1 block">{t('admin.status')}</label>
                 <Select value={(form.status as ClientStatus) || 'ACTIVE'} onValueChange={(v: ClientStatus) => setForm({ ...form, status: v })}>
                   <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                    <SelectItem value="ACTIVE">{t('admin.active')}</SelectItem>
+                    <SelectItem value="INACTIVE">{t('admin.inactive')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <label className="text-sm text-gray-600 mb-1 block">Last visit</label>
+                <label className="text-sm text-gray-600 mb-1 block">{t('admin.lastVisit') || 'Last Visit'}</label>
                 <Input type="date" value={form.lastVisit ? new Date(form.lastVisit).toISOString().slice(0,10) : ''} onChange={(e) => setForm({ ...form, lastVisit: e.target.value })} className="rounded-xl" />
               </div>
             </div>
             <div>
-              <label className="text-sm text-gray-600 mb-1 block">Notes</label>
+              <label className="text-sm text-gray-600 mb-1 block">{t('admin.notes')}</label>
               <Textarea rows={4} value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-xl" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" className="rounded-xl" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button variant="outline" className="rounded-xl" onClick={() => setEditOpen(false)}>{t('admin.cancel')}</Button>
             <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl" onClick={saveClient}>
-              {editing ? 'Save Changes' : 'Create Client'}
+              {editing ? t('admin.saveChanges') : t('admin.createClient')}
             </Button>
           </DialogFooter>
         </DialogContent>

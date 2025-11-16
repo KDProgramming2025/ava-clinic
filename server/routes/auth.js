@@ -41,6 +41,21 @@ router.post('/login', loginLimiter, async (req, res) => {
   }
 });
 
+// GET /api/auth/me - return current admin user info based on token
+router.get('/me', async (req, res) => {
+  const header = req.headers.authorization || '';
+  const [, token] = header.split(' ');
+  if (!token) return res.status(401).json({ error: 'missing_token' });
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const user = await prisma.adminUser.findUnique({ where: { id: payload.sub }, select: { id: true, email: true, username: true, name: true, role: true, active: true } });
+    if (!user) return res.status(404).json({ error: 'not_found' });
+    res.json({ user });
+  } catch (e) {
+    return res.status(401).json({ error: 'invalid_token' });
+  }
+});
+
 export function authMiddleware(requiredRoles = []) {
   return (req, res, next) => {
     const header = req.headers.authorization || '';

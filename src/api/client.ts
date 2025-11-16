@@ -63,9 +63,18 @@ export const api = {
   auth: {
     login: async (identifier: string, password: string) =>
       apiFetch<{ token: string; user: { id: string; email?: string; username?: string; role?: string } }>('auth/login', { body: { identifier, password } }),
+    me: async () => apiFetch<{ user: { id: string; email?: string; username?: string; role?: string; name?: string; active?: boolean } }>('auth/me'),
   },
   home: () => apiFetch('/home'),
-  services: () => apiFetch('/services'),
+  services: (params: Record<string, any> = {}) => {
+    const merged = { includeTranslations: '1', ...params };
+    const qs = new URLSearchParams(
+      Object.entries(merged)
+        .filter(([, value]) => value !== undefined && value !== null)
+        .map(([key, value]) => [key, String(value)])
+    ).toString();
+    return apiFetch(`/services${qs ? `?${qs}` : ''}`);
+  },
   about: () => apiFetch('/about'),
   team: () => apiFetch('/team'),
   contact: () => apiFetch('/contact'),

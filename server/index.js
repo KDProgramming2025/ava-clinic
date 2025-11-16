@@ -41,7 +41,9 @@ app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads'), {
 }));
 // API routes
 app.use('/api/services', servicesRouter);
+// Back-compat path kept; also expose a cleaner alias
 app.use('/api/home/testimonials', testimonialsRouter);
+app.use('/api/testimonials', testimonialsRouter);
 app.use('/api/team', teamRouter);
 app.use('/api/categories', categoriesRouter);
 app.use('/api/tags', tagsRouter);
@@ -90,6 +92,25 @@ app.get('/api/content', (_req, res) => {
     articles: [],
     videos: [],
   });
+});
+
+// Serve frontend static assets from Vite build output
+const buildDir = path.resolve(process.cwd(), 'build');
+app.use(express.static(buildDir, { maxAge: '7d', index: false }));
+
+// SPA fallback using regex pattern (avoid path-to-regexp '*' parsing issue in some Node builds)
+app.get(/.*/, async (req, res, next) => {
+  // Skip API & direct SEO asset endpoints
+  if (req.path.startsWith('/api/')) return next();
+  if (['/sitemap.xml', '/robots.txt', '/rss.xml'].includes(req.path)) return next();
+  try {
+    const file = path.join(buildDir, 'index.html');
+    const html = await fs.readFile(file, 'utf-8');
+    res.set('Content-Type', 'text/html');
+    return res.send(html);
+  } catch (e) {
+    return next();
+  }
 });
 
 app.listen(port, () => {

@@ -3,6 +3,27 @@ import prisma from '../prismaClient.js';
 
 const router = express.Router();
 
+const stringOrNull = (value) => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return null;
+};
+
+const extractBilingual = (payload = {}, key) => {
+  const en = stringOrNull(payload[`${key}En`] ?? payload[`${key}_en`]);
+  const fa = stringOrNull(payload[`${key}Fa`] ?? payload[`${key}_fa`]);
+  const canonical = stringOrNull(payload[key]) ?? fa ?? en ?? null;
+  return { canonical, en, fa };
+};
+
+const numericOrDefault = (value, fallback = 0) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+};
+
 router.get('/', async (_req, res) => {
   try {
     const timeline = await prisma.aboutTimeline.findMany({ orderBy: { year: 'asc' } });
@@ -22,22 +43,88 @@ router.put('/', async (req, res) => {
     await prisma.$transaction(async (tx) => {
       if (timeline) {
         await tx.aboutTimeline.deleteMany();
-        await tx.aboutTimeline.createMany({ data: timeline.map(t => ({ year: t.year, title: t.title, description: t.description || null })) });
+        const data = timeline.map((t, index) => {
+          const title = extractBilingual(t, 'title');
+          const description = extractBilingual(t, 'description');
+          const entry = {
+            year: numericOrDefault(t.year, 2000 + index),
+            title: title.canonical || `Timeline ${index + 1}`,
+            titleEn: title.en,
+            titleFa: title.fa,
+            description: description.canonical,
+            descriptionEn: description.en,
+            descriptionFa: description.fa,
+          };
+          const id = stringOrNull(t.id);
+          if (id) entry.id = id;
+          return entry;
+        });
+        await tx.aboutTimeline.createMany({ data });
       }
       if (values) {
         await tx.aboutValue.deleteMany();
-        for (const v of values) await tx.aboutValue.create({ data: { title: v.title, description: v.description || null, icon: v.icon || null } });
+        for (const v of values) {
+          const title = extractBilingual(v, 'title');
+          const description = extractBilingual(v, 'description');
+          const entry = {
+            title: title.canonical || 'Value',
+            titleEn: title.en,
+            titleFa: title.fa,
+            description: description.canonical,
+            descriptionEn: description.en,
+            descriptionFa: description.fa,
+            icon: stringOrNull(v.icon),
+          };
+          const id = stringOrNull(v.id);
+          if (id) entry.id = id;
+          await tx.aboutValue.create({ data: entry });
+        }
       }
       if (skills) {
         await tx.aboutSkill.deleteMany();
-        await tx.aboutSkill.createMany({ data: skills.map(s => ({ name: s.name, level: s.level })) });
+        const skillData = skills.map((s, index) => {
+          const name = extractBilingual(s, 'name');
+          const entry = {
+            name: name.canonical || `Skill ${index + 1}`,
+            nameEn: name.en,
+            nameFa: name.fa,
+            level: Math.max(0, Math.min(100, numericOrDefault(s.level, 0))),
+          };
+          const id = stringOrNull(s.id);
+          if (id) entry.id = id;
+          return entry;
+        });
+        await tx.aboutSkill.createMany({ data: skillData });
       }
       if (mission) {
-        await tx.aboutMission.upsert({ where: { id: 1 }, update: mission, create: { id: 1, ...mission } });
+        const heading = extractBilingual(mission, 'heading');
+        const paragraph = extractBilingual(mission, 'paragraph');
+        const missionPayload = {
+          heading: heading.canonical,
+          headingEn: heading.en,
+          headingFa: heading.fa,
+          paragraph: paragraph.canonical,
+          paragraphEn: paragraph.en,
+          paragraphFa: paragraph.fa,
+          imageHeroUrl: stringOrNull(mission.imageHeroUrl),
+          imageSecondaryUrl: stringOrNull(mission.imageSecondaryUrl),
+        };
+        await tx.aboutMission.upsert({ where: { id: 1 }, update: missionPayload, create: { id: 1, ...missionPayload } });
       }
       if (missionBullets) {
         await tx.aboutMissionBullet.deleteMany();
-        await tx.aboutMissionBullet.createMany({ data: missionBullets.map(b => ({ text: b.text })) });
+        const bulletData = missionBullets.map((b, index) => {
+          const text = extractBilingual(b, 'text');
+          const entry = {
+            text: text.canonical || `Bullet ${index + 1}`,
+            textEn: text.en,
+            textFa: text.fa,
+          };
+          const id = stringOrNull(b.id);
+          if (id) entry.id = id;
+          return entry;
+        });
+        await tx.aboutMissionBullet.createMany({ data: bulletData });
       }
     });
     res.json({ updated: true });

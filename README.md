@@ -86,9 +86,14 @@ Unit file: `server/ava-beauty.service`. Added recommended env vars:
 Environment=JWT_SECRET=change_me_in_production
 Environment=RL_WINDOW_MS=900000
 Environment=RL_MAX=20
+# Media/CDN base (ensures uploads resolve to public domain)
+Environment=MEDIA_BASE_URL=https://ava-beauty.com
+
 # Optional one-time seed vars (remove after running seed script):
 # Environment=SUPERADMIN_EMAIL=admin@example.com
 # Environment=SUPERADMIN_PASSWORD=StrongInitialPassword123!
+
+# Frontend builds also read `VITE_MEDIA_BASE_URL` (set in `.env` with the same value) so static assets reference the public domain instead of the server IP.
 ```
 
 Reload and restart after edits:

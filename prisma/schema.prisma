@@ -19,6 +19,13 @@ model Service {
   subtitle     String?
   slug         String        @unique
   description  String        @db.Text
+  // Bilingual fields
+  titleEn      String?
+  titleFa      String?
+  subtitleEn   String?
+  subtitleFa   String?
+  descriptionEn String?      @db.Text
+  descriptionFa String?      @db.Text
   image        String?
   priceRange   String?
   duration     String?
@@ -63,6 +70,10 @@ model Testimonial {
   text      String   @db.Text
   rating    Int      // 1..5
   image     String?
+  nameEn    String?
+  nameFa    String?
+  textEn    String?  @db.Text
+  textFa    String?  @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -110,15 +121,23 @@ model Tag {
 
 model Article {
   id              String         @id @default(cuid())
-  title           String
-  slug            String         @unique
+  // Canonical fallback fields (kept for backward-compat + SEO)
+  title        String
+  subtitle     String?
   excerpt         String?
-  body            String?        @db.Text
+  description  String        @db.Text
   image           String?
   readTimeMinutes Int?
   status          ArticleStatus  @default(DRAFT)
   featured        Boolean        @default(false)
   publishedAt     DateTime?
+  // Bilingual fields for content-managed UI
+  titleEn      String?
+  titleFa      String?
+  subtitleEn   String?
+  subtitleFa   String?
+  descriptionEn String?      @db.Text
+  descriptionFa String?      @db.Text
   categoryId      String?
   category        Category?      @relation(fields: [categoryId], references: [id])
   authorId        String?
@@ -136,6 +155,8 @@ model Article {
 model NavigationItem {
   id        String   @id @default(cuid())
   label     String
+  labelEn   String?
+  labelFa   String?
   path      String
   order     Int      @default(0)
   visible   Boolean  @default(true)
@@ -144,8 +165,12 @@ model NavigationItem {
 model FooterLink {
   id    String @id @default(cuid())
   label String
+  labelEn String?
+  labelFa String?
   url   String
   group String?
+  groupEn String?
+  groupFa String?
 }
 
 model Settings {
@@ -155,6 +180,11 @@ model Settings {
   ogImage         String?
   primaryColor    String?
   secondaryColor  String?
+  // Bilingual branding/SEO fields
+  siteTitleEn     String?
+  siteTitleFa     String?
+  metaDescriptionEn String? @db.Text
+  metaDescriptionFa String? @db.Text
   languagesJson   Json?
   logoUrl         String?
   emailConfirmTemplate  String? @db.Text
@@ -166,16 +196,28 @@ model Settings {
 model HomeHero {
   id                   Int     @id @default(1)
   title                String?
+  titleEn              String?
+  titleFa              String?
   subtitle             String?
+  subtitleEn           String?
+  subtitleFa           String?
   description          String? @db.Text
+  descriptionEn        String? @db.Text
+  descriptionFa        String? @db.Text
   ctaPrimaryLabel      String?
+  ctaPrimaryLabelEn    String?
+  ctaPrimaryLabelFa    String?
   ctaSecondaryLabel    String?
+  ctaSecondaryLabelEn  String?
+  ctaSecondaryLabelFa  String?
   imageUrl             String?
 }
 
 model HomeStat {
   id     String @id @default(cuid())
   label  String
+  labelEn String?
+  labelFa String?
   value  Int
   icon   String?
 }
@@ -183,41 +225,65 @@ model HomeStat {
 model HomeFeature {
   id          String @id @default(cuid())
   title       String
+  titleEn     String?
+  titleFa     String?
   description String? @db.Text
+  descriptionEn String? @db.Text
+  descriptionFa String? @db.Text
   icon        String?
 }
 
 model HomeCTA {
   id         Int    @id @default(1)
   heading    String?
+  headingEn  String?
+  headingFa  String?
   subheading String?
+  subheadingEn String?
+  subheadingFa String?
   buttonLabel String?
+  buttonLabelEn String?
+  buttonLabelFa String?
 }
 
 model AboutTimeline {
   id          String @id @default(cuid())
   year        Int
   title       String
+  titleEn     String?
+  titleFa     String?
   description String? @db.Text
+  descriptionEn String? @db.Text
+  descriptionFa String? @db.Text
 }
 
 model AboutValue {
   id          String @id @default(cuid())
   title       String
+  titleEn     String?
+  titleFa     String?
   description String? @db.Text
+  descriptionEn String? @db.Text
+  descriptionFa String? @db.Text
   icon        String?
 }
 
 model AboutSkill {
   id    String @id @default(cuid())
   name  String
+  nameEn String?
+  nameFa String?
   level Int
 }
 
 model AboutMission {
   id         Int     @id @default(1)
   heading    String?
+  headingEn  String?
+  headingFa  String?
   paragraph  String? @db.Text
+  paragraphEn String? @db.Text
+  paragraphFa String? @db.Text
   imageHeroUrl      String?
   imageSecondaryUrl String?
 }
@@ -225,6 +291,8 @@ model AboutMission {
 model AboutMissionBullet {
   id       String @id @default(cuid())
   text     String
+  textEn   String?
+  textFa   String?
 }
 
 enum ContactInfoType {
@@ -238,12 +306,16 @@ model ContactInfoBlock {
   id     String          @id @default(cuid())
   type   ContactInfoType
   title  String
+  titleEn String?
+  titleFa String?
   values ContactInfoValue[]
 }
 
 model ContactInfoValue {
   id       String  @id @default(cuid())
   value    String
+  valueEn  String?
+  valueFa  String?
   blockId  String
   block    ContactInfoBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
 }
@@ -251,12 +323,18 @@ model ContactInfoValue {
 model ContactFaq {
   id       String @id @default(cuid())
   question String
+  questionEn String?
+  questionFa String?
   answer   String @db.Text
+  answerEn String? @db.Text
+  answerFa String? @db.Text
 }
 
 model SocialLink {
   id       String @id @default(cuid())
   platform String
+  platformEn String?
+  platformFa String?
   url      String
   icon     String?
 }
@@ -271,6 +349,8 @@ enum QuickActionType {
 model QuickAction {
   id     String          @id @default(cuid())
   label  String
+  labelEn String?
+  labelFa String?
   type   QuickActionType
   target String
 }

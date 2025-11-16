@@ -6,16 +6,56 @@ import { Card } from '../ui/card';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { Progress } from '../ui/progress';
 import { api } from '../../api/client';
+import { SEO } from '../SEO';
 
-interface TimelineItem { id?: string; year: number; title: string; description?: string | null; }
-interface ValueItem { id?: string; title: string; description?: string | null; icon?: string | null; }
-interface SkillItem { id?: string; name: string; level: number; }
-interface Mission { heading?: string | null; paragraph?: string | null; imageHeroUrl?: string | null; imageSecondaryUrl?: string | null; }
-interface MissionBullet { id?: string; text: string; }
+interface TimelineItem {
+  id?: string;
+  year: number;
+  title: string;
+  titleEn?: string | null;
+  titleFa?: string | null;
+  description?: string | null;
+  descriptionEn?: string | null;
+  descriptionFa?: string | null;
+}
+interface ValueItem {
+  id?: string;
+  title: string;
+  titleEn?: string | null;
+  titleFa?: string | null;
+  description?: string | null;
+  descriptionEn?: string | null;
+  descriptionFa?: string | null;
+  icon?: string | null;
+}
+interface SkillItem {
+  id?: string;
+  name: string;
+  nameEn?: string | null;
+  nameFa?: string | null;
+  level: number;
+}
+interface Mission {
+  heading?: string | null;
+  headingEn?: string | null;
+  headingFa?: string | null;
+  paragraph?: string | null;
+  paragraphEn?: string | null;
+  paragraphFa?: string | null;
+  imageHeroUrl?: string | null;
+  imageSecondaryUrl?: string | null;
+}
+interface MissionBullet {
+  id?: string;
+  text: string;
+  textEn?: string | null;
+  textFa?: string | null;
+}
 interface TeamMember { id?: string; name: string; role: string; bio?: string | null; image?: string | null; active?: boolean; }
+interface StatItem { icon: string; value: string; label: string; labelEn?: string | null; labelFa?: string | null; id?: string; }
 
 export function AboutPage() {
-  const { isRTL, t } = useLanguage();
+  const { isRTL, t, trc, language } = useLanguage();
 
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [values, setValues] = useState<ValueItem[]>([]);
@@ -23,9 +63,20 @@ export function AboutPage() {
   const [mission, setMission] = useState<Mission | null>(null);
   const [missionBullets, setMissionBullets] = useState<MissionBullet[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
-  const [stats, setStats] = useState<{ icon: string; value: string; label: string }[]>([]);
+  const [stats, setStats] = useState<StatItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const pickLocalized = (fa?: string | null, en?: string | null, fallback?: string | null) => {
+    const order = language === 'fa' ? [fa, en, fallback] : [en, fa, fallback];
+    for (const value of order) {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed.length) return trimmed;
+      }
+    }
+    return typeof fallback === 'string' ? fallback.trim() : '';
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -38,17 +89,21 @@ export function AboutPage() {
           api.home(), // reuse home stats for bottom section (assumption)
         ]);
         if (cancelled) return;
-        setTimeline((aboutData.timeline || []).map((t: any) => ({ ...t })));
-        setValues(aboutData.values || []);
-        setSkills(aboutData.skills || []);
+        const timelineItems = Array.isArray(aboutData.timeline) ? aboutData.timeline : [];
+        setTimeline(timelineItems.map((item: any) => ({ ...item, year: Number(item.year) || 0 })).sort((a, b) => a.year - b.year));
+        setValues(Array.isArray(aboutData.values) ? aboutData.values : []);
+        setSkills((Array.isArray(aboutData.skills) ? aboutData.skills : []).map((s: any) => ({ ...s, level: Number(s.level) || 0 })));
         setMission(aboutData.mission || null);
-        setMissionBullets(aboutData.missionBullets || []);
-        setTeam(teamData || []);
-        // Map home stats to local shape if available; fallback to empty (removes static array)
-        const mappedStats = (homeData?.stats || []).slice(0, 4).map((s: any) => ({
+        setMissionBullets(Array.isArray(aboutData.missionBullets) ? aboutData.missionBullets : []);
+        setTeam(Array.isArray(teamData) ? teamData : []);
+        const homeStats = Array.isArray(homeData?.stats) ? homeData.stats : [];
+        const mappedStats = homeStats.slice(0, 4).map((s: any) => ({
           icon: s.icon || 'award',
-          value: String(s.value),
-          label: s.label || 'Stat',
+          value: String(s.value ?? ''),
+          label: s.label || '',
+          labelEn: s.labelEn ?? s.label ?? null,
+          labelFa: s.labelFa ?? s.label ?? null,
+          id: s.id,
         }));
         setStats(mappedStats);
       } catch (e: any) {
@@ -59,6 +114,10 @@ export function AboutPage() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  const missionHeroParagraph = pickLocalized(mission?.paragraphFa, mission?.paragraphEn, mission?.paragraph || t('about.lead')) || t('about.lead');
+  const missionHeadingLocalized = pickLocalized(mission?.headingFa, mission?.headingEn, mission?.heading || t('about.skillsTitle')) || t('about.skillsTitle');
+  const missionParagraphLocalized = pickLocalized(mission?.paragraphFa, mission?.paragraphEn, mission?.paragraph || t('about.skillsSubtitle')) || t('about.skillsSubtitle');
 
   const iconComponent = (name: string) => {
     switch ((name || '').toLowerCase()) {
@@ -72,9 +131,35 @@ export function AboutPage() {
 
   return (
     <div className="pt-20 min-h-screen">
-  {loading && <div className="text-center py-32">{t('common.loading')}</div>}
-      {error && !loading && <div className="text-center py-32 text-red-600">{error}</div>}
-      {!loading && !error && (
+      {/* SEO Meta */}
+      {(() => {
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.example.com';
+        const canonical = `${origin}/about`;
+        const alternates = [
+          { hrefLang: 'fa', href: `${origin}/about` },
+          { hrefLang: 'en', href: `${origin}/about?lang=en` }
+        ];
+        const breadcrumb = {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: t('home'), item: origin + '/' },
+            { '@type': 'ListItem', position: 2, name: t('about.title'), item: canonical }
+          ]
+        };
+        return (
+          <SEO
+            title={t('about.title')}
+            description={t('about.lead')}
+            canonical={canonical}
+            alternates={alternates}
+            image="/og-image.jpg"
+            type="website"
+            jsonLd={breadcrumb}
+          />
+        );
+      })()}
+      {error && <div className="text-center py-6 text-red-600">{error}</div>}
         <>
       {/* Hero Section */}
       <section className="relative py-20 bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
@@ -89,7 +174,7 @@ export function AboutPage() {
               {t('about.title')}
             </h1>
             <p className="text-gray-700 max-w-3xl mx-auto">
-              {mission?.paragraph || t('about.lead')}
+              {trc('about.mission.paragraph', missionHeroParagraph)}
             </p>
           </motion.div>
 
@@ -116,23 +201,26 @@ export function AboutPage() {
               transition={{ delay: 0.3 }}
               className="space-y-6"
             >
-              <h2 className="text-gray-900">{mission?.heading || t('about.skillsTitle')}</h2>
+              <h2 className="text-gray-900">{trc('about.mission.heading', missionHeadingLocalized)}</h2>
               <p className="text-gray-700">
-                {mission?.paragraph || t('about.skillsSubtitle')}
+                {trc('about.mission.paragraph', missionParagraphLocalized)}
               </p>
               <div className="space-y-4">
-                {(missionBullets || []).map((b, index) => (
-                  <motion.div
-                    key={b.id || index}
-                    initial={{ opacity: 0, x: isRTL ? -20 : 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 + index * 0.1 }}
-                    className="flex items-center gap-3"
-                  >
-                    <CheckCircle className="w-6 h-6 text-pink-500 flex-shrink-0" />
-                    <span className="text-gray-700">{b.text}</span>
-                  </motion.div>
-                ))}
+                {(missionBullets || []).map((b, index) => {
+                  const bulletText = pickLocalized(b.textFa, b.textEn, b.text);
+                  return (
+                    <motion.div
+                      key={b.id || index}
+                      initial={{ opacity: 0, x: isRTL ? -20 : 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.4 + index * 0.1 }}
+                      className="flex items-center gap-3"
+                    >
+                      <CheckCircle className="w-6 h-6 text-pink-500 flex-shrink-0" />
+                      <span className="text-gray-700">{trc(`about.mission.bullet.${b.id || index}`, bulletText)}</span>
+                    </motion.div>
+                  );
+                })}
               </div>
             </motion.div>
           </div>
@@ -157,27 +245,39 @@ export function AboutPage() {
           </motion.div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {values.map((value, index) => (
-              <motion.div
-                key={value.id || index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ y: -10 }}
-              >
-                <Card className="p-6 text-center border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-white to-pink-50/30">
-                  <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                    {(() => {
-                      const Icon = iconComponent(value.icon || 'heart');
-                      return <Icon className="w-8 h-8 text-white" />;
-                    })()}
-                  </div>
-                  <h3 className="mb-3 text-gray-900">{value.title}</h3>
-                  <p className="text-gray-600">{value.description}</p>
-                </Card>
-              </motion.div>
-            ))}
+            {(values.length ? values : loading ? Array.from({length:4}).map(()=>({title:'', description:'', icon:'heart'})) : []).map((value: any, index) => {
+              const localizedTitle = pickLocalized(value.titleFa, value.titleEn, value.title);
+              const localizedDescription = pickLocalized(value.descriptionFa, value.descriptionEn, value.description);
+              return (
+                <motion.div
+                  key={value.id || index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -10 }}
+                >
+                  <Card className="p-6 text-center border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-white to-pink-50/30">
+                    <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                      {loading ? <div className="w-8 h-8 bg-white/40 rounded animate-pulse" /> : (() => { const Icon = iconComponent(value.icon || 'heart'); return <Icon className="w-8 h-8 text-white" />; })()}
+                    </div>
+                    <h3 className="mb-3 text-gray-900">
+                      {loading ? <div className="h-5 w-2/3 mx-auto bg-gray-200 rounded animate-pulse" /> : trc(`about.value.${value.id || index}.title`, localizedTitle)}
+                    </h3>
+                    <p className="text-gray-600">
+                      {loading ? (
+                        <>
+                          <div className="h-4 w-full bg-gray-200 rounded animate-pulse mb-2" />
+                          <div className="h-4 w-5/6 mx-auto bg-gray-200 rounded animate-pulse" />
+                        </>
+                      ) : (
+                        trc(`about.value.${value.id || index}.description`, localizedDescription)
+                      )}
+                    </p>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -204,25 +304,29 @@ export function AboutPage() {
             <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-gradient-to-b from-pink-500 to-purple-600" />
 
             <div className="space-y-12">
-              {timeline.map((item, index) => (
-                <motion.div
-                  key={item.id || index}
-                  initial={{ opacity: 0, x: index % 2 === 0 ? (isRTL ? 50 : -50) : (isRTL ? -50 : 50) }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  className={`flex items-center gap-8 ${index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}`}
-                >
-                  <div className={`flex-1 ${index % 2 === 0 ? 'text-right rtl:text-left' : 'text-left rtl:text-right'}`}>
-                    <Card className="p-6 bg-white shadow-lg inline-block">
-                      <div className="text-pink-600 mb-2">{item.year}</div>
-                      <h3 className="mb-2 text-gray-900">{item.title}</h3>
-                      <p className="text-gray-600">{item.description}</p>
-                    </Card>
-                  </div>
-                  <div className="w-4 h-4 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full ring-4 ring-white shadow-lg z-10" />
-                  <div className="flex-1" />
-                </motion.div>
-              ))}
+              {(timeline.length ? timeline : loading ? Array.from({length:3}).map(()=>({year: '—', title:'', description:''})) : []).map((item: any, index) => {
+                const localizedTitle = pickLocalized(item.titleFa, item.titleEn, item.title);
+                const localizedDescription = pickLocalized(item.descriptionFa, item.descriptionEn, item.description);
+                return (
+                  <motion.div
+                    key={item.id || index}
+                    initial={{ opacity: 0, x: index % 2 === 0 ? (isRTL ? 50 : -50) : (isRTL ? -50 : 50) }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    className={`flex items-center gap-8 ${index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}`}
+                  >
+                    <div className={`flex-1 ${index % 2 === 0 ? 'text-right rtl:text-left' : 'text-left rtl:text-right'}`}>
+                      <Card className="p-6 bg-white shadow-lg inline-block">
+                        <div className="text-pink-600 mb-2">{loading ? <span className="inline-block h-4 w-12 bg-gray-200 rounded animate-pulse" /> : item.year}</div>
+                        <h3 className="mb-2 text-gray-900">{loading ? <div className="h-5 w-2/3 inline-block bg-gray-200 rounded animate-pulse" /> : trc(`about.timeline.${item.id || index}.title`, localizedTitle)}</h3>
+                        <p className="text-gray-600">{loading ? <div className="h-4 w-5/6 bg-gray-200 rounded animate-pulse" /> : trc(`about.timeline.${item.id || index}.description`, localizedDescription)}</p>
+                      </Card>
+                    </div>
+                    <div className="w-4 h-4 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full ring-4 ring-white shadow-lg z-10" />
+                    <div className="flex-1" />
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -244,21 +348,28 @@ export function AboutPage() {
                 {t('about.skillsSubtitle')}
               </p>
               <div className="space-y-6">
-                {skills.map((skill, index) => (
-                  <motion.div
-                    key={skill.id || index}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <div className="flex justify-between mb-2">
-                      <span className="text-gray-900">{skill.name}</span>
-                      <span className="text-pink-600">{skill.level}%</span>
-                    </div>
-                    <Progress value={skill.level} className="h-2" />
-                  </motion.div>
-                ))}
+                {(skills.length ? skills : loading ? Array.from({length:5}).map(()=>({name:'', level:0})) : []).map((skill: any, index) => {
+                  const skillName = pickLocalized(skill.nameFa, skill.nameEn, skill.name);
+                  return (
+                    <motion.div
+                      key={skill.id || index}
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <div className="flex justify-between mb-2">
+                        <span className="text-gray-900">{loading ? <span className="inline-block h-4 w-32 bg-gray-200 rounded animate-pulse" /> : trc(`about.skill.${skill.id || index}.name`, skillName)}</span>
+                        <span className="text-pink-600">{loading ? <span className="inline-block h-4 w-10 bg-gray-200 rounded animate-pulse" /> : `${skill.level}%`}</span>
+                      </div>
+                      {loading ? (
+                        <div className="h-2 w-full bg-gray-200 rounded animate-pulse" />
+                      ) : (
+                        <Progress value={skill.level} className="h-2" />
+                      )}
+                    </motion.div>
+                  );
+                })}
               </div>
             </motion.div>
 
@@ -299,7 +410,7 @@ export function AboutPage() {
           </motion.div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {team.map((member, index) => (
+            {(team.length ? team : loading ? Array.from({length:4}).map(()=>({name:'', role:'', bio:''})) : []).map((member: any, index) => (
               <motion.div
                 key={member.id || index}
                 initial={{ opacity: 0, y: 20 }}
@@ -310,17 +421,23 @@ export function AboutPage() {
               >
                 <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all">
                   <div className="relative h-64 overflow-hidden">
-                    <ImageWithFallback
-                      src={member.image || undefined}
-                      alt={member.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    {loading ? (
+                      <div className="w-full h-full bg-gray-200 animate-pulse" />
+                    ) : (
+                      <>
+                        <ImageWithFallback
+                          src={member.image || undefined}
+                          alt={member.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      </>
+                    )}
                   </div>
                   <div className="p-6 text-center bg-white">
-                    <h3 className="mb-2 text-gray-900">{member.name}</h3>
-                    <p className="text-pink-600 mb-3">{member.role}</p>
-                    <p className="text-gray-600">{member.bio}</p>
+                    <h3 className="mb-2 text-gray-900">{loading ? <div className="h-5 w-2/3 mx-auto bg-gray-200 rounded animate-pulse" /> : trc(`team.${member.id || index}.name`, member.name)}</h3>
+                    <p className="text-pink-600 mb-3">{loading ? <div className="h-4 w-1/2 mx-auto bg-gray-200 rounded animate-pulse" /> : trc(`team.${member.id || index}.role`, member.role)}</p>
+                    <p className="text-gray-600">{loading ? <div className="h-4 w-5/6 mx-auto bg-gray-200 rounded animate-pulse" /> : trc(`team.${member.id || index}.bio`, member.bio || '')}</p>
                   </div>
                 </Card>
               </motion.div>
@@ -332,31 +449,32 @@ export function AboutPage() {
         <section className="py-20 bg-gradient-to-r from-pink-500 via-purple-600 to-blue-600">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid md:grid-cols-4 gap-8">
-              {stats.map((stat, index) => {
+              {(stats.length ? stats : loading ? Array.from({length:4}).map(()=>({icon:'award', value:'', label:''})) : []).map((stat: any, index) => {
                 const Icon = iconComponent(stat.icon);
+                const statLabel = pickLocalized(stat.labelFa, stat.labelEn, stat.label);
                 return (
                   <motion.div
-                    key={index}
+                    key={stat.id || index}
                     initial={{ opacity: 0, scale: 0.5 }}
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
                     transition={{ delay: index * 0.1 }}
                     className="text-center text-white"
                   >
-                    <Icon className="w-12 h-12 mx-auto mb-4" />
-                    <div className="mb-2">{stat.value}</div>
-                    <p className="text-white/90">{stat.label}</p>
+                    {loading ? (
+                      <div className="w-12 h-12 mx-auto mb-4 bg-white/30 rounded-full animate-pulse" />
+                    ) : (
+                      <Icon className="w-12 h-12 mx-auto mb-4" />
+                    )}
+                    <div className="mb-2">{loading ? <div className="h-6 w-16 mx-auto bg-white/40 rounded animate-pulse" /> : stat.value}</div>
+                    <p className="text-white/90">{loading ? <span className="inline-block h-4 w-20 bg-white/30 rounded animate-pulse" /> : trc(`home.stat.${stat.id || index}.label`, statLabel)}</p>
                   </motion.div>
                 );
               })}
-              {stats.length === 0 && (
-                <div className="col-span-4 text-center text-white/80">{t('about.noStats')}</div>
-              )}
             </div>
           </div>
         </section>
         </>
-      )}
     </div>
   );
 }

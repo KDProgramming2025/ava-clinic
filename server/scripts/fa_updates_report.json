@@ -1,0 +1,125 @@
+{
+  "updated": 20,
+  "items": [
+    {
+      "key": "contact.block.cmhwj6g3d001rhcj4ucivi1oz.value.0",
+      "beforeFa": "+1 555 123 4567",
+      "en": "+1 555 123 4567",
+      "afterFa": "+1 555 123 4567"
+    },
+    {
+      "key": "contact.block.cmhwj6g3d001rhcj4ucivi1oz.value.1",
+      "beforeFa": "+1 555 987 6543",
+      "en": "+1 555 987 6543",
+      "afterFa": "+1 555 987 6543"
+    },
+    {
+      "key": "contact.block.cmhwj6g4q001whcj4da75o8xc.value.0",
+      "beforeFa": "info@avabeauty.com",
+      "en": "info@avabeauty.com",
+      "afterFa": "info@avabeauty.com"
+    },
+    {
+      "key": "about.mission.heading",
+      "beforeFa": "Elevating Confidence",
+      "en": "Elevating Confidence",
+      "afterFa": "ارتقای اعتماد به نفس"
+    },
+    {
+      "key": "about.mission.paragraph",
+      "beforeFa": "Combining science, artistry and care.",
+      "en": "Combining science, artistry and care.",
+      "afterFa": "ترکیب علم، هنر و مراقبت"
+    },
+    {
+      "key": "tag.cmhwj6gh3002shcj4jpo3c5kd.name",
+      "beforeFa": "care",
+      "en": "care",
+      "afterFa": "مراقبت"
+    },
+    {
+      "key": "article.cmhwj6gie002whcj481lqvhk7.title",
+      "beforeFa": "Post-Transplant Care Tips",
+      "en": "Post-Transplant Care Tips",
+      "afterFa": "نکات مراقبت پس از کاشت"
+    },
+    {
+      "key": "about.value.cmhwj6fy5001lhcj4nb0j406b.title",
+      "beforeFa": "Integrity",
+      "en": "Integrity",
+      "afterFa": "صداقت"
+    },
+    {
+      "key": "about.value.cmhwj6fyt001mhcj4ydvhwo9b.title",
+      "beforeFa": "Precision",
+      "en": "Precision",
+      "afterFa": "دقت"
+    },
+    {
+      "key": "contact.faq.cmhwj6g730027hcj4ttcolcul.question",
+      "beforeFa": "Do you offer consultations?",
+      "en": "Do you offer consultations?",
+      "afterFa": "آیا مشاوره ارائه می‌دهید؟"
+    },
+    {
+      "key": "contact.faq.cmhwj6g730027hcj4ttcolcul.answer",
+      "beforeFa": "Yes, initial assessments are free.",
+      "en": "Yes, initial assessments are free.",
+      "afterFa": "بله، ارزیابی اولیه رایگان است"
+    },
+    {
+      "key": "contact.faq.cmhwj6g7r0028hcj438znb1l4.question",
+      "beforeFa": "Where are you located?",
+      "en": "Where are you located?",
+      "afterFa": "کجا قرار دارید؟"
+    },
+    {
+      "key": "contact.faq.cmhwj6g7r0028hcj438znb1l4.answer",
+      "beforeFa": "Central Tehran medical district.",
+      "en": "Central Tehran medical district.",
+      "afterFa": "منطقه پزشکی مرکز تهران"
+    },
+    {
+      "key": "booking.info.cmhwj6gc2002hhcj4hgime9ml.title",
+      "beforeFa": "Expert Surgeons",
+      "en": "Expert Surgeons",
+      "afterFa": "جراحان متخصص"
+    },
+    {
+      "key": "contact.block.cmhwj6g4q001whcj4da75o8xc.value.1",
+      "beforeFa": "support@avabeauty.com",
+      "en": "support@avabeauty.com",
+      "afterFa": "support@avabeauty.com"
+    },
+    {
+      "key": "contact.block.cmhwj6g6f0024hcj4sip7ubya.value.0",
+      "beforeFa": "Sat-Wed 09:00 - 18:00",
+      "en": "Sat-Wed 09:00 - 18:00",
+      "afterFa": "شنبه تا چهارشنبه 09:00 - 18:00"
+    },
+    {
+      "key": "contact.quick.cmhwj6g8q002bhcj4jqjqyazc.label",
+      "beforeFa": "Call Now",
+      "en": "Call Now",
+      "afterFa": "همین حالا تماس بگیرید"
+    },
+    {
+      "key": "trending.cmhwj6gbb002fhcj498ci5l50.text",
+      "beforeFa": "Post-op care",
+      "en": "Post-op care",
+      "afterFa": "مراقبت‌های پس از عمل"
+    },
+    {
+      "key": "video.category.cmhwj6gf0002mhcj4jlyy6p6g.name",
+      "beforeFa": "Procedures",
+      "en": "Procedures",
+      "afterFa": "روش‌ها"
+    },
+    {
+      "key": "video.cmhwj6gfj002ohcj44ebkueo9.description",
+      "beforeFa": "Step-by-step extraction process.",
+      "en": "Step-by-step extraction process.",
+      "afterFa": "فرآیند استخراج مرحله‌به‌مرحله"
+    }
+  ]
+}

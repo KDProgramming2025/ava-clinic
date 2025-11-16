@@ -15,12 +15,25 @@ router.get('/', async (_req, res) => {
 
 // POST create testimonial
 router.post('/', async (req, res) => {
-  const { name, text, rating, image } = req.body;
-  if (!name || !text) return res.status(400).json({ error: 'missing_fields' });
+  const { name, text, rating, image, nameEn, nameFa, textEn, textFa } = req.body;
+  const baseName = name ?? nameFa ?? nameEn;
+  const baseText = text ?? textFa ?? textEn;
+  if (!baseName || !baseText) return res.status(400).json({ error: 'missing_fields' });
   const r = Number(rating);
   if (!Number.isInteger(r) || r < 1 || r > 5) return res.status(400).json({ error: 'invalid_rating' });
   try {
-    const created = await prisma.testimonial.create({ data: { name, text, rating: r, image: image || null } });
+    const created = await prisma.testimonial.create({
+      data: {
+        name: baseName,
+        text: baseText,
+        nameEn,
+        nameFa,
+        textEn,
+        textFa,
+        rating: r,
+        image: image || null,
+      },
+    });
     res.status(201).json(created);
   } catch (e) {
     res.status(500).json({ error: 'create_failed' });
@@ -30,10 +43,20 @@ router.post('/', async (req, res) => {
 // PUT update testimonial
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, text, rating, image } = req.body;
+  const { name, text, rating, image, nameEn, nameFa, textEn, textFa } = req.body;
   const data = {};
-  if (name !== undefined) data.name = name;
-  if (text !== undefined) data.text = text;
+  if (name !== undefined || nameFa !== undefined || nameEn !== undefined) {
+    const value = name ?? nameFa ?? nameEn;
+    if (value) data.name = value;
+    if (nameEn !== undefined) data.nameEn = nameEn;
+    if (nameFa !== undefined) data.nameFa = nameFa;
+  }
+  if (text !== undefined || textFa !== undefined || textEn !== undefined) {
+    const value = text ?? textFa ?? textEn;
+    if (value) data.text = value;
+    if (textEn !== undefined) data.textEn = textEn;
+    if (textFa !== undefined) data.textFa = textFa;
+  }
   if (rating !== undefined) {
     const r = Number(rating);
     if (!Number.isInteger(r) || r < 1 || r > 5) return res.status(400).json({ error: 'invalid_rating' });

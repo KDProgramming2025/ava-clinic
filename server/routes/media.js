@@ -1,6 +1,7 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
 import { authMiddleware } from './auth.js';
+import { buildPublicMediaUrl, prepareMediaPathForStorage } from '../utils/mediaUrl.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -37,10 +38,11 @@ const upload = multer({
 const router = express.Router();
 
 // GET /api/media
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
     const items = await prisma.media.findMany({ orderBy: { createdAt: 'desc' } });
-    res.json(items);
+    const enriched = items.map((item) => ({ ...item, publicUrl: buildPublicMediaUrl(item.url, req) }));
+    res.json(enriched);
   } catch (e) {
     res.status(500).json({ error: 'media_list_failed' });
   }
@@ -80,9 +82,10 @@ router.post(
       if (labels) {
         try { labelsJson = JSON.parse(labels); } catch { labelsJson = null; }
       }
-      const relativePath = '/uploads/' + req.file.filename;
+      const relativePath = prepareMediaPathForStorage('/uploads/' + req.file.filename);
       const created = await prisma.media.create({ data: { url: relativePath, alt: alt || null, type: type || req.file.mimetype || null, labels: labelsJson } });
-      res.status(201).json(created);
+      const publicUrl = buildPublicMediaUrl(relativePath, req);
+      res.status(201).json({ ...created, publicUrl });
     } catch (e) {
       res.status(500).json({ error: 'upload_failed' });
     }

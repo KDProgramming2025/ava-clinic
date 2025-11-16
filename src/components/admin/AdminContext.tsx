@@ -23,6 +23,35 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     if (stored) {
       setToken(stored);
       setIsAdminAuthenticated(true);
+      // Hydrate role/email from localStorage if present
+      const storedRole = localStorage.getItem('admin_role');
+      const storedEmail = localStorage.getItem('admin_email');
+      if (storedRole) setRole(storedRole);
+      if (storedEmail) setEmail(storedEmail);
+      // Fallback to server validation to refresh role/email accurately
+      (async () => {
+        // Reduce noise: only probe server if currently in admin view
+        const viewMode = localStorage.getItem('view_mode');
+        if (viewMode !== 'admin') return;
+        try {
+          const me = await api.auth.me();
+          const u = (me as any).user || {};
+          if (u.role) { setRole(u.role); localStorage.setItem('admin_role', u.role); }
+          if (u.email || u.username) { const id = String(u.email || u.username); setEmail(id); localStorage.setItem('admin_email', id); }
+        } catch (err: any) {
+          const code = (err && (err as any).code) || null;
+          const status = (err && (err as any).status) || null;
+          if (code === 'invalid_token' || code === 'missing_token' || status === 404) {
+            setIsAdminAuthenticated(false);
+            setToken(null);
+            setRole(null);
+            setEmail(null);
+            setAuthToken(null);
+            localStorage.removeItem('admin_role');
+            localStorage.removeItem('admin_email');
+          }
+        }
+      })();
     }
   }, []);
 
@@ -35,7 +64,11 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       const user = (res as any).user || {};
       setRole(user.role || null);
       setEmail(user.email || user.username || cleanId);
+      if (user.role) localStorage.setItem('admin_role', user.role);
+      if (user.email || user.username || cleanId) localStorage.setItem('admin_email', String(user.email || user.username || cleanId));
       setIsAdminAuthenticated(true);
+      // Ensure admin view mode is enabled when login succeeds
+      try { localStorage.setItem('view_mode', 'admin'); } catch (e) { /* ignore */ }
       return true;
     } catch (e) {
       setIsAdminAuthenticated(false);
@@ -43,6 +76,8 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       setRole(null);
       setEmail(null);
       setAuthToken(null);
+      localStorage.removeItem('admin_role');
+      localStorage.removeItem('admin_email');
       return false;
     }
   };
@@ -53,6 +88,10 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     setRole(null);
     setEmail(null);
     setAuthToken(null);
+    localStorage.removeItem('admin_role');
+    localStorage.removeItem('admin_email');
+    // Ensure we leave admin view after logout so the public site is visible
+    try { localStorage.setItem('view_mode', 'public'); } catch (e) { /* ignore */ }
   };
 
   return (

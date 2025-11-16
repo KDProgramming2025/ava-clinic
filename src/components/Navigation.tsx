@@ -1,23 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, ChevronDown, Globe } from 'lucide-react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Menu, X, ChevronDown, Globe, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from './LanguageContext';
 import { Button } from './ui/button';
 import { api } from '../api/client';
+import { resolveMediaUrl } from '../utils/media';
 
-interface NavigationProps {
-  currentPage: string;
-  onNavigate: (page: string) => void;
-}
-
-export function Navigation({ currentPage, onNavigate }: NavigationProps) {
+export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isServicesOpen, setIsServicesOpen] = useState(false);
-  const { t, toggleLanguage, language, isRTL } = useLanguage();
+  const { t, toggleLanguage, language, isRTL, trc } = useLanguage();
   const [navItems, setNavItems] = useState<Array<{ id: string; label: string; path?: string; hasDropdown?: boolean }>>([]);
   const [services, setServices] = useState<Array<{ id: string; label: string }>>([]);
   const [brand, setBrand] = useState<{ title?: string; logoUrl?: string }>({});
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -35,33 +33,81 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
         // Navigation from settings; fallback to defaults
         const items = (settings?.navigation || []).filter((n: any) => n.visible !== false).sort((a: any,b: any)=> (a.order??0)-(b.order??0));
         if (items.length) {
-          setNavItems(items.map((n: any) => ({ id: (n.path || n.label || '').replace(/^\//, '') || 'home', label: n.label || n.path || '', hasDropdown: (n.path || '') === '/services' })));
+          const mapPathToKey = (path: string) => {
+            const p = (path || '').replace(/\/$/, '');
+            if (p === '' || p === '/') return 'home';
+            if (p === '/about') return 'about';
+            if (p === '/services') return 'services';
+            if (p === '/videos') return 'videoGallery';
+            if (p === '/magazine') return 'magazine';
+            if (p === '/contact') return 'contact';
+            if (p === '/booking') return 'booking';
+            return '';
+          };
+          setNavItems(items.map((n: any) => {
+            const id = (n.path || n.label || '').replace(/^\//, '') || 'home';
+            const key = mapPathToKey(n.path || '');
+            const contentLabel = language === 'fa'
+              ? (n.labelFa || n.label)
+              : (n.labelEn || n.label);
+            const dictionaryLabel = key ? (trc(`nav.${key}.label`, '') || t(key)) : '';
+            const finalLabel = contentLabel || dictionaryLabel || n.label || n.path || '';
+            return {
+              id,
+              label: finalLabel,
+              hasDropdown: (n.path || '') === '/services',
+              path: n.path || `/${id === 'home' ? '' : id}`
+            };
+          }));
         } else {
           setNavItems([
-            { id: 'home', label: t('home') },
-            { id: 'about', label: t('about') },
-            { id: 'services', label: t('services'), hasDropdown: true },
-            { id: 'video-gallery', label: t('videoGallery') },
-            { id: 'magazine', label: t('magazine') },
-            { id: 'contact', label: t('contact') },
+            { id: 'home', label: t('home'), path: '/' },
+            { id: 'about', label: t('about'), path: '/about' },
+            { id: 'services', label: t('services'), hasDropdown: true, path: '/services' },
+            { id: 'video-gallery', label: t('videoGallery'), path: '/videos' },
+            { id: 'magazine', label: t('magazine'), path: '/magazine' },
+            { id: 'contact', label: t('contact'), path: '/contact' },
           ]);
         }
-        setServices((svc || []).map((s: any) => ({ id: s.id, label: s.title })));
-        setBrand({ title: settings?.settings?.siteTitle, logoUrl: settings?.settings?.logoUrl });
+        setServices((svc || []).map((s: any) => {
+          const localized = language === 'fa'
+            ? (s.titleFa || s.title || trc(`service.${s.slug || s.id}.title`, s.title))
+            : (s.titleEn || s.title || trc(`service.${s.slug || s.id}.title`, s.title));
+          const fallback = trc(`service.${s.slug || s.id}.title`, s.title);
+          return { id: s.id, label: localized || fallback || s.title };
+        }));
+        const s = settings?.settings || {};
+        const siteTitle = language === 'fa'
+          ? (s.siteTitleFa || s.siteTitle)
+          : (s.siteTitleEn || s.siteTitle);
+        const translationOverride = trc('brand.siteTitle', '');
+        const normalizedTitle = (siteTitle || '').trim();
+        const finalTitle = normalizedTitle || translationOverride || t('brand.name');
+        setBrand({ title: finalTitle, logoUrl: resolveMediaUrl(s.logoUrl) });
       } catch {
         setNavItems([
-          { id: 'home', label: t('home') },
-          { id: 'about', label: t('about') },
-          { id: 'services', label: t('services'), hasDropdown: true },
-          { id: 'video-gallery', label: t('videoGallery') },
-          { id: 'magazine', label: t('magazine') },
-          { id: 'contact', label: t('contact') },
+          { id: 'home', label: t('home'), path: '/' },
+          { id: 'about', label: t('about'), path: '/about' },
+          { id: 'services', label: t('services'), hasDropdown: true, path: '/services' },
+          { id: 'video-gallery', label: t('videoGallery'), path: '/videos' },
+          { id: 'magazine', label: t('magazine'), path: '/magazine' },
+          { id: 'contact', label: t('contact'), path: '/contact' },
         ]);
+        setBrand({ title: t('brand.name'), logoUrl: '' });
       }
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
+
+  const [viewMode, setViewMode] = useState<string>(() => localStorage.getItem('view_mode') || 'public');
+  const toggleViewMode = () => {
+    const next = viewMode === 'admin' ? 'public' : 'admin';
+    setViewMode(next);
+    localStorage.setItem('view_mode', next);
+    // Reload to let App.tsx pick up mode change cleanly
+    window.location.reload();
+  };
 
   return (
     <motion.nav
@@ -79,8 +125,9 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
           <motion.div
             whileHover={{ scale: 1.05 }}
             className="flex items-center cursor-pointer"
-            onClick={() => onNavigate('home')}
+            as-child="true"
           >
+            <Link to="/" aria-label={brand.title || 'Home'} className="flex items-center">
             {brand.logoUrl ? (
               <img src={brand.logoUrl} alt={brand.title || 'Logo'} className="w-12 h-12 rounded-full object-cover shadow-lg" />
             ) : (
@@ -91,6 +138,7 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
             <span className={`${isRTL ? 'mr-3' : 'ml-3'} bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent`}>
               {brand.title || t('brand.name')}
             </span>
+            </Link>
           </motion.div>
 
           {/* Desktop Navigation */}
@@ -104,11 +152,11 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
                   >
                     <button
                       className={`px-4 py-2 rounded-xl transition-all duration-300 flex items-center gap-2 ${
-                        currentPage === item.id
+                        location.pathname === (item.path || '/')
                           ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg'
                           : 'text-gray-700 hover:bg-white/50'
                       }`}
-                      onClick={() => onNavigate(item.id)}
+                      onClick={() => {/* open dropdown; do not navigate */}}
                     >
                       {item.label}
                       <ChevronDown className="w-4 h-4" />
@@ -122,35 +170,35 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
                           className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 bg-white rounded-2xl shadow-xl overflow-hidden`}
                         >
                           {services.map((service, index) => (
-                            <motion.button
+                            <motion.div
                               key={service.id}
                               initial={{ opacity: 0, x: isRTL ? 20 : -20 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: index * 0.05 }}
-                              onClick={() => {
-                                onNavigate('services');
-                                setIsServicesOpen(false);
-                              }}
-                              className="w-full text-left px-4 py-3 hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-colors"
+                              className="w-full"
                             >
-                              {service.label}
-                            </motion.button>
+                              <Link
+                                to="/services"
+                                onClick={() => setIsServicesOpen(false)}
+                                className="block w-full text-left px-4 py-3 hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-colors"
+                              >
+                                {service.label}
+                              </Link>
+                            </motion.div>
                           ))}
                         </motion.div>
                       )}
                     </AnimatePresence>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => onNavigate(item.id)}
-                    className={`px-4 py-2 rounded-xl transition-all duration-300 ${
-                      currentPage === item.id
-                        ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg'
-                        : 'text-gray-700 hover:bg-white/50'
+                  <NavLink
+                    to={item.path || '/'}
+                    className={({ isActive }) => `px-4 py-2 rounded-xl transition-all duration-300 ${
+                      isActive ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg' : 'text-gray-700 hover:bg-white/50'
                     }`}
                   >
                     {item.label}
-                  </button>
+                  </NavLink>
                 )}
               </div>
             ))}
@@ -167,10 +215,19 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
               <Globe className="w-5 h-5" />
             </Button>
             <Button
-              onClick={() => onNavigate('booking')}
+              onClick={toggleViewMode}
+              variant="outline"
+              size="sm"
+              className="rounded-xl hidden md:inline-flex"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              {viewMode === 'admin' ? t('admin.toggleToPublic') : t('admin.toggleToAdmin')}
+            </Button>
+            <Button
+              asChild
               className="hidden md:flex bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl shadow-lg"
             >
-              {t('booking')}
+              <Link to="/booking">{t('booking')}</Link>
             </Button>
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -194,45 +251,35 @@ export function Navigation({ currentPage, onNavigate }: NavigationProps) {
             <div className="px-4 py-4 space-y-2">
               {navItems.map((item) => (
                 <div key={item.id}>
-                  <button
-                    onClick={() => {
-                      onNavigate(item.id);
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-3 rounded-xl transition-all ${
-                      currentPage === item.id
-                        ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white'
-                        : 'hover:bg-gray-100'
+                  <NavLink
+                    to={item.path || '/'}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={({ isActive }) => `block w-full text-left px-4 py-3 rounded-xl transition-all ${
+                      isActive ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : 'hover:bg-gray-100'
                     }`}
                   >
                     {item.label}
-                  </button>
+                  </NavLink>
                   {item.hasDropdown && (
                     <div className="mt-1 space-y-1">
                       {services.map((service) => (
-                        <button
+                        <Link
                           key={service.id}
-                          onClick={() => {
-                            onNavigate('services');
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className={`w-full text-left px-8 py-2 rounded-xl text-gray-600 hover:bg-gray-100 ${isRTL ? 'pr-8' : 'pl-8'}`}
+                          to="/services"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className={`block w-full text-left px-8 py-2 rounded-xl text-gray-600 hover:bg-gray-100 ${isRTL ? 'pr-8' : 'pl-8'}`}
                         >
                           {service.label}
-                        </button>
+                        </Link>
                       ))}
                     </div>
                   )}
                 </div>
               ))}
-              <Button
-                onClick={() => {
-                  onNavigate('booking');
-                  setIsMobileMenuOpen(false);
-                }}
-                className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl"
-              >
-                {t('booking')}
+              <Button asChild className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">
+                <Link to="/booking" onClick={() => setIsMobileMenuOpen(false)}>
+                  {t('booking')}
+                </Link>
               </Button>
             </div>
           </motion.div>

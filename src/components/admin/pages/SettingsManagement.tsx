@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef, ChangeEvent } from 'react';
 import { motion } from 'motion/react';
-import { Settings as SettingsIcon, Palette, Image as ImageIcon, Mail } from 'lucide-react';
+import { Settings as SettingsIcon, Image as ImageIcon, Mail, UploadCloud } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
@@ -10,9 +10,13 @@ import { Separator } from '../../ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { toast } from 'sonner';
 import { apiFetch } from '../../../api/client';
+import { useLanguage } from '../../LanguageContext';
+import { resolveMediaUrl } from '../../../utils/media';
 
 interface BrandingSettings {
   logoUrl?: string | null;
+  siteTitleEn?: string | null;
+  siteTitleFa?: string | null;
   primaryColor?: string | null;
   secondaryColor?: string | null;
 }
@@ -21,26 +25,44 @@ interface EmailTemplates {
   emailReminderTemplate?: string | null;
   contactAutoReply?: string | null;
 }
-interface PerPageSeoMap { [path: string]: { title?: string; description?: string } }
+interface PerPageSeoEntry {
+  title?: string | null;
+  titleEn?: string | null;
+  titleFa?: string | null;
+  description?: string | null;
+  descriptionEn?: string | null;
+  descriptionFa?: string | null;
+}
+interface PerPageSeoMap { [path: string]: PerPageSeoEntry }
 interface SettingsPayload extends BrandingSettings, EmailTemplates {}
 
 export function SettingsManagement() {
+  const { t } = useLanguage();
   const [brand, setBrand] = useState<BrandingSettings>({});
   const [emails, setEmails] = useState<EmailTemplates>({});
   const [perPageSeo, setPerPageSeo] = useState<PerPageSeoMap>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+
+  const logoPreviewUrl = useMemo(() => resolveMediaUrl(brand.logoUrl), [brand.logoUrl]);
 
   const load = async () => {
     try {
       setLoading(true);
       const data = await apiFetch<any>('/settings');
   const s = data?.settings || {};
-      setBrand({ logoUrl: s.logoUrl || '', primaryColor: s.primaryColor || '', secondaryColor: s.secondaryColor || '' });
+      setBrand({
+        logoUrl: s.logoUrl || '',
+        siteTitleEn: s.siteTitleEn || s.siteTitle || '',
+        siteTitleFa: s.siteTitleFa || s.siteTitle || '',
+        primaryColor: s.primaryColor || '',
+        secondaryColor: s.secondaryColor || '',
+      });
       setEmails({ emailConfirmTemplate: s.emailConfirmTemplate || '', emailReminderTemplate: s.emailReminderTemplate || '', contactAutoReply: s.contactAutoReply || '' });
   setPerPageSeo((s.perPageSeo as any) || {});
     } catch (e: any) {
-      toast.error(e?.message || 'Failed to load settings');
+      toast.error(e?.message || t('admin.settings.loadFailed'));
     } finally { setLoading(false); }
   };
 
@@ -51,81 +73,134 @@ export function SettingsManagement() {
       setSaving(true);
   const settings: SettingsPayload & { perPageSeo?: any } = { ...brand, ...emails, perPageSeo };
   await apiFetch('/settings', { method: 'PUT', body: { settings } });
-      toast.success('Settings saved');
+      toast.success(t('admin.settings.saved'));
     } catch (e: any) {
-      toast.error(e?.message || 'Save failed');
+      toast.error(e?.message || t('admin.settings.saveFailed'));
     } finally { setSaving(false); }
+  };
+
+  const handleLogoFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const input = event.target;
+    try {
+      setLogoUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const alt = brand.siteTitleFa || brand.siteTitleEn || 'brand-logo';
+      if (alt) formData.append('alt', alt);
+      formData.append('labels', JSON.stringify(['branding', 'logo']));
+      const uploaded = await apiFetch<{ url?: string; publicUrl?: string }>('/media/upload', { method: 'POST', body: formData });
+      const nextUrl = uploaded?.url || uploaded?.publicUrl;
+      if (nextUrl) {
+        setBrand((prev) => ({ ...prev, logoUrl: nextUrl }));
+        toast.success(t('admin.media.uploaded'));
+      } else {
+        toast.error(t('admin.media.uploadFailed'));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || t('admin.media.uploadFailed'));
+    } finally {
+      setLogoUploading(false);
+      input.value = '';
+    }
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="mb-2 text-gray-900">Settings</h1>
-        <p className="text-gray-600">Branding and email templates</p>
+        <h1 className="mb-2 text-gray-900">{t('admin.settings.title')}</h1>
+        <p className="text-gray-600">{t('admin.settings.subtitle')}</p>
       </div>
 
       <Tabs defaultValue="branding" className="w-full">
         <TabsList className="grid w-full max-w-3xl grid-cols-3">
-          <TabsTrigger value="branding"><SettingsIcon className="w-4 h-4 mr-2" />Branding</TabsTrigger>
-          <TabsTrigger value="emails"><Mail className="w-4 h-4 mr-2" />Email Templates</TabsTrigger>
-          <TabsTrigger value="seo"><SettingsIcon className="w-4 h-4 mr-2" />Per-Page SEO</TabsTrigger>
+          <TabsTrigger value="branding"><SettingsIcon className="w-4 h-4 mr-2" />{t('admin.settings.brandingTab')}</TabsTrigger>
+          <TabsTrigger value="emails"><Mail className="w-4 h-4 mr-2" />{t('admin.settings.emailsTab')}</TabsTrigger>
+          <TabsTrigger value="seo"><SettingsIcon className="w-4 h-4 mr-2" />{t('admin.settings.seoTab')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="branding" className="mt-6">
           <Card className="p-6 border-0 shadow-lg">
-            <h3 className="mb-6 text-gray-900">Branding</h3>
+            <h3 className="mb-6 text-gray-900">{t('admin.settings.brandingTitle')}</h3>
             <div className="space-y-6">
               <div>
-                <Label htmlFor="logo-url">Logo URL</Label>
-                <div className="flex gap-3 mt-2">
+                <Label htmlFor="logo-url">{t('admin.settings.logoUrl')}</Label>
+                <p className="text-sm text-gray-500 mt-1">{t('admin.settings.logoUploadHint')}</p>
+                <div className="flex flex-col gap-3 mt-3 lg:flex-row">
                   <Input id="logo-url" placeholder="/uploads/logo.png" value={brand.logoUrl || ''} onChange={(e)=> setBrand({ ...brand, logoUrl: e.target.value })} className="rounded-xl" />
-                  <Button type="button" variant="outline" className="rounded-xl" onClick={load}>Preview</Button>
+                  <div className="flex gap-2">
+                    <label className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium cursor-pointer ${logoUploading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-gray-50'}`}>
+                      <UploadCloud className="w-4 h-4" />
+                      {logoUploading ? t('admin.media.uploading') : t('admin.settings.logoUploadButton')}
+                      <input type="file" accept="image/*" className="sr-only" onChange={handleLogoFileChange} disabled={logoUploading} />
+                    </label>
+                  </div>
                 </div>
-                {brand.logoUrl && <div className="mt-3 h-16 flex items-center gap-3"><ImageIcon className="w-5 h-5 text-pink-600" /><img src={brand.logoUrl} alt="Logo" className="h-12 object-contain" /></div>}
+                {logoPreviewUrl && (
+                  <div className="mt-3 h-16 flex items-center gap-3">
+                    <ImageIcon className="w-5 h-5 text-pink-600" />
+                    <img src={logoPreviewUrl} alt="Logo" className="h-12 object-contain" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">{t('admin.settings.siteTitleHint')}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                  <div>
+                    <Label htmlFor="site-title-en" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.settings.siteTitleEn')}</Label>
+                    <Input id="site-title-en" value={brand.siteTitleEn || ''} onChange={(e)=> setBrand({ ...brand, siteTitleEn: e.target.value })} className="mt-1 rounded-xl" placeholder="Ava Beauty Clinic" />
+                  </div>
+                  <div>
+                    <Label htmlFor="site-title-fa" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.settings.siteTitleFa')}</Label>
+                    <Input id="site-title-fa" dir="rtl" className="mt-1 rounded-xl text-right" value={brand.siteTitleFa || ''} onChange={(e)=> setBrand({ ...brand, siteTitleFa: e.target.value })} placeholder="کلینیک آوا" />
+                  </div>
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label>Primary Color</Label>
+                  <Label>{t('admin.settings.primaryColor')}</Label>
                   <Input type="color" value={brand.primaryColor || '#ec4899'} onChange={(e)=> setBrand({ ...brand, primaryColor: e.target.value })} className="mt-2 h-12 rounded-xl" />
                 </div>
                 <div>
-                  <Label>Secondary Color</Label>
+                  <Label>{t('admin.settings.secondaryColor')}</Label>
                   <Input type="color" value={brand.secondaryColor || '#a855f7'} onChange={(e)=> setBrand({ ...brand, secondaryColor: e.target.value })} className="mt-2 h-12 rounded-xl" />
                 </div>
               </div>
-              <Button disabled={saving} onClick={save} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">{saving ? 'Saving…' : 'Save Branding'}</Button>
+              <Button disabled={saving} onClick={save} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">{saving ? t('admin.saving') : t('admin.settings.saveBranding')}</Button>
             </div>
           </Card>
         </TabsContent>
 
         <TabsContent value="emails" className="mt-6">
           <Card className="p-6 border-0 shadow-lg">
-            <h3 className="mb-6 text-gray-900">Email Templates</h3>
+            <h3 className="mb-6 text-gray-900">{t('admin.settings.emailsTitle')}</h3>
             <div className="space-y-6">
               <div>
-                <Label className="mb-1 block">Booking Confirmation</Label>
+                <Label className="mb-1 block">{t('admin.settings.bookingConfirmation')}</Label>
                 <Textarea rows={8} value={emails.emailConfirmTemplate || ''} onChange={(e)=> setEmails({ ...emails, emailConfirmTemplate: e.target.value })} className="rounded-xl" />
               </div>
               <div>
-                <Label className="mb-1 block">Booking Reminder</Label>
+                <Label className="mb-1 block">{t('admin.settings.bookingReminder')}</Label>
                 <Textarea rows={8} value={emails.emailReminderTemplate || ''} onChange={(e)=> setEmails({ ...emails, emailReminderTemplate: e.target.value })} className="rounded-xl" />
               </div>
               <div>
-                <Label className="mb-1 block">Contact Auto-Reply</Label>
+                <Label className="mb-1 block">{t('admin.settings.contactAutoReply')}</Label>
                 <Textarea rows={6} value={emails.contactAutoReply || ''} onChange={(e)=> setEmails({ ...emails, contactAutoReply: e.target.value })} className="rounded-xl" />
               </div>
-              <Button disabled={saving} onClick={save} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">{saving ? 'Saving…' : 'Save Templates'}</Button>
+              <Button disabled={saving} onClick={save} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">{saving ? t('admin.saving') : t('admin.settings.saveTemplates')}</Button>
             </div>
           </Card>
         </TabsContent>
 
         <TabsContent value="seo" className="mt-6">
           <Card className="p-6 border-0 shadow-lg">
-            <h3 className="mb-6 text-gray-900">Per-Page SEO Overrides</h3>
-            <p className="text-sm text-gray-600 mb-4">Define custom title/description by path (e.g. /services, /magazine, /contact, /services/hair-implant)</p>
+            <h3 className="mb-6 text-gray-900">{t('admin.settings.seoOverridesTitle')}</h3>
+            <p className="text-sm text-gray-600 mb-2">{t('admin.settings.seoOverridesHint')}</p>
+            <p className="text-xs text-gray-500 mb-4">{t('admin.settings.seoOverridesUsage')}</p>
             <SeoEditor value={perPageSeo} onChange={setPerPageSeo} />
             <div className="mt-6">
-              <Button disabled={saving} onClick={save} className="bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl">{saving ? 'Saving…' : 'Save SEO'}</Button>
+              <Button disabled={saving} onClick={save} className="bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl">{saving ? t('admin.saving') : t('admin.settings.saveSeo')}</Button>
             </div>
           </Card>
         </TabsContent>
@@ -134,48 +209,119 @@ export function SettingsManagement() {
   );
 }
 
+interface SeoRow {
+  id: string;
+  path: string;
+  titleEn: string;
+  titleFa: string;
+  descriptionEn: string;
+  descriptionFa: string;
+}
+
 function SeoEditor({ value, onChange }: { value: PerPageSeoMap; onChange: (v: PerPageSeoMap) => void }) {
-  const [rows, setRows] = useState<{ path: string; title: string; description: string }[]>(() =>
-    Object.entries(value || {}).map(([path, v]) => ({ path, title: v?.title || '', description: v?.description || '' }))
-  );
+  const { t } = useLanguage();
+
+  const generateRowId = () => {
+    try {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+      }
+    } catch (e) {
+      // ignore
+    }
+    return `seo-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  };
+
+  const normalize = (input?: PerPageSeoMap): SeoRow[] =>
+    Object.entries(input ?? {}).map(([path, meta], index) => ({
+      id: `existing-${index}-${path || 'root'}`,
+      path,
+      titleEn: meta?.titleEn || meta?.title || '',
+      titleFa: meta?.titleFa || meta?.title || '',
+      descriptionEn: meta?.descriptionEn || meta?.description || '',
+      descriptionFa: meta?.descriptionFa || meta?.description || '',
+    }));
+
+  const createEmptyRow = (): SeoRow => ({
+    id: generateRowId(),
+    path: '',
+    titleEn: '',
+    titleFa: '',
+    descriptionEn: '',
+    descriptionFa: '',
+  });
+
+  const [rows, setRows] = useState<SeoRow[]>(() => normalize(value));
+
+  const serializedRef = useRef('');
+
   useEffect(() => {
-    setRows(Object.entries(value || {}).map(([path, v]) => ({ path, title: v?.title || '', description: v?.description || '' })));
+    const nextSerialized = JSON.stringify(value ?? {});
+    if (nextSerialized !== serializedRef.current) {
+      serializedRef.current = nextSerialized;
+      setRows(normalize(value));
+    }
   }, [value]);
 
-  const add = () => setRows(prev => [...prev, { path: '/', title: '', description: '' }]);
-  const update = (i: number, patch: Partial<{ path: string; title: string; description: string }>) => setRows(prev => prev.map((r, idx) => idx === i ? { ...r, ...patch } : r));
+  const add = () => setRows(prev => [...prev, createEmptyRow()]);
+  const update = (i: number, patch: Partial<SeoRow>) => setRows(prev => prev.map((r, idx) => idx === i ? { ...r, ...patch } : r));
   const remove = (i: number) => setRows(prev => prev.filter((_, idx) => idx !== i));
+
   useEffect(() => {
     const obj: PerPageSeoMap = {};
     for (const r of rows) {
-      const path = r.path.trim() || '/';
-      obj[path] = { title: r.title.trim() || undefined, description: r.description.trim() || undefined };
+      const path = r.path.trim();
+      if (!path) continue;
+      const entry: PerPageSeoEntry = {
+        titleEn: r.titleEn.trim() || undefined,
+        titleFa: r.titleFa.trim() || undefined,
+        descriptionEn: r.descriptionEn.trim() || undefined,
+        descriptionFa: r.descriptionFa.trim() || undefined,
+      };
+      entry.title = entry.titleEn || entry.titleFa;
+      entry.description = entry.descriptionEn || entry.descriptionFa;
+      obj[path] = entry;
     }
+    serializedRef.current = JSON.stringify(obj);
     onChange(obj);
-  }, [rows]);
+  }, [rows, onChange]);
 
   return (
     <div className="space-y-4">
       {rows.map((r, i) => (
-        <div key={i} className="grid md:grid-cols-12 gap-3">
-          <div className="md:col-span-3">
-            <Label>Path</Label>
-            <Input value={r.path} onChange={(e)=> update(i, { path: e.target.value })} className="mt-1" />
+        <div key={r.id} className="rounded-2xl border border-gray-200 bg-white/80 p-4 space-y-4 shadow-sm">
+          <div className="grid md:grid-cols-6 gap-3">
+            <div className="md:col-span-5">
+              <Label>{t('admin.settings.path')}</Label>
+              <Input value={r.path} onChange={(e)=> update(i, { path: e.target.value })} className="mt-1" placeholder="/services/example" />
+            </div>
+            <div className="md:col-span-1 flex items-end justify-end">
+              <Button size="icon" variant="outline" onClick={()=> remove(i)} className="text-red-600">×</Button>
+            </div>
           </div>
-          <div className="md:col-span-4">
-            <Label>Title</Label>
-            <Input value={r.title} onChange={(e)=> update(i, { title: e.target.value })} className="mt-1" />
+          <div className="grid md:grid-cols-2 gap-3">
+            <div>
+              <Label>{t('admin.settings.titleLabelEn')}</Label>
+              <Input value={r.titleEn} onChange={(e)=> update(i, { titleEn: e.target.value })} className="mt-1" placeholder={t('admin.seo.siteTitlePlaceholder')} />
+            </div>
+            <div>
+              <Label>{t('admin.settings.titleLabelFa')}</Label>
+              <Input value={r.titleFa} onChange={(e)=> update(i, { titleFa: e.target.value })} className="mt-1 text-right" dir="rtl" placeholder={t('admin.seo.siteTitlePlaceholder')} />
+            </div>
           </div>
-          <div className="md:col-span-4">
-            <Label>Description</Label>
-            <Input value={r.description} onChange={(e)=> update(i, { description: e.target.value })} className="mt-1" />
-          </div>
-          <div className="md:col-span-1 flex items-end justify-end">
-            <Button size="icon" variant="outline" onClick={()=> remove(i)} className="text-red-600">×</Button>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div>
+              <Label>{t('admin.settings.descriptionLabelEn')}</Label>
+              <Textarea rows={3} value={r.descriptionEn} onChange={(e)=> update(i, { descriptionEn: e.target.value })} className="mt-1" placeholder={t('admin.seo.metaDescriptionPlaceholder')} />
+            </div>
+            <div>
+              <Label>{t('admin.settings.descriptionLabelFa')}</Label>
+              <Textarea rows={3} value={r.descriptionFa} onChange={(e)=> update(i, { descriptionFa: e.target.value })} className="mt-1 text-right" dir="rtl" placeholder={t('admin.seo.metaDescriptionPlaceholder')} />
+            </div>
           </div>
         </div>
       ))}
-      <Button variant="outline" onClick={add} className="rounded-xl">Add Override</Button>
+      <Button variant="outline" onClick={add} className="rounded-xl">{t('admin.settings.addOverride')}</Button>
     </div>
   );
 }

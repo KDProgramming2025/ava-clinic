@@ -9,17 +9,64 @@ import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { toast } from 'sonner';
 import { api, apiFetch } from '../../api/client';
+import { SEO } from '../SEO';
+
+interface ContactInfoValue { id?: string; value?: string | null; valueEn?: string | null; valueFa?: string | null }
+interface ContactInfoBlock {
+  id?: string;
+  type?: string;
+  title?: string | null;
+  titleEn?: string | null;
+  titleFa?: string | null;
+  values?: ContactInfoValue[];
+}
+interface ContactFaq {
+  id?: string;
+  question?: string | null;
+  questionEn?: string | null;
+  questionFa?: string | null;
+  answer?: string | null;
+  answerEn?: string | null;
+  answerFa?: string | null;
+}
+interface SocialLink {
+  id?: string;
+  platform?: string | null;
+  platformEn?: string | null;
+  platformFa?: string | null;
+  url?: string | null;
+  icon?: string | null;
+}
+interface QuickAction {
+  id?: string;
+  label?: string | null;
+  labelEn?: string | null;
+  labelFa?: string | null;
+  type?: string | null;
+  target?: string | null;
+}
 
 export function ContactPage() {
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, trc, language } = useLanguage();
 
   // Data state
-  const [blocks, setBlocks] = useState<any[]>([]);
-  const [faq, setFaq] = useState<any[]>([]);
-  const [social, setSocial] = useState<any[]>([]);
-  const [quickActions, setQuickActions] = useState<any[]>([]);
+  const [blocks, setBlocks] = useState<ContactInfoBlock[]>([]);
+  const [faq, setFaq] = useState<ContactFaq[]>([]);
+  const [social, setSocial] = useState<SocialLink[]>([]);
+  const [quickActions, setQuickActions] = useState<QuickAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const pickLocalized = (fa?: string | null, en?: string | null, fallback?: string | null) => {
+    const order = language === 'fa' ? [fa, en, fallback] : [en, fa, fallback];
+    for (const value of order) {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed.length) return trimmed;
+      }
+    }
+    return typeof fallback === 'string' ? fallback.trim() : '';
+  };
 
   // Form state
   const [name, setName] = useState('');
@@ -36,15 +83,21 @@ export function ContactPage() {
         setLoading(true);
         const data = await api.contact();
         if (cancelled) return;
-        setBlocks((data.blocks || []).map((b: any) => ({
+        const normalizedBlocks = (data.blocks || []).map((b: any) => ({
           ...b,
-          values: (b.values || []).map((v: any) => v.value),
-        })));
-        setFaq(data.faq || []);
-        setSocial(data.social || []);
-        setQuickActions(data.quickActions || []);
+          values: (b.values || []).map((v: any) => typeof v === 'string' ? { value: v } : ({
+            id: v?.id,
+            value: v?.value ?? '',
+            valueEn: v?.valueEn ?? v?.value ?? '',
+            valueFa: v?.valueFa ?? v?.value ?? '',
+          })),
+        }));
+        setBlocks(normalizedBlocks);
+        setFaq(Array.isArray(data.faq) ? data.faq : []);
+        setSocial(Array.isArray(data.social) ? data.social : []);
+        setQuickActions(Array.isArray(data.quickActions) ? data.quickActions : []);
       } catch (e: any) {
-        if (!cancelled) setError(e.message || 'Failed to load contact data');
+        if (!cancelled) setError(e.message || t('contact.loadFailed'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -79,7 +132,7 @@ export function ContactPage() {
       default: return Globe;
     }
   };
-  const hrefForQuickAction = (qa: any) => {
+  const hrefForQuickAction = (qa: QuickAction) => {
     switch ((qa.type || '').toLowerCase()) {
       case 'call': return `tel:${qa.target}`;
       case 'email': return `mailto:${qa.target}`;
@@ -87,7 +140,7 @@ export function ContactPage() {
       default: return qa.target || '#';
     }
   };
-  const iconForQuickAction = (qa: any) => {
+  const iconForQuickAction = (qa: QuickAction) => {
     switch ((qa.type || '').toLowerCase()) {
       case 'call': return Phone;
       case 'email': return Mail;
@@ -96,24 +149,51 @@ export function ContactPage() {
     }
   };
 
-  const primaryActionIndex = useMemo(() => quickActions.findIndex((q: any) => (q.type || '').toLowerCase() === 'call'), [quickActions]);
+  const primaryActionIndex = useMemo(() => quickActions.findIndex((q) => (q.type || '').toLowerCase() === 'call'), [quickActions]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setSubmitting(true);
-  await apiFetch('/messages', { body: { fromName: name, email, phone, subject, body: message } });
-      toast.success("Message sent successfully! We'll get back to you soon.");
-      setName(''); setEmail(''); setPhone(''); setSubject(''); setMessage('');
+      await apiFetch('/messages', { body: { fromName: name, email, phone, subject, body: message } });
+      toast.success(t('contact.form.sentSuccess'));
+      setName('');
+      setEmail('');
+      setPhone('');
+      setSubject('');
+      setMessage('');
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to send message');
+      toast.error(err?.message || t('contact.form.sentFailed'));
     } finally {
       setSubmitting(false);
     }
   };
 
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.example.com';
+  const canonical = `${origin}/contact`;
+  // Hreflang alternates assumption: site supports fa (default) and en.
+  const alternates = [
+    { hrefLang: 'fa', href: `${origin}/contact` },
+    { hrefLang: 'en', href: `${origin}/contact?lang=en` }
+  ];
   return (
     <div className="pt-20 min-h-screen">
+      <SEO
+        title={t('contact')}
+        description={t('contact.subtitle')}
+        canonical={canonical}
+        alternates={alternates}
+        image="/og-image.jpg"
+        type="website"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: t('home'), item: origin + '/' },
+            { '@type': 'ListItem', position: 2, name: t('contact'), item: canonical }
+          ]
+        }}
+      />
       {/* Hero */}
       <section className="py-20 bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -136,29 +216,57 @@ export function ContactPage() {
       <section className="py-12 -mt-20 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {loading && <div className="col-span-4 text-center py-8">Loading...</div>}
-            {error && !loading && <div className="col-span-4 text-center py-8 text-red-600">{error}</div>}
-            {!loading && !error && blocks.map((info, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ y: -5 }}
-              >
-                <Card className="p-6 border-0 shadow-xl text-center bg-white h-full">
-                  <div className={`w-14 h-14 bg-gradient-to-br ${colorForBlock(info.type)} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg`}>
-                    {(() => { const Icon = iconForBlock(info.type); return <Icon className="w-7 h-7 text-white" />; })()}
-                  </div>
-                  <h3 className="mb-3 text-gray-900">{info.title}</h3>
-                  {(info.values || []).map((detail: string, i: number) => (
-                    <p key={i} className="text-gray-600">
-                      {detail}
-                    </p>
-                  ))}
-                </Card>
-              </motion.div>
-            ))}
+            {error && <div className="col-span-4 text-center py-8 text-red-600">{error}</div>}
+            {(blocks.length
+              ? blocks
+              : loading
+                ? Array.from({ length: 4 }).map(
+                    () => ({ type: '', title: '', values: [{ value: '' }, { value: '' }] })
+                  ) as ContactInfoBlock[]
+                : []
+            ).map((info: ContactInfoBlock, index) => {
+              const blockTitle = pickLocalized(info?.titleFa, info?.titleEn, info?.title);
+              return (
+                <motion.div
+                  key={info.id || index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -5 }}
+                >
+                  <Card className="p-6 border-0 shadow-xl text-center bg-white h-full">
+                    <div className={`w-14 h-14 bg-gradient-to-br ${colorForBlock(info.type)} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg`}>
+                      {loading ? (
+                        <div className="w-7 h-7 bg-white/40 rounded animate-pulse" />
+                      ) : (
+                        (() => { const Icon = iconForBlock(info.type); return <Icon className="w-7 h-7 text-white" />; })()
+                      )}
+                    </div>
+                    <h3 className="mb-3 text-gray-900">
+                      {loading ? (
+                        <div className="h-5 w-1/2 mx-auto bg-gray-200 rounded animate-pulse" />
+                      ) : (
+                        trc(`contact.block.${info?.id || index}.title`, blockTitle)
+                      )}
+                    </h3>
+                    {(info.values || []).map((detail, i: number) => {
+                      const detailText = typeof detail === 'string'
+                        ? detail
+                        : pickLocalized(detail?.valueFa, detail?.valueEn, detail?.value);
+                      return (
+                        <p key={(detail as any)?.id || i} className="text-gray-600">
+                          {loading ? (
+                            <span className="block h-4 w-3/4 mx-auto bg-gray-200 rounded animate-pulse" />
+                          ) : (
+                            trc(`contact.block.${info?.id || index}.value.${i}`, detailText)
+                          )}
+                        </p>
+                      );
+                    })}
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -186,17 +294,17 @@ export function ContactPage() {
                     </div>
                     <div>
                       <Label htmlFor="email">{t('email')}*</Label>
-                      <Input id="email" type="email" placeholder="your@email.com" required className="mt-2 rounded-xl" value={email} onChange={e => setEmail(e.target.value)} />
+                      <Input id="email" type="email" placeholder={t('contact.form.emailPlaceholder')} required className="mt-2 rounded-xl" value={email} onChange={e => setEmail(e.target.value)} />
                     </div>
                   </div>
 
                   <div>
                     <Label htmlFor="phone">{t('phone')}</Label>
-                    <Input id="phone" type="tel" placeholder="+1 (555) 000-0000" className="mt-2 rounded-xl" value={phone} onChange={e => setPhone(e.target.value)} />
+                    <Input id="phone" type="tel" placeholder={t('contact.form.phonePlaceholder')} className="mt-2 rounded-xl" value={phone} onChange={e => setPhone(e.target.value)} />
                   </div>
 
                   <div>
-                    <Label htmlFor="subject">Subject*</Label>
+                    <Label htmlFor="subject">{t('contact.form.subjectLabel')}*</Label>
                     <Input id="subject" placeholder={t('contact.form.subjectPlaceholder')} required className="mt-2 rounded-xl" value={subject} onChange={e => setSubject(e.target.value)} />
                   </div>
 
@@ -207,7 +315,7 @@ export function ContactPage() {
 
                   <Button type="submit" disabled={submitting} className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl shadow-lg">
                     <Send className={`w-5 h-5 ${isRTL ? 'ml-2' : 'mr-2'}`} />
-                    {submitting ? 'Sending...' : t('send')}
+                    {submitting ? t('contact.form.sending') : t('send')}
                   </Button>
                 </form>
               </Card>
@@ -242,19 +350,24 @@ export function ContactPage() {
                     {t('contact.social.subtitle')}
                   </p>
                   <div className="grid grid-cols-4 gap-4">
-                    {social.map((s, index) => (
-                      <motion.a
-                        key={index}
-                        href={s.url}
-                        initial={{ opacity: 0, scale: 0 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.5 + index * 0.1 }}
-                        whileHover={{ scale: 1.1 }}
-                        className="w-14 h-14 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-2xl flex items-center justify-center transition-all"
-                      >
-                        {(() => { const Icon = iconForSocial(s.platform || s.name); return <Icon className="w-7 h-7" />; })()}
-                      </motion.a>
-                    ))}
+                    {social.map((s, index) => {
+                      const platformLabel = pickLocalized(s.platformFa, s.platformEn, s.platform);
+                      const Icon = iconForSocial(s.platform);
+                      return (
+                        <motion.a
+                          key={s.id || index}
+                          href={s.url || '#'}
+                          initial={{ opacity: 0, scale: 0 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.5 + index * 0.1 }}
+                          whileHover={{ scale: 1.1 }}
+                          className="w-14 h-14 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-2xl flex items-center justify-center transition-all"
+                          aria-label={platformLabel}
+                        >
+                          <Icon className="w-7 h-7" />
+                        </motion.a>
+                      );
+                    })}
                   </div>
                 </div>
               </Card>
@@ -269,18 +382,23 @@ export function ContactPage() {
                     const primary = idx === (primaryActionIndex >= 0 ? primaryActionIndex : 0);
                     const className = primary ? 'w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl justify-start' : 'w-full rounded-xl justify-start border-2';
                     const variant = primary ? undefined : 'outline';
+                    const labelText = pickLocalized(qa.labelFa, qa.labelEn, qa.label);
                     return (
                       <a key={idx} href={href} target={qa.type === 'custom' || qa.type === 'chat' ? '_blank' : undefined} rel="noreferrer">
                         <Button variant={variant as any} className={className} asChild={false}>
                           <span className="flex items-center">
                             <Icon className={`w-5 h-5 ${isRTL ? 'ml-3' : 'mr-3'}`} />
-                            {qa.label}
+                            {loading ? (
+                              <span className="block h-4 w-20 bg-gray-200 rounded animate-pulse" />
+                            ) : (
+                              trc(`contact.quick.${qa.id || idx}.label`, labelText)
+                            )}
                           </span>
                         </Button>
                       </a>
                     );
                   })}
-                  {quickActions.length === 0 && (
+                  {quickActions.length === 0 && !loading && (
                     <p className="text-gray-600">{t('contact.quickActions.empty')}</p>
                   )}
                 </div>
@@ -308,25 +426,45 @@ export function ContactPage() {
           </motion.div>
 
           <div className="space-y-4">
-            {faq.map((item, index) => (
-              <motion.div
-                key={item.id || index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all">
-                  <h3 className="mb-3 text-gray-900">{item.question}</h3>
-                  <p className="text-gray-600">{item.answer}</p>
-                </Card>
-              </motion.div>
-            ))}
+            {(faq.length
+              ? faq
+              : loading
+                ? Array.from({ length: 3 }).map(() => ({ question: '', answer: '' })) as ContactFaq[]
+                : []
+            ).map((item: ContactFaq, index) => {
+              const question = pickLocalized(item.questionFa, item.questionEn, item.question);
+              const answer = pickLocalized(item.answerFa, item.answerEn, item.answer);
+              return (
+                <motion.div
+                  key={item.id || index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all">
+                    <h3 className="mb-3 text-gray-900">
+                      {loading ? <div className="h-5 w-2/3 bg-gray-200 rounded animate-pulse" /> : trc(`contact.faq.${item.id || index}.question`, question)}
+                    </h3>
+                    <p className="text-gray-600">
+                      {loading ? (
+                        <>
+                          <div className="h-4 w-full bg-gray-200 rounded animate-pulse mb-2" />
+                          <div className="h-4 w-5/6 bg-gray-200 rounded animate-pulse" />
+                        </>
+                      ) : (
+                        trc(`contact.faq.${item.id || index}.answer`, answer)
+                      )}
+                    </p>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
 
           <div className="text-center mt-8">
             <p className="text-gray-600">
-              Have more questions?{' '}
+              {t('contact.faqs.moreQuestionsIntro')}{' '}
               <button className="text-pink-600 hover:text-pink-700">
                 {t('contact.faqs.viewAll')}
               </button>

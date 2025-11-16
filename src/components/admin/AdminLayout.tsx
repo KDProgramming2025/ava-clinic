@@ -1,4 +1,4 @@
-import { useState, ReactNode } from 'react';
+import { useState, useEffect, useMemo, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard,
@@ -18,6 +18,9 @@ import {
   Lock,
 } from 'lucide-react';
 import { useAdmin } from './AdminContext';
+import { useLanguage } from '../LanguageContext';
+import { api } from '../../api/client';
+import { resolveMediaUrl } from '../../utils/media';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
@@ -38,30 +41,63 @@ interface AdminLayoutProps {
 export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { adminLogout } = useAdmin();
+  const { t, toggleLanguage, language, trc } = useLanguage();
+
+  const [branding, setBranding] = useState<{ title?: string | null; titleEn?: string | null; titleFa?: string | null; logoUrl?: string | null }>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.settings();
+        if (cancelled) return;
+        const s = data?.settings || {};
+        setBranding({
+          title: s.siteTitle,
+          titleEn: s.siteTitleEn,
+          titleFa: s.siteTitleFa,
+          logoUrl: resolveMediaUrl(s.logoUrl),
+        });
+      } catch {
+        if (!cancelled) {
+          setBranding({});
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const brandDisplayName = useMemo(() => {
+    const localized = language === 'fa'
+      ? ((branding.titleFa || '').trim() || (branding.title || '').trim() || (branding.titleEn || '').trim())
+      : ((branding.titleEn || '').trim() || (branding.title || '').trim() || (branding.titleFa || '').trim());
+    const override = trc('brand.siteTitle', '');
+    return localized || override || t('brand.name');
+  }, [branding.title, branding.titleEn, branding.titleFa, language, trc, t]);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'bookings', label: 'Bookings', icon: Calendar, badge: 12 },
-    { id: 'clients', label: 'Clients', icon: Users },
-    { id: 'services', label: 'Services', icon: Briefcase },
-    { id: 'testimonials', label: 'Testimonials', icon: Users },
-  { id: 'home-content', label: 'Home Content', icon: LayoutDashboard },
-  { id: 'about-content', label: 'About Content', icon: LayoutDashboard },
-  { id: 'contact-content', label: 'Contact Content', icon: LayoutDashboard },
-    { id: 'seo-settings', label: 'SEO Settings', icon: Search },
-  { id: 'booking-config', label: 'Booking Flow Config', icon: Calendar },
-  { id: 'booking-info', label: 'Booking Info Cards', icon: LayoutDashboard },
-    { id: 'newsletter', label: 'Newsletter', icon: BookOpen },
-    { id: 'translations', label: 'Translations', icon: BookOpen },
-  { id: 'media', label: 'Media Library', icon: Video },
-    { id: 'videos', label: 'Videos', icon: Video },
-    { id: 'magazine', label: 'Magazine', icon: BookOpen },
-    { id: 'messages', label: 'Messages', icon: MessageSquare, badge: 5 },
-    { id: 'team', label: 'Team', icon: Users },
-    { id: 'navigation', label: 'Navigation', icon: LayoutDashboard },
-    { id: 'footer-links', label: 'Footer Links', icon: LayoutDashboard },
-    { id: 'settings', label: 'Settings', icon: Settings },
-    { id: 'admin-users', label: 'Access Control', icon: Lock },
+    { id: 'dashboard', label: t('admin.dashboard'), icon: LayoutDashboard },
+    { id: 'bookings', label: t('admin.bookings'), icon: Calendar, badge: 12 },
+    { id: 'clients', label: t('admin.clients'), icon: Users },
+    { id: 'services', label: t('admin.services'), icon: Briefcase },
+    { id: 'testimonials', label: t('admin.testimonials'), icon: Users },
+    { id: 'home-content', label: t('admin.homeContent'), icon: LayoutDashboard },
+    { id: 'about-content', label: t('admin.aboutContent'), icon: LayoutDashboard },
+    { id: 'contact-content', label: t('admin.contactContent'), icon: LayoutDashboard },
+    { id: 'seo-settings', label: t('admin.seoSettings'), icon: Search },
+    { id: 'booking-config', label: t('admin.bookingConfig'), icon: Calendar },
+    { id: 'booking-info', label: t('admin.bookingInfo'), icon: LayoutDashboard },
+    { id: 'newsletter', label: t('admin.newsletter'), icon: BookOpen },
+    { id: 'translations', label: t('admin.translations'), icon: BookOpen },
+    { id: 'media', label: t('admin.media'), icon: Video },
+    { id: 'videos', label: t('admin.videos'), icon: Video },
+    { id: 'magazine', label: t('admin.magazine'), icon: BookOpen },
+    { id: 'messages', label: t('admin.messages'), icon: MessageSquare, badge: 5 },
+    { id: 'team', label: t('admin.team'), icon: Users },
+    { id: 'navigation', label: t('admin.navigation'), icon: LayoutDashboard },
+    { id: 'footer-links', label: t('admin.footerLinks'), icon: LayoutDashboard },
+    { id: 'settings', label: t('admin.settings'), icon: Settings },
+    { id: 'admin-users', label: t('admin.accessControl'), icon: Lock },
   ];
 
   return (
@@ -80,14 +116,18 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
             </Button>
             
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-white">✨</span>
-              </div>
+              {branding.logoUrl ? (
+                <img src={branding.logoUrl} alt={brandDisplayName} className="w-10 h-10 rounded-full object-cover shadow-sm" />
+              ) : (
+                <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white">✨</span>
+                </div>
+              )}
               <div>
                 <h1 className="bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                  Beauty Implant
+                  {brandDisplayName}
                 </h1>
-                <p className="text-gray-500">Admin Portal</p>
+                <p className="text-gray-500">{t('admin.panel') || 'Admin Portal'}</p>
               </div>
             </div>
           </div>
@@ -98,7 +138,7 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
-                  placeholder="Search..."
+                  placeholder={t('admin.searchPlaceholder')}
                   className="pl-10 w-64 rounded-full bg-gray-50"
                 />
               </div>
@@ -112,22 +152,40 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
               </Badge>
             </Button>
 
+            {/* Language Switcher */}
+            <Button
+              variant="outline"
+              onClick={toggleLanguage}
+              className="rounded-full hidden md:inline-flex"
+            >
+              {t('admin.switchLanguage')}: {language.toUpperCase()}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleLanguage}
+              className="md:hidden rounded-full"
+              aria-label={t('admin.switchLanguage')}
+            >
+              {language === 'fa' ? 'FA' : 'EN'}
+            </Button>
+
             {/* Profile */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2 rounded-full">
                   <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full" />
-                  <span className="hidden md:inline">Admin</span>
+                  <span className="hidden md:inline">{t('admin.panel')}</span>
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-                <DropdownMenuItem>Preferences</DropdownMenuItem>
+                <DropdownMenuItem>{t('admin.profileSettings')}</DropdownMenuItem>
+                <DropdownMenuItem>{t('admin.preferences')}</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={adminLogout} className="text-red-600">
                   <LogOut className="w-4 h-4 mr-2" />
-                  Logout
+                  {t('admin.logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
