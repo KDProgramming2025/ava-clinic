@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Calendar, Clock, User, ArrowRight, TrendingUp, Heart, Sparkles } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -11,6 +12,7 @@ import { SEO } from '../SEO';
 
 export function MagazinePage() {
   const { t, isRTL, trc } = useLanguage();
+  const { settings } = useSettings();
 
   const [featured, setFeatured] = useState<any | null>(null);
   const [articles, setArticles] = useState<any[]>([]);
@@ -26,12 +28,11 @@ export function MagazinePage() {
     (async () => {
       try {
         setLoading(true);
-        const [allArticles, featuredArticles, cats, tgs, settings, nl] = await Promise.all([
+        const [allArticles, featuredArticles, cats, tgs, nl] = await Promise.all([
           api.articles(),
           api.articles({ featured: true }),
           api.categories(),
           api.tags(),
-          api.settings(),
           api.newsletter(),
         ]);
         if (cancelled) return;
@@ -48,7 +49,7 @@ export function MagazinePage() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [settings, t]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -154,14 +155,14 @@ export function MagazinePage() {
                   ) : (
                     <>
                       <Badge className="mb-4 w-fit bg-pink-100 text-pink-700 border-0">
-                        {trc(`category.${featured.category?.id || featured.categoryId || 'general'}.name`, featured.category?.name || t('magazine.general'))}
+                        {featured.category?.name || t('magazine.general')}
                       </Badge>
-                      <h2 className="mb-4 text-gray-900">{trc(`article.${featured.id}.title`, featured.title)}</h2>
-                      <p className="text-gray-600 mb-6">{trc(`article.${featured.id}.excerpt`, featured.excerpt || '')}</p>
+                      <h2 className="mb-4 text-gray-900">{featured.title}</h2>
+                      <p className="text-gray-600 mb-6">{featured.excerpt || ''}</p>
                       <div className="flex items-center gap-6 text-gray-500 mb-6">
                         <div className="flex items-center gap-2">
                           <User className="w-4 h-4" />
-                          <span>{featured.author?.id ? trc(`team.${featured.author?.id}.name`, featured.author?.name || '—') : (featured.author?.name || '—')}</span>
+                          <span>{featured.author?.id ? featured.author?.name || '—' : (featured.author?.name || '—')}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
@@ -233,16 +234,16 @@ export function MagazinePage() {
                             </>
                           ) : (
                             <>
-                              <Badge className="mb-3 w-fit bg-purple-100 text-purple-700 border-0">
-                                {trc(`category.${article.category?.id || article.categoryId || 'general'}.name`, article.category?.name || t('magazine.general'))}
+                              <Badge className="mb-3 w-fit bg-pink-100 text-pink-700 border-0">
+                                {article.category?.name || t('magazine.general')}
                               </Badge>
-                              <h3 className="mb-3 text-gray-900">{trc(`article.${article.id}.title`, article.title)}</h3>
-                              <p className="text-gray-600 mb-4 flex-1">{trc(`article.${article.id}.excerpt`, article.excerpt || '')}</p>
+                              <h3 className="mb-3 text-gray-900">{article.title}</h3>
+                              <p className="text-gray-600 mb-4 flex-1">{article.excerpt || ''}</p>
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4 text-gray-500">
                                   <span className="flex items-center gap-2">
                                     <User className="w-4 h-4" />
-                                    {article.author?.id ? trc(`team.${article.author?.id}.name`, article.author?.name || '—') : (article.author?.name || '—')}
+                                    {article.author?.id ? article.author?.name || '—' : (article.author?.name || '—')}
                                   </span>
                                   <span className="flex items-center gap-2">
                                     <Clock className="w-4 h-4" />
@@ -296,7 +297,7 @@ export function MagazinePage() {
                           </>
                         ) : (
                           <>
-                            <span className="text-gray-700 group-hover:text-gray-900">{trc(`category.${category.id}.name`, category.name)}</span>
+                            <span className="text-gray-700 group-hover:text-gray-900">{category.name}</span>
                             <Badge className={`bg-gradient-to-r ${category.color || 'from-pink-500 to-purple-600'} text-white border-0`}>
                               {categoryCounts[category.id] || 0}
                             </Badge>
@@ -334,7 +335,7 @@ export function MagazinePage() {
                             <span className="h-4 w-full bg-gray-200 rounded animate-pulse" />
                           ) : (
                             <span className="text-gray-700 group-hover:text-gray-900 flex-1">
-                              {trc(`trending.${item.id || index}.text`, item.text)}
+                              {item.text}
                             </span>
                           )}
                           {!loading && (
@@ -388,7 +389,7 @@ export function MagazinePage() {
                         whileHover={{ scale: 1.1 }}
                         className="px-4 py-2 bg-gradient-to-r from-pink-50 to-purple-50 text-pink-600 rounded-full hover:from-pink-100 hover:to-purple-100 transition-all"
                       >
-                        {loading ? <span className="h-4 w-16 inline-block bg-gray-200 rounded animate-pulse" /> : trc(`tag.${tag.id}.name`, tag.name)}
+                        {loading ? <span className="h-4 w-16 inline-block bg-gray-200 rounded animate-pulse" /> : tag.name}
                       </motion.button>
                     ))}
                   </div>

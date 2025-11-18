@@ -246,7 +246,7 @@ export function ContactPage() {
                       {loading ? (
                         <div className="h-5 w-1/2 mx-auto bg-gray-200 rounded animate-pulse" />
                       ) : (
-                        trc(`contact.block.${info?.id || index}.title`, blockTitle)
+                        blockTitle
                       )}
                     </h3>
                     {(info.values || []).map((detail, i: number) => {
@@ -258,7 +258,7 @@ export function ContactPage() {
                           {loading ? (
                             <span className="block h-4 w-3/4 mx-auto bg-gray-200 rounded animate-pulse" />
                           ) : (
-                            trc(`contact.block.${info?.id || index}.value.${i}`, detailText)
+                            detailText
                           )}
                         </p>
                       );
@@ -391,7 +391,7 @@ export function ContactPage() {
                             {loading ? (
                               <span className="block h-4 w-20 bg-gray-200 rounded animate-pulse" />
                             ) : (
-                              trc(`contact.quick.${qa.id || idx}.label`, labelText)
+                              labelText
                             )}
                           </span>
                         </Button>
@@ -444,7 +444,7 @@ export function ContactPage() {
                 >
                   <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all">
                     <h3 className="mb-3 text-gray-900">
-                      {loading ? <div className="h-5 w-2/3 bg-gray-200 rounded animate-pulse" /> : trc(`contact.faq.${item.id || index}.question`, question)}
+                      {loading ? <div className="h-5 w-2/3 bg-gray-200 rounded animate-pulse" /> : question}
                     </h3>
                     <p className="text-gray-600">
                       {loading ? (
@@ -453,7 +453,7 @@ export function ContactPage() {
                           <div className="h-4 w-5/6 bg-gray-200 rounded animate-pulse" />
                         </>
                       ) : (
-                        trc(`contact.faq.${item.id || index}.answer`, answer)
+                        answer
                       )}
                     </p>
                   </Card>

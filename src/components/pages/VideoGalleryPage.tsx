@@ -142,7 +142,7 @@ export function VideoGalleryPage() {
               <SelectContent>
                 {categories.map(cat => (
                   <SelectItem key={cat.id} value={cat.slug || cat.id}>
-                    {cat.id === 'all' ? t('videos.all') : trc(`video.category.${cat.id}.name`, cat.name)}
+                    {cat.id === 'all' ? t('videos.all') : cat.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -201,7 +201,7 @@ export function VideoGalleryPage() {
                         <>
                           <ImageWithFallback
                             src={video.thumbnail || ''}
-                            alt={trc(`video.${video.id}.title`, video.title)}
+                            alt={video.title}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                           />
                           <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
@@ -234,11 +234,11 @@ export function VideoGalleryPage() {
                         </>
                       ) : (
                         <>
-                          <h3 className="mb-2 text-gray-900 line-clamp-2">{trc(`video.${video.id}.title`, video.title)}</h3>
-                          <p className="text-gray-600 mb-3 line-clamp-2">{trc(`video.${video.id}.description`, video.description || '')}</p>
+                          <h3 className="mb-2 text-gray-900 line-clamp-2">{video.title}</h3>
+                          <p className="text-gray-600 mb-3 line-clamp-2">{video.description || ''}</p>
                           <div className="flex items-center justify-between text-gray-500">
                             <span>{formatViews(video.views)} {t('videos.viewsSuffix')}</span>
-                            <span className="text-pink-500 capitalize">{trc(`video.category.${video.category?.id || video.categoryId || 'uncategorized'}.name`, video.category?.name || t('videos.uncategorized'))}</span>
+                            <span className="text-pink-500 capitalize">{video.category?.name || t('videos.uncategorized')}</span>
                           </div>
                         </>
                       )}
@@ -268,7 +268,7 @@ export function VideoGalleryPage() {
                           <>
                             <ImageWithFallback
                               src={video.thumbnail || ''}
-                              alt={trc(`video.${video.id}.title`, video.title)}
+                              alt={video.title}
                               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                             />
                             <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
@@ -296,11 +296,11 @@ export function VideoGalleryPage() {
                           </>
                         ) : (
                           <>
-                            <h3 className="mb-3 text-gray-900">{trc(`video.${video.id}.title`, video.title)}</h3>
-                            <p className="text-gray-600 mb-4">{trc(`video.${video.id}.description`, video.description || '')}</p>
+                            <h3 className="mb-3 text-gray-900">{video.title}</h3>
+                            <p className="text-gray-600 mb-4">{video.description || ''}</p>
                             <div className="flex items-center gap-4 text-gray-500">
                               <span>{formatViews(video.views)} {t('videos.viewsSuffix')}</span>
-                              <span className="text-pink-500 capitalize">{trc(`video.category.${video.category?.id || video.categoryId || 'uncategorized'}.name`, video.category?.name || t('videos.uncategorized'))}</span>
+                              <span className="text-pink-500 capitalize">{video.category?.name || t('videos.uncategorized')}</span>
                             </div>
                           </>
                         )}
@@ -350,7 +350,7 @@ export function VideoGalleryPage() {
                   <Play className="w-20 h-20 text-white/50 mx-auto mb-4" />
                   <p className="text-white/70">{t('videos.playerPlaceholder')}</p>
                   <p className="text-white/50 mt-2">
-                    {(() => { const v = videos.find(v => v.id === selectedVideo); return trc(`video.${v?.id}.title`, v?.title || ''); })()}
+                    {(() => { const v = videos.find(v => v.id === selectedVideo); return v?.title || ''; })()}
                   </p>
                 </div>
               </div>
@@ -358,15 +358,15 @@ export function VideoGalleryPage() {
               {/* Video Info */}
               <div className="p-6 bg-gray-900 text-white">
                 <h3 className="mb-2">
-                  {(() => { const v = videos.find(v => v.id === selectedVideo); return trc(`video.${v?.id}.title`, v?.title || ''); })()}
+                  {(() => { const v = videos.find(v => v.id === selectedVideo); return v?.title || ''; })()}
                 </h3>
                 <p className="text-white/70 mb-4">
-                  {(() => { const v = videos.find(v => v.id === selectedVideo); return trc(`video.${v?.id}.description`, v?.description || ''); })()}
+                  {(() => { const v = videos.find(v => v.id === selectedVideo); return v?.description || ''; })()}
                 </p>
                 <div className="flex items-center gap-4 text-white/60">
                   <span>{formatViews(videos.find(v => v.id === selectedVideo)?.views)} views</span>
                   <span>•</span>
-                  <span className="capitalize">{(() => { const v = videos.find(v => v.id === selectedVideo); return trc(`video.category.${v?.category?.id || v?.categoryId || 'uncategorized'}.name`, v?.category?.name || t('videos.uncategorized')); })()}</span>
+                  <span className="capitalize">{(() => { const v = videos.find(v => v.id === selectedVideo); return v?.category?.name || t('videos.uncategorized'); })()}</span>
                 </div>
               </div>
             </motion.div>

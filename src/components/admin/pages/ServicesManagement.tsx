@@ -78,6 +78,15 @@ export function ServicesManagement() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Hero content state
+  const [heroContent, setHeroContent] = useState({
+    servicesHeroTitleEn: '',
+    servicesHeroTitleFa: '',
+    servicesHeroSubtitleEn: '',
+    servicesHeroSubtitleFa: '',
+  });
+  const [heroSaving, setHeroSaving] = useState(false);
+
   const [form, setForm] = useState<typeof emptyForm>(emptyForm);
   const [benefits, setBenefits] = useState<BenefitForm[]>([]);
   const [steps, setSteps] = useState<StepForm[]>([]);
@@ -114,8 +123,21 @@ export function ServicesManagement() {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiFetch<Service[]>('/services?includeTranslations=1');
-      setServices(data);
+      const [servicesData, settingsData] = await Promise.all([
+        apiFetch<Service[]>('/services?includeTranslations=1'),
+        apiFetch<any>('/settings')
+      ]);
+      setServices(servicesData);
+      
+      // Load hero content from settings (stored directly in settings fields)
+      const s = settingsData?.settings || {};
+      
+      setHeroContent({
+        servicesHeroTitleEn: s.servicesHeroTitleEn || '',
+        servicesHeroTitleFa: s.servicesHeroTitleFa || '',
+        servicesHeroSubtitleEn: s.servicesHeroSubtitleEn || '',
+        servicesHeroSubtitleFa: s.servicesHeroSubtitleFa || '',
+      });
     } catch (e: any) {
   setError(e?.message || t('admin.saveFailed'));
     } finally {
@@ -126,6 +148,31 @@ export function ServicesManagement() {
   useEffect(() => {
     fetchServices();
   }, []);
+
+  const saveHeroContent = async () => {
+    try {
+      setHeroSaving(true);
+      
+      // Save hero content directly to settings fields
+      await apiFetch('/settings', {
+        method: 'PUT',
+        body: { 
+          settings: { 
+            servicesHeroTitleEn: heroContent.servicesHeroTitleEn,
+            servicesHeroTitleFa: heroContent.servicesHeroTitleFa,
+            servicesHeroSubtitleEn: heroContent.servicesHeroSubtitleEn,
+            servicesHeroSubtitleFa: heroContent.servicesHeroSubtitleFa,
+          } 
+        }
+      });
+      
+      toast.success(t('admin.heroContentSaved'));
+    } catch (e: any) {
+      toast.error(e?.message || t('admin.heroContentSaveFailed'));
+    } finally {
+      setHeroSaving(false);
+    }
+  };
 
   const openAddDialog = () => {
     setEditingService(null);
@@ -300,8 +347,8 @@ export function ServicesManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2 text-gray-900">{t('admin.servicesManagement')}</h1>
-          <p className="text-gray-600">{t('admin.servicesManagementSubtitle')}</p>
+          <h1 className="mb-2 text-gray-900">{t('admin.servicesContent')}</h1>
+          <p className="text-gray-600">{t('admin.servicesContentSubtitle')}</p>
         </div>
         <Button
           onClick={openAddDialog}
@@ -310,6 +357,72 @@ export function ServicesManagement() {
           <Plus className="w-4 h-4 mr-2" />
           {t('admin.addService')}
         </Button>
+      </div>
+
+      {/* Hero Content Section */}
+      <Card className="p-6 border-0 shadow-lg">
+        <h3 className="mb-4 text-gray-900 flex items-center gap-2">
+          <ImageIcon className="w-5 h-5 text-pink-600" />
+          {t('admin.servicesHero')}
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <Label htmlFor="hero-title-en" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.heroTitleEn')}</Label>
+            <Input
+              id="hero-title-en"
+              value={heroContent.servicesHeroTitleEn || ''}
+              onChange={(e) => setHeroContent({ ...heroContent, servicesHeroTitleEn: e.target.value })}
+              className="mt-1 rounded-xl"
+              placeholder="Our Services"
+            />
+          </div>
+          <div>
+            <Label htmlFor="hero-title-fa" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.heroTitleFa')}</Label>
+            <Input
+              id="hero-title-fa"
+              dir="rtl"
+              className="mt-1 rounded-xl text-right"
+              value={heroContent.servicesHeroTitleFa || ''}
+              onChange={(e) => setHeroContent({ ...heroContent, servicesHeroTitleFa: e.target.value })}
+              placeholder="خدمات ما"
+            />
+          </div>
+          <div>
+            <Label htmlFor="hero-subtitle-en" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.heroSubtitleEn')}</Label>
+            <Textarea
+              id="hero-subtitle-en"
+              rows={3}
+              value={heroContent.servicesHeroSubtitleEn || ''}
+              onChange={(e) => setHeroContent({ ...heroContent, servicesHeroSubtitleEn: e.target.value })}
+              className="mt-1 rounded-xl"
+              placeholder="Professional beauty treatments..."
+            />
+          </div>
+          <div>
+            <Label htmlFor="hero-subtitle-fa" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.heroSubtitleFa')}</Label>
+            <Textarea
+              id="hero-subtitle-fa"
+              dir="rtl"
+              rows={3}
+              className="mt-1 rounded-xl text-right"
+              value={heroContent.servicesHeroSubtitleFa || ''}
+              onChange={(e) => setHeroContent({ ...heroContent, servicesHeroSubtitleFa: e.target.value })}
+              placeholder="درمان‌های تخصصی زیبایی..."
+            />
+          </div>
+        </div>
+        <Button
+          disabled={heroSaving}
+          onClick={saveHeroContent}
+          className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl"
+        >
+          {heroSaving ? t('admin.saving') : t('admin.saveHeroContent')}
+        </Button>
+      </Card>
+
+      {/* Services List Header */}
+      <div className="flex items-center justify-between pt-4">
+        <h2 className="text-xl font-semibold text-gray-900">{t('admin.servicesList')}</h2>
       </div>
 
       {/* Stats */}

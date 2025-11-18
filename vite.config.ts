@@ -19,6 +19,13 @@
         threshold: 1024,
         deleteOriginalAssets: false,
       }),
+      // Remove modulepreload links for admin chunks to prevent eager loading
+      {
+        name: 'remove-admin-modulepreload',
+        transformIndexHtml(html) {
+          return html.replace(/<link rel="modulepreload"[^>]*admin[^>]*>/gi, '');
+        },
+      },
     ],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
@@ -69,14 +76,16 @@
       outDir: 'build',
       // Generate source maps to make production errors traceable to original source
       sourcemap: true,
+      // Suppress chunk size warnings for admin bundle (expected to be large)
+      chunkSizeWarningLimit: 1500,
+      // Disable modulepreload for better control over lazy loading
+      modulePreload: {
+        polyfill: false,
+      },
       rollupOptions: {
         output: {
-          // Keep only a dedicated admin chunk; let Vite default splitting handle libs
-          manualChunks(id: string) {
-            if (id.includes('/src/components/admin/')) {
-              return 'admin';
-            }
-          },
+          // Let Vite handle automatic code splitting - remove manual chunks
+          // This prevents the issue where main bundle imports from admin chunk
         },
       },
     },

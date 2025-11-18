@@ -3,8 +3,9 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Menu, X, ChevronDown, Globe, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from './LanguageContext';
+import { useSettings } from '../contexts/SettingsContext';
+import { useServices } from '../contexts/ServicesContext';
 import { Button } from './ui/button';
-import { api } from '../api/client';
 import { resolveMediaUrl } from '../utils/media';
 
 export function Navigation() {
@@ -12,6 +13,8 @@ export function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isServicesOpen, setIsServicesOpen] = useState(false);
   const { t, toggleLanguage, language, isRTL, trc } = useLanguage();
+  const { settings: settingsData, navigation: navData } = useSettings();
+  const { services: servicesData } = useServices();
   const [navItems, setNavItems] = useState<Array<{ id: string; label: string; path?: string; hasDropdown?: boolean }>>([]);
   const [services, setServices] = useState<Array<{ id: string; label: string }>>([]);
   const [brand, setBrand] = useState<{ title?: string; logoUrl?: string }>({});
@@ -28,10 +31,9 @@ export function Navigation() {
     let cancelled = false;
     (async () => {
       try {
-        const [settings, svc] = await Promise.all([api.settings(), api.services()]);
         if (cancelled) return;
-        // Navigation from settings; fallback to defaults
-        const items = (settings?.navigation || []).filter((n: any) => n.visible !== false).sort((a: any,b: any)=> (a.order??0)-(b.order??0));
+        // Navigation from context
+        const items = (navData || []).filter((n: any) => n.visible !== false).sort((a: any,b: any)=> (a.order??0)-(b.order??0));
         if (items.length) {
           const mapPathToKey = (path: string) => {
             const p = (path || '').replace(/\/$/, '');
@@ -50,7 +52,7 @@ export function Navigation() {
             const contentLabel = language === 'fa'
               ? (n.labelFa || n.label)
               : (n.labelEn || n.label);
-            const dictionaryLabel = key ? (trc(`nav.${key}.label`, '') || t(key)) : '';
+            const dictionaryLabel = key ? ('' || t(key)) : '';
             const finalLabel = contentLabel || dictionaryLabel || n.label || n.path || '';
             return {
               id,
@@ -69,18 +71,18 @@ export function Navigation() {
             { id: 'contact', label: t('contact'), path: '/contact' },
           ]);
         }
-        setServices((svc || []).map((s: any) => {
+        setServices((servicesData || []).map((s: any) => {
           const localized = language === 'fa'
-            ? (s.titleFa || s.title || trc(`service.${s.slug || s.id}.title`, s.title))
-            : (s.titleEn || s.title || trc(`service.${s.slug || s.id}.title`, s.title));
-          const fallback = trc(`service.${s.slug || s.id}.title`, s.title);
+            ? (s.titleFa || s.title || s.title)
+            : (s.titleEn || s.title || s.title);
+          const fallback = s.title;
           return { id: s.id, label: localized || fallback || s.title };
         }));
-        const s = settings?.settings || {};
+        const s = settingsData || {};
         const siteTitle = language === 'fa'
           ? (s.siteTitleFa || s.siteTitle)
           : (s.siteTitleEn || s.siteTitle);
-        const translationOverride = trc('brand.siteTitle', '');
+        const translationOverride = '';
         const normalizedTitle = (siteTitle || '').trim();
         const finalTitle = normalizedTitle || translationOverride || t('brand.name');
         setBrand({ title: finalTitle, logoUrl: resolveMediaUrl(s.logoUrl) });
@@ -98,7 +100,7 @@ export function Navigation() {
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language]);
+  }, [language, navData, settingsData, servicesData]);
 
   const [viewMode, setViewMode] = useState<string>(() => localStorage.getItem('view_mode') || 'public');
   const toggleViewMode = () => {

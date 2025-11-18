@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { History, Target, ListChecks, Quote, Plus, Edit, Trash2, Save, RefreshCcw } from 'lucide-react';
+import { ChangeEvent, useEffect, useState } from 'react';
+import { History, Target, ListChecks, Quote, Plus, Edit, Trash2, Save, RefreshCcw, TrendingUp, UploadCloud, Image as ImageIcon } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
@@ -10,6 +10,7 @@ import { Badge } from '../../ui/badge';
 import { toast } from 'sonner';
 import { apiFetch } from '../../../api/client';
 import { useLanguage } from '../../LanguageContext';
+import { resolveMediaUrl } from '../../../utils/media';
 
 interface AboutTimeline {
   id?: string;
@@ -54,17 +55,26 @@ interface AboutBullet {
   textEn?: string | null;
   textFa?: string | null;
 }
+interface AboutStat {
+  id?: string;
+  label: string;
+  labelEn?: string | null;
+  labelFa?: string | null;
+  value: string;
+  icon?: string | null;
+}
 interface AboutData {
   timeline: AboutTimeline[];
   values: AboutValue[];
   skills: AboutSkill[];
   mission?: AboutMission | null;
   missionBullets: AboutBullet[];
+  stats: AboutStat[];
 }
 
 export function AboutContentManagement() {
   const { t } = useLanguage();
-  const [data, setData] = useState<AboutData>({ timeline: [], values: [], skills: [], mission: { heading: '', paragraph: '' }, missionBullets: [] });
+  const [data, setData] = useState<AboutData>({ timeline: [], values: [], skills: [], mission: { heading: '', paragraph: '' }, missionBullets: [], stats: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string|null>(null);
   const [dirty, setDirty] = useState(false);
@@ -75,21 +85,31 @@ export function AboutContentManagement() {
   const [skills, setSkills] = useState<AboutSkill[]>([]);
   const [mission, setMission] = useState<AboutMission>({ heading: '', headingEn: '', headingFa: '', paragraph: '', paragraphEn: '', paragraphFa: '', imageHeroUrl: '', imageSecondaryUrl: '' });
   const [bullets, setBullets] = useState<AboutBullet[]>([]);
+  const [stats, setStats] = useState<AboutStat[]>([]);
 
   // dialogs state
   const [timelineDialogOpen, setTimelineDialogOpen] = useState(false);
   const [valueDialogOpen, setValueDialogOpen] = useState(false);
   const [skillDialogOpen, setSkillDialogOpen] = useState(false);
   const [bulletDialogOpen, setBulletDialogOpen] = useState(false);
+  const [statDialogOpen, setStatDialogOpen] = useState(false);
   const [editingTimeline, setEditingTimeline] = useState<AboutTimeline|null>(null);
   const [editingValue, setEditingValue] = useState<AboutValue|null>(null);
   const [editingSkill, setEditingSkill] = useState<AboutSkill|null>(null);
   const [editingBullet, setEditingBullet] = useState<AboutBullet|null>(null);
+  const [editingStat, setEditingStat] = useState<AboutStat|null>(null);
 
   const [timelineForm, setTimelineForm] = useState<{ year: string; titleEn: string; titleFa: string; descriptionEn: string; descriptionFa: string }>({ year: '', titleEn: '', titleFa: '', descriptionEn: '', descriptionFa: '' });
   const [valueForm, setValueForm] = useState<{ titleEn: string; titleFa: string; descriptionEn: string; descriptionFa: string; icon: string }>({ titleEn: '', titleFa: '', descriptionEn: '', descriptionFa: '', icon: '' });
   const [skillForm, setSkillForm] = useState<{ nameEn: string; nameFa: string; level: string }>({ nameEn: '', nameFa: '', level: '' });
   const [bulletForm, setBulletForm] = useState<{ textEn: string; textFa: string }>({ textEn: '', textFa: '' });
+  const [statForm, setStatForm] = useState<{ labelEn: string; labelFa: string; value: string; icon: string }>({ labelEn: '', labelFa: '', value: '', icon: '' });
+
+  // Image upload states
+  const [heroImageProcessing, setHeroImageProcessing] = useState(false);
+  const [secondaryImageProcessing, setSecondaryImageProcessing] = useState(false);
+  const [valueIconProcessing, setValueIconProcessing] = useState(false);
+  const [statIconProcessing, setStatIconProcessing] = useState(false);
 
   const pickInput = (...values: Array<string | null | undefined>) => {
     for (const value of values) {
@@ -152,6 +172,15 @@ export function AboutContentManagement() {
       textEn: pickInput(item.textEn, item.text),
       textFa: pickInput(item.textFa, item.text),
     }));
+  const hydrateStats = (items?: AboutStat[] | null): AboutStat[] =>
+    (items || []).map((item) => ({
+      ...item,
+      label: pickInput(item.label, item.labelFa, item.labelEn),
+      labelEn: pickInput(item.labelEn, item.label),
+      labelFa: pickInput(item.labelFa, item.label),
+      value: pickInput(item.value) || '0',
+      icon: pickInput(item.icon) || null,
+    }));
 
   const fetchAbout = async () => {
     try {
@@ -163,12 +192,135 @@ export function AboutContentManagement() {
         setSkills(hydrateSkills(res.skills));
         setMission(hydrateMission(res.mission));
         setBullets(hydrateBullets(res.missionBullets));
+        setStats(hydrateStats(res.stats));
       setDirty(false);
     } catch (e: any) {
       setError(e?.message || t('admin.aboutContent.loadFailed'));
     } finally { setLoading(false); }
   };
   useEffect(()=>{ fetchAbout(); }, []);
+
+  // Mission image upload handlers
+  const persistMissionImage = async (field: 'imageHeroUrl' | 'imageSecondaryUrl', nextUrl: string | null) => {
+    try {
+      const result = await apiFetch<AboutMission>('/about/mission/image', { 
+        method: 'PUT', 
+        body: { field, imageUrl: nextUrl } 
+      });
+      setMission((prev) => ({ ...prev, [field]: result?.[field] || null }));
+      toast.success(nextUrl ? t('admin.homeContent.heroImageUpdated') : t('admin.homeContent.heroImageRemoved'));
+      return result?.[field] || null;
+    } catch (e: any) {
+      toast.error(e?.message || t('admin.homeContent.heroImageUpdateFailed'));
+      throw e;
+    }
+  };
+
+  const uploadMissionImage = async (file: File, field: 'imageHeroUrl' | 'imageSecondaryUrl') => {
+    const previousUrl = mission[field] || null;
+    const setProcessing = field === 'imageHeroUrl' ? setHeroImageProcessing : setSecondaryImageProcessing;
+    try {
+      setProcessing(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const alt = mission.headingFa || mission.headingEn || mission.heading;
+      if (alt) formData.append('alt', alt);
+      const created = await apiFetch<{ url: string; publicUrl?: string | null }>('/media/upload', { 
+        method: 'POST', 
+        body: formData 
+      });
+      if (created?.url) {
+        await persistMissionImage(field, created.url);
+      }
+    } catch (e: any) {
+      setMission((prev) => ({ ...prev, [field]: previousUrl }));
+      toast.error(e?.message || t('admin.media.uploadFailed'));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleHeroImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await uploadMissionImage(file, 'imageHeroUrl');
+    event.target.value = '';
+  };
+
+  const handleSecondaryImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await uploadMissionImage(file, 'imageSecondaryUrl');
+    event.target.value = '';
+  };
+
+  const removeHeroImage = async () => {
+    if (!mission.imageHeroUrl) return;
+    try {
+      setHeroImageProcessing(true);
+      await persistMissionImage('imageHeroUrl', null);
+    } finally {
+      setHeroImageProcessing(false);
+    }
+  };
+
+  const removeSecondaryImage = async () => {
+    if (!mission.imageSecondaryUrl) return;
+    try {
+      setSecondaryImageProcessing(true);
+      await persistMissionImage('imageSecondaryUrl', null);
+    } finally {
+      setSecondaryImageProcessing(false);
+    }
+  };
+
+  const handleValueIconUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      setValueIconProcessing(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('alt', 'Value icon');
+      const result = await apiFetch<{ url: string; publicUrl?: string | null }>('/media/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (result?.url) {
+        setValueForm(f => ({ ...f, icon: result.url }));
+        toast.success('Icon uploaded successfully');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Icon upload failed');
+    } finally {
+      setValueIconProcessing(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleStatIconUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      setStatIconProcessing(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('alt', 'Stat icon');
+      const result = await apiFetch<{ url: string; publicUrl?: string | null }>('/media/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (result?.url) {
+        setStatForm(f => ({ ...f, icon: result.url }));
+        toast.success('Icon uploaded successfully');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Icon upload failed');
+    } finally {
+      setStatIconProcessing(false);
+      event.target.value = '';
+    }
+  };
 
   // Timeline handlers
   const openNewTimeline = () => { setEditingTimeline(null); setTimelineForm({ year: '', titleEn: '', titleFa: '', descriptionEn: '', descriptionFa: '' }); setTimelineDialogOpen(true); };
@@ -288,6 +440,33 @@ export function AboutContentManagement() {
   };
   const deleteBullet = (b: AboutBullet) => { if (!confirm(t('admin.aboutContent.deleteBulletConfirm'))) return; setBullets(prev => prev.filter(x => x !== b)); setDirty(true); };
 
+  // Stats handlers
+  const openNewStat = () => { setEditingStat(null); setStatForm({ labelEn: '', labelFa: '', value: '', icon: '' }); setStatDialogOpen(true); };
+  const openEditStat = (s: AboutStat) => {
+    setEditingStat(s);
+    setStatForm({ labelEn: s.labelEn || s.label || '', labelFa: s.labelFa || s.label || '', value: s.value || '', icon: s.icon || '' });
+    setStatDialogOpen(true);
+  };
+  const saveStat = () => {
+    if ((!statForm.labelEn.trim() && !statForm.labelFa.trim()) || !statForm.value.trim()) { toast.error('Label and value are required'); return; }
+    const canonicalLabel = statForm.labelFa.trim() || statForm.labelEn.trim();
+    const next = {
+      label: canonicalLabel || 'Stat',
+      labelEn: statForm.labelEn.trim() || null,
+      labelFa: statForm.labelFa.trim() || null,
+      value: statForm.value.trim(),
+      icon: statForm.icon.trim() || null,
+    };
+    if (editingStat) setStats(prev => prev.map(x => x === editingStat ? { ...editingStat, ...next } : x));
+    else setStats(prev => [...prev, { id: crypto.randomUUID(), ...next }]);
+    setStatDialogOpen(false); setEditingStat(null); setDirty(true);
+  };
+  const deleteStat = (s: AboutStat) => { if (!confirm('Delete this stat?')) return; setStats(prev => prev.filter(x => x !== s)); setDirty(true); };
+
+  // Compute preview URLs for mission images
+  const heroImagePreviewUrl = resolveMediaUrl(mission.imageHeroUrl);
+  const secondaryImagePreviewUrl = resolveMediaUrl(mission.imageSecondaryUrl);
+
   const saveAll = async () => {
     try {
       const payload = {
@@ -334,6 +513,14 @@ export function AboutContentManagement() {
           textEn: trimOrNull(b.textEn),
           textFa: trimOrNull(b.textFa),
         })),
+        stats: stats.map(s => ({
+          id: s.id,
+          label: canonicalFrom(s.labelFa, s.labelEn, s.label),
+          labelEn: trimOrNull(s.labelEn),
+          labelFa: trimOrNull(s.labelFa),
+          value: s.value,
+          icon: trimOrNull(s.icon),
+        })),
       };
       await apiFetch('/about', { method: 'PUT', body: payload });
   toast.success(t('admin.aboutContent.saved'));
@@ -348,6 +535,7 @@ export function AboutContentManagement() {
     setSkills(hydrateSkills(data.skills));
     setMission(hydrateMission(data.mission));
     setBullets(hydrateBullets(data.missionBullets));
+    setStats(hydrateStats(data.stats));
     setDirty(false);
   };
 
@@ -379,15 +567,23 @@ export function AboutContentManagement() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {timeline.map((t, idx) => (
                 <Card key={(t.id||'')+idx} className="p-4 relative group">
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-2">
                     <Badge className="bg-purple-100 text-purple-700">{t.year}</Badge>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button variant="outline" size="sm" onClick={()=> openEditTimeline(t)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
                       <Button variant="outline" size="sm" onClick={()=> deleteTimeline(t)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   </div>
-                  <div className="font-medium text-gray-900 mb-1 line-clamp-1" title={t.title}>{t.title}</div>
-                  {t.description && <p className="text-sm text-gray-600 line-clamp-3">{t.description}</p>}
+                  <div className="text-sm space-y-1 mb-2">
+                    {t.titleEn && <div className="font-medium text-gray-900 line-clamp-1" title={t.titleEn}>EN: {t.titleEn}</div>}
+                    {t.titleFa && <div className="font-medium text-gray-900 line-clamp-1 text-right" dir="rtl" title={t.titleFa}>FA: {t.titleFa}</div>}
+                  </div>
+                  {(t.descriptionEn || t.descriptionFa) && (
+                    <div className="text-xs text-gray-600 space-y-1">
+                      {t.descriptionEn && <div className="line-clamp-2">{t.descriptionEn}</div>}
+                      {t.descriptionFa && <div className="line-clamp-2 text-right" dir="rtl">{t.descriptionFa}</div>}
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>
@@ -403,11 +599,17 @@ export function AboutContentManagement() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {values.map((v, idx) => (
                 <Card key={(v.id||'')+idx} className="p-4 relative group">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-medium text-gray-900 line-clamp-1" title={v.title}>{v.title}</div>
-                    <Badge className="bg-pink-100 text-pink-700">{v.icon || '—'}</Badge>
+                  <div className="text-sm space-y-1 mb-2">
+                    {v.titleEn && <div className="font-medium text-gray-900 line-clamp-1" title={v.titleEn}>EN: {v.titleEn}</div>}
+                    {v.titleFa && <div className="font-medium text-gray-900 line-clamp-1 text-right" dir="rtl" title={v.titleFa}>FA: {v.titleFa}</div>}
                   </div>
-                  {v.description && <p className="text-sm text-gray-600 line-clamp-3">{v.description}</p>}
+                  {(v.descriptionEn || v.descriptionFa) && (
+                    <div className="text-xs text-gray-600 space-y-1 mb-2">
+                      {v.descriptionEn && <div className="line-clamp-2">{v.descriptionEn}</div>}
+                      {v.descriptionFa && <div className="line-clamp-2 text-right" dir="rtl">{v.descriptionFa}</div>}
+                    </div>
+                  )}
+                  {v.icon && <Badge className="bg-pink-100 text-pink-700">{v.icon}</Badge>}
                   <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="outline" size="sm" onClick={()=> openEditValue(v)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
                     <Button variant="outline" size="sm" onClick={()=> deleteValue(v)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
@@ -427,9 +629,12 @@ export function AboutContentManagement() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {skills.map((s, idx) => (
                 <Card key={(s.id||'')+idx} className="p-4 relative group">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-medium text-gray-900 line-clamp-1" title={s.name}>{s.name}</div>
+                  <div className="flex items-center justify-between mb-2">
                     <Badge className="bg-blue-100 text-blue-700">{s.level}%</Badge>
+                  </div>
+                  <div className="text-sm space-y-1">
+                    {s.nameEn && <div className="font-medium text-gray-900 line-clamp-1" title={s.nameEn}>EN: {s.nameEn}</div>}
+                    {s.nameFa && <div className="font-medium text-gray-900 line-clamp-1 text-right" dir="rtl" title={s.nameFa}>FA: {s.nameFa}</div>}
                   </div>
                   <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="outline" size="sm" onClick={()=> openEditSkill(s)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
@@ -468,12 +673,70 @@ export function AboutContentManagement() {
                 </div>
               </div>
               <div>
-                <Label>{t('admin.homeContent.heroImageLabel')}</Label>
-                <Input value={mission.imageHeroUrl || ''} onChange={(e)=> { setMission(m=>({ ...m, imageHeroUrl: e.target.value })); setDirty(true);} } className="mt-2 rounded-xl" placeholder="https://..." />
+                <Label>{t('admin.homeContent.heroImageLabel')} (Hero)</Label>
+                <div className="mt-2 space-y-3">
+                  <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4">
+                    {mission.imageHeroUrl ? (
+                      <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <div className="w-full sm:w-48 h-32 rounded-xl overflow-hidden border border-gray-200 bg-white shadow-inner">
+                          <img src={heroImagePreviewUrl || mission.imageHeroUrl || undefined} alt={mission.headingEn || mission.headingFa || 'hero image'} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 w-full">
+                          <p className="text-sm text-gray-900 truncate" title={mission.imageHeroUrl || undefined}>{mission.imageHeroUrl}</p>
+                          {heroImagePreviewUrl && (
+                            <p className="text-xs text-gray-500 break-all mt-1">{heroImagePreviewUrl}</p>
+                          )}
+                        </div>
+                        <Button variant="ghost" size="sm" className="text-red-600" onClick={removeHeroImage} disabled={heroImageProcessing}>
+                          {t('admin.remove')}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-center gap-3 py-6">
+                        <ImageIcon className="w-8 h-8 text-gray-400" />
+                        <p className="text-sm text-gray-600">{t('admin.homeContent.heroImageEmpty')}</p>
+                      </div>
+                    )}
+                  </div>
+                  <Input type="file" accept="image/*" onChange={handleHeroImageChange} disabled={heroImageProcessing} className="rounded-xl" />
+                  <div className="text-xs text-gray-500 flex items-center gap-2">
+                    <UploadCloud className={`w-4 h-4 ${heroImageProcessing ? 'animate-spin' : ''}`} />
+                    {heroImageProcessing ? t('admin.media.uploading') : t('admin.homeContent.heroImageUploadHint')}
+                  </div>
+                </div>
               </div>
               <div>
-                <Label>{t('admin.homeContent.heroImageLabel')}</Label>
-                <Input value={mission.imageSecondaryUrl || ''} onChange={(e)=> { setMission(m=>({ ...m, imageSecondaryUrl: e.target.value })); setDirty(true);} } className="mt-2 rounded-xl" placeholder="https://..." />
+                <Label>{t('admin.homeContent.heroImageLabel')} (Secondary)</Label>
+                <div className="mt-2 space-y-3">
+                  <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4">
+                    {mission.imageSecondaryUrl ? (
+                      <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <div className="w-full sm:w-48 h-32 rounded-xl overflow-hidden border border-gray-200 bg-white shadow-inner">
+                          <img src={secondaryImagePreviewUrl || mission.imageSecondaryUrl || undefined} alt={mission.headingEn || mission.headingFa || 'secondary image'} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 w-full">
+                          <p className="text-sm text-gray-900 truncate" title={mission.imageSecondaryUrl || undefined}>{mission.imageSecondaryUrl}</p>
+                          {secondaryImagePreviewUrl && (
+                            <p className="text-xs text-gray-500 break-all mt-1">{secondaryImagePreviewUrl}</p>
+                          )}
+                        </div>
+                        <Button variant="ghost" size="sm" className="text-red-600" onClick={removeSecondaryImage} disabled={secondaryImageProcessing}>
+                          {t('admin.remove')}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-center gap-3 py-6">
+                        <ImageIcon className="w-8 h-8 text-gray-400" />
+                        <p className="text-sm text-gray-600">{t('admin.homeContent.heroImageEmpty')}</p>
+                      </div>
+                    )}
+                  </div>
+                  <Input type="file" accept="image/*" onChange={handleSecondaryImageChange} disabled={secondaryImageProcessing} className="rounded-xl" />
+                  <div className="text-xs text-gray-500 flex items-center gap-2">
+                    <UploadCloud className={`w-4 h-4 ${secondaryImageProcessing ? 'animate-spin' : ''}`} />
+                    {secondaryImageProcessing ? t('admin.media.uploading') : t('admin.homeContent.heroImageUploadHint')}
+                  </div>
+                </div>
               </div>
             </div>
             <div className="flex items-center justify-between">
@@ -484,10 +747,38 @@ export function AboutContentManagement() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {bullets.map((b, idx) => (
                 <Card key={(b.id||'')+idx} className="p-4 relative group">
-                  <p className="text-gray-700">{b.text}</p>
+                  <div className="text-sm space-y-2">
+                    {b.textEn && <p className="text-gray-900 line-clamp-2" title={b.textEn}>EN: {b.textEn}</p>}
+                    {b.textFa && <p className="text-gray-900 line-clamp-2 text-right" dir="rtl" title={b.textFa}>FA: {b.textFa}</p>}
+                  </div>
                   <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="outline" size="sm" onClick={()=> openEditBullet(b)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
                     <Button variant="outline" size="sm" onClick={()=> deleteBullet(b)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </Card>
+
+          {/* Stats */}
+          <Card className="p-6 border-0 shadow-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-gray-900 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-blue-500" />Stats</h2>
+              <Button size="sm" onClick={openNewStat} className="rounded-xl"><Plus className="w-4 h-4 mr-2" />Add Stat</Button>
+            </div>
+            {stats.length === 0 && <p className="text-gray-500">No stats yet. Add stats to display on the About page.</p>}
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {stats.map((s, idx) => (
+                <Card key={(s.id||'')+idx} className="p-4 relative group text-center">
+                  <div className="font-bold text-2xl text-gray-900 mb-2">{s.value}</div>
+                  <div className="text-xs space-y-1">
+                    {s.labelEn && <div className="text-gray-600 line-clamp-1" title={s.labelEn}>EN: {s.labelEn}</div>}
+                    {s.labelFa && <div className="text-gray-600 line-clamp-1" dir="rtl" title={s.labelFa}>FA: {s.labelFa}</div>}
+                  </div>
+                  {s.icon && <Badge className="mt-2 bg-blue-100 text-blue-700">{s.icon}</Badge>}
+                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="outline" size="sm" onClick={()=> openEditStat(s)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
+                    <Button variant="outline" size="sm" onClick={()=> deleteStat(s)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 </Card>
               ))}
@@ -560,7 +851,39 @@ export function AboutContentManagement() {
             </div>
             <div>
               <Label htmlFor="val-icon">{t('admin.aboutContent.value.iconLabel')}</Label>
-              <Input id="val-icon" value={valueForm.icon} onChange={(e)=> setValueForm(f=>({ ...f, icon: e.target.value }))} className="mt-2 rounded-xl" placeholder="lucide icon name (optional)" />
+              {valueForm.icon && (
+                <div className="mt-2 mb-2 relative w-20 h-20 rounded-lg overflow-hidden border">
+                  <img src={resolveMediaUrl(valueForm.icon)} alt="Icon preview" className="w-full h-full object-cover" />
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="absolute top-0 right-0 text-red-600 bg-white/80" 
+                    onClick={() => setValueForm(f => ({ ...f, icon: '' }))}
+                    disabled={valueIconProcessing}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+              <div className="flex gap-2 mt-2">
+                <Input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleValueIconUpload} 
+                  disabled={valueIconProcessing} 
+                  className="rounded-xl flex-1" 
+                />
+                <Button 
+                  variant="outline" 
+                  disabled={valueIconProcessing}
+                  className="whitespace-nowrap"
+                  onClick={() => document.querySelector<HTMLInputElement>('input[type="file"][accept="image/*"]')?.click()}
+                >
+                  <UploadCloud className={`w-4 h-4 mr-2 ${valueIconProcessing ? 'animate-spin' : ''}`} />
+                  {valueIconProcessing ? t('admin.media.uploading') : 'Upload'}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Upload an icon image or leave empty to use default</p>
             </div>
           </div>
           <DialogFooter>
@@ -616,6 +939,72 @@ export function AboutContentManagement() {
           <DialogFooter>
             <Button variant="outline" onClick={()=> { setBulletDialogOpen(false); setEditingBullet(null);} }>{t('admin.cancel')}</Button>
             <Button className="bg-gradient-to-r from-pink-500 to-purple-600" onClick={saveBullet}>{editingBullet? t('admin.update'): t('admin.create')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stats Dialog */}
+      <Dialog open={statDialogOpen} onOpenChange={(o: boolean)=> { if(!o){ setStatDialogOpen(false); setEditingStat(null);} }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{editingStat? 'Edit Stat': 'Add Stat'}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="st-label-en">Label (EN)</Label>
+                <Input id="st-label-en" value={statForm.labelEn} onChange={(e)=> setStatForm(f=>({ ...f, labelEn: e.target.value }))} className="mt-2 rounded-xl" />
+              </div>
+              <div>
+                <Label htmlFor="st-label-fa">Label (FA)</Label>
+                <Input dir="rtl" id="st-label-fa" value={statForm.labelFa} onChange={(e)=> setStatForm(f=>({ ...f, labelFa: e.target.value }))} className="mt-2 rounded-xl text-right" />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="st-value">Value</Label>
+              <Input id="st-value" value={statForm.value} onChange={(e)=> setStatForm(f=>({ ...f, value: e.target.value }))} className="mt-2 rounded-xl" placeholder="1000+" />
+            </div>
+            <div>
+              <Label htmlFor="st-icon">Icon</Label>
+              {statForm.icon && (
+                <div className="mt-2 mb-2 relative w-20 h-20 rounded-lg overflow-hidden border">
+                  <img src={resolveMediaUrl(statForm.icon)} alt="Icon preview" className="w-full h-full object-cover" />
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="absolute top-0 right-0 text-red-600 bg-white/80" 
+                    onClick={() => setStatForm(f => ({ ...f, icon: '' }))}
+                    disabled={statIconProcessing}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+              <div className="flex gap-2 mt-2">
+                <Input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleStatIconUpload} 
+                  disabled={statIconProcessing} 
+                  className="rounded-xl flex-1" 
+                />
+                <Button 
+                  variant="outline" 
+                  disabled={statIconProcessing}
+                  className="whitespace-nowrap"
+                  onClick={() => {
+                    const inputs = document.querySelectorAll<HTMLInputElement>('input[type="file"][accept="image/*"]');
+                    inputs[inputs.length - 1]?.click();
+                  }}
+                >
+                  <UploadCloud className={`w-4 h-4 mr-2 ${statIconProcessing ? 'animate-spin' : ''}`} />
+                  {statIconProcessing ? t('admin.media.uploading') : 'Upload'}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Upload an icon image or leave empty to use default</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={()=> { setStatDialogOpen(false); setEditingStat(null);} }>{t('admin.cancel')}</Button>
+            <Button className="bg-gradient-to-r from-pink-500 to-purple-600" onClick={saveStat}>{editingStat? t('admin.update'): t('admin.create')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

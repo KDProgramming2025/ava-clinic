@@ -30,9 +30,9 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       if (storedEmail) setEmail(storedEmail);
       // Fallback to server validation to refresh role/email accurately
       (async () => {
-        // Reduce noise: only probe server if currently in admin view
-        const viewMode = localStorage.getItem('view_mode');
-        if (viewMode !== 'admin') return;
+        // Only probe server if currently on admin routes
+        const isAdminRoute = window.location.pathname.startsWith('/admin');
+        if (!isAdminRoute) return;
         try {
           const me = await api.auth.me();
           const u = (me as any).user || {};

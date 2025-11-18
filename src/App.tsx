@@ -6,7 +6,9 @@ import { LanguageProvider } from './components/LanguageContext';
 import { ChatWidget } from './components/ChatWidget';
 import { ScrollToTop } from './components/ScrollToTop';
 import { Toaster } from './components/ui/sonner';
-import { AdminProvider, useAdmin } from './components/admin/AdminContext';
+import { SettingsProvider } from './contexts/SettingsContext';
+import { ServicesProvider } from './contexts/ServicesContext';
+import { SeoDefaultsProvider } from './components/SeoDefaultsProvider';
 
 // Public pages (eager-loaded to avoid lazy loading per SEO/CLS requirements)
 import { HomePage } from './components/pages/HomePage';
@@ -17,13 +19,10 @@ import { MagazinePage } from './components/pages/MagazinePage';
 import { ContactPage } from './components/pages/ContactPage';
 import { BookingPage } from './components/pages/BookingPage';
 import { assignUniqueIds, observeAndAssignIds } from './utils/assignUniqueIds';
+import { lazy } from 'react';
 
-// Admin area (eager-loaded as well)
-import { AdminLogin } from './components/admin/AdminLogin';
-import AdminModule from './components/admin/AdminAppShell';
-
-// Lightweight indirection: actual admin page rendering happens inside AdminLayout chunk; keep minimal placeholder
-function AdminApp() { return <AdminModule />; }
+// Admin area (lazy-loaded to avoid loading on public pages)
+const AdminRouteWrapper = lazy(() => import('./components/admin/AdminRouteWrapper').then(m => ({ default: m.AdminRouteWrapper })));
 
 function useStructuredData(pathname: string) {
   useEffect(() => {
@@ -57,18 +56,6 @@ function useAutoIds(pathname: string) {
     const obs = observeAndAssignIds();
     return () => { try { obs.disconnect(); } catch { /* ignore */ } };
   }, [pathname]);
-}
-
-function AdminRoute() {
-  const { isAdminAuthenticated } = useAdmin();
-  const location = useLocation();
-  const navigatingToLogin = location.pathname === '/admin/login';
-  if (!isAdminAuthenticated) {
-    if (navigatingToLogin) return <AdminLogin />;
-    return <Navigate to="/admin/login" replace state={{ from: location }} />;
-  }
-  if (navigatingToLogin) return <Navigate to="/admin" replace />;
-  return <AdminApp />;
 }
 
 function PublicLayout() {
@@ -117,26 +104,17 @@ function MainApp() {
   return (
     <>
       <Routes>
-        <Route
-          path="/admin"
-          element={(
-            <LanguageProvider storageKey="lang_admin" defaultLanguage="fa">
-              <AdminRoute />
-            </LanguageProvider>
-          )}
-        />
-        <Route
-          path="/admin/login"
-          element={(
-            <LanguageProvider storageKey="lang_admin" defaultLanguage="fa">
-              <AdminRoute />
-            </LanguageProvider>
-          )}
-        />
+        <Route path="/admin/*" element={<AdminRouteWrapper />} />
         <Route
           element={(
             <LanguageProvider storageKey="lang_public" defaultLanguage="fa">
-              <PublicLayout />
+              <SettingsProvider>
+                <ServicesProvider>
+                  <SeoDefaultsProvider>
+                    <PublicLayout />
+                  </SeoDefaultsProvider>
+                </ServicesProvider>
+              </SettingsProvider>
             </LanguageProvider>
           )}
         >
@@ -159,9 +137,5 @@ function MainApp() {
 }
 
 export default function App() {
-  return (
-    <AdminProvider>
-      <MainApp />
-    </AdminProvider>
-  );
+  return <MainApp />;
 }

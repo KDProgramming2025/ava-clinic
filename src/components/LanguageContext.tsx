@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
-import { apiFetch } from '../api/client';
 
 type Language = 'en' | 'fa';
 
@@ -8,8 +7,6 @@ interface LanguageContextType {
   toggleLanguage: () => void;
   t: (key: string) => string;
   isRTL: boolean;
-  // Dynamic content override: returns translated content for key if available, else fallback
-  trc: (key: string, fallback?: string | null | undefined) => string;
 }
 
 interface LanguageProviderProps {
@@ -81,6 +78,7 @@ const translations = {
     'services.ctaSecondary': 'Contact Us',
     'services.processTitle': 'Treatment Process',
     'services.faqTitle': 'Frequently Asked Questions',
+    'services.noServicesSelected': 'Please select a service to view details',
   'services.other': 'Other',
     // Static service titles by slug (fallback for navigation dropdown)
     'service.hair-implant.title': 'Hair Implant',
@@ -276,6 +274,17 @@ const translations = {
     'admin.recovery': 'Recovery',
     'admin.servicesManagement': 'Services Management',
     'admin.servicesManagementSubtitle': 'Manage all services and procedures',
+    'admin.servicesContent': 'Services Content',
+    'admin.servicesContentSubtitle': 'Manage services and page content',
+    'admin.servicesList': 'Services List',
+    'admin.servicesHero': 'Services Page Hero',
+    'admin.heroTitleEn': 'Title (English)',
+    'admin.heroTitleFa': 'Title (فارسی)',
+    'admin.heroSubtitleEn': 'Subtitle (English)',
+    'admin.heroSubtitleFa': 'Subtitle (فارسی)',
+    'admin.saveHeroContent': 'Save Hero Content',
+    'admin.heroContentSaved': 'Hero content saved successfully',
+    'admin.heroContentSaveFailed': 'Failed to save hero content',
     'admin.addService': 'Add Service',
     'admin.totalServices': 'Total Services',
     'admin.withPriceRange': 'With Price Range',
@@ -917,6 +926,7 @@ const translations = {
     'services.ctaSecondary': 'تماس با ما',
     'services.processTitle': 'فرآیند درمان',
     'services.faqTitle': 'سؤالات پرتکرار',
+    'services.noServicesSelected': 'لطفاً برای مشاهده جزئیات، یک سرویس انتخاب کنید',
   'services.other': 'سایر',
     // Static service titles by slug (fallback for navigation dropdown)
     'service.hair-implant.title': 'کاشت موی سر',
@@ -1194,6 +1204,17 @@ const translations = {
     'admin.recovery': 'دوره نقاهت',
     'admin.servicesManagement': 'مدیریت خدمات',
     'admin.servicesManagementSubtitle': 'مدیریت تمام خدمات و روش‌ها',
+    'admin.servicesContent': 'محتوای خدمات',
+    'admin.servicesContentSubtitle': 'مدیریت خدمات و محتوای صفحه',
+    'admin.servicesList': 'لیست خدمات',
+    'admin.servicesHero': 'هیرو صفحه خدمات',
+    'admin.heroTitleEn': 'عنوان (English)',
+    'admin.heroTitleFa': 'عنوان (فارسی)',
+    'admin.heroSubtitleEn': 'زیرعنوان (English)',
+    'admin.heroSubtitleFa': 'زیرعنوان (فارسی)',
+    'admin.saveHeroContent': 'ذخیره محتوای هیرو',
+    'admin.heroContentSaved': 'محتوای هیرو با موفقیت ذخیره شد',
+    'admin.heroContentSaveFailed': 'ذخیره محتوای هیرو ناموفق بود',
     'admin.addService': 'افزودن خدمت',
     'admin.totalServices': 'کل خدمات',
     'admin.withPriceRange': 'دارای بازه قیمت',
@@ -1573,7 +1594,7 @@ const translations = {
     'services.tabBenefits': 'مزایا',
     'services.tabProcess': 'فرایند',
     'services.tabFaq': 'سؤالات متداول',
-    'services.benefitsSuffix': 'مزایا',
+    'services.benefitsSuffix': 'مزایای',
     'services.price': 'قیمت',
     'services.duration': 'مدت زمان',
     'services.recovery': 'دوره نقاهت',
@@ -1707,42 +1728,6 @@ export function LanguageProvider({ children, storageKey = 'lang_public', default
 
   const [language, setLanguage] = useState<Language>(readStoredLanguage);
   const [languages, setLanguages] = useState<Language[]>(['en', 'fa']);
-  const [dyn, setDyn] = useState<Record<string, Record<string, string>>>({});
-
-  // Load dynamic translations and enabled languages from backend
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [map, settings] = await Promise.all([
-          apiFetch<Record<string, Record<string, string>>>('/translations'),
-          apiFetch<any>('/settings'),
-        ]);
-        if (cancelled) return;
-        setDyn(map || {});
-        const langConfig = settings?.settings?.languagesJson;
-        let langs: string[] = ['fa','en'];
-        if (Array.isArray(langConfig)) {
-          langs = langConfig.filter((x: any) => typeof x === 'string');
-        } else if (langConfig && typeof langConfig === 'object') {
-          const supported = Array.isArray(langConfig.supported) ? langConfig.supported : ['fa','en'];
-          langs = supported;
-          const configuredDefault = (langConfig.default || defaultLanguage) as Language;
-          const existing = typeof window !== 'undefined' ? window.localStorage?.getItem(storageKey) : null;
-          if (!existing && (configuredDefault === 'fa' || configuredDefault === 'en')) {
-            setLanguage(configuredDefault);
-            if (typeof window !== 'undefined') {
-              try { window.localStorage?.setItem(storageKey, configuredDefault); } catch { /* ignore */ }
-            }
-          }
-        }
-        if (langs.length) setLanguages(langs as Language[]);
-      } catch {
-        // ignore
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [storageKey, defaultLanguage]);
 
   const toggleLanguage = () => {
     setLanguage((prev) => {
@@ -1757,28 +1742,13 @@ export function LanguageProvider({ children, storageKey = 'lang_public', default
   };
 
   const t = (key: string): string => {
-    // Dynamic override from backend first
-    const dynForLang = dyn[key]?.[language];
-    if (typeof dynForLang === 'string' && dynForLang.length) return dynForLang;
-  // Use index access to avoid TypeScript narrowing issues with dynamic keys
-  // This maintains safety while allowing any defined translation key.
-  const dict: Record<string,string> = translations[language] as any;
-  return dict[key] || key;
+    // Use index access to avoid TypeScript narrowing issues with dynamic keys
+    // This maintains safety while allowing any defined translation key.
+    const dict: Record<string,string> = translations[language] as any;
+    return dict[key] || key;
   };
 
   const isRTL = language === 'fa';
-
-  // Expose content translation overlay helper
-  const trc = (key: string, fallback?: string | null | undefined) => {
-    // 1. Dynamic backend override wins
-    const vDyn = dyn[key]?.[language];
-    if (typeof vDyn === 'string' && vDyn.length) return vDyn;
-    // 2. Static dictionary translation if present
-    const dict: Record<string,string> = translations[language] as any;
-    if (typeof dict[key] === 'string') return dict[key];
-    // 3. Fallback content value (raw field from DB / props)
-    return (fallback ?? '') as string;
-  };
 
   // Keep <html> element in sync with language and direction for accessibility and SEO
   useEffect(() => {
@@ -1789,7 +1759,7 @@ export function LanguageProvider({ children, storageKey = 'lang_public', default
   }, [language, isRTL]);
 
   return (
-    <LanguageContext.Provider value={{ language, toggleLanguage, t, isRTL, trc }}>
+    <LanguageContext.Provider value={{ language, toggleLanguage, t, isRTL }}>
       <div dir={isRTL ? 'rtl' : 'ltr'} className={isRTL ? 'font-persian' : 'font-english'}>
         {children}
       </div>

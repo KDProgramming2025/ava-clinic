@@ -49,10 +49,10 @@
             "react": "^18.3.1",
             "react-day-picker": "^8.10.1",
             "react-dom": "^18.3.1",
-            "react-router-dom": "^6.28.0",
-            "react-helmet-async": "^1.3.0",
+            "react-helmet-async": "^2.0.5",
             "react-hook-form": "^7.55.0",
             "react-resizable-panels": "^2.1.7",
+            "react-router-dom": "^6.28.0",
             "recharts": "^2.15.2",
             "sonner": "^2.0.3",
             "tailwind-merge": "*",
@@ -74,8 +74,8 @@
             "analyze": "vite build",
             "start:backend": "node server/index.js",
             "seed:superadmin": "node server/scripts/seedSuperAdmin.js",
-                        "db:seed": "node server/seed.js",
-                        "seed:translations": "node server/scripts/seedTranslationsFromContent.js",
-                        "seed:fa-missing": "node server/scripts/fillMissingPersianTranslations.js"
+            "db:seed": "node server/seed.js",
+            "seed:translations": "node server/scripts/seedTranslationsFromContent.js",
+            "seed:fa-missing": "node server/scripts/fillMissingPersianTranslations.js"
       }
 }

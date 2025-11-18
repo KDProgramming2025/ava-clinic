@@ -71,7 +71,7 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
     const localized = language === 'fa'
       ? ((branding.titleFa || '').trim() || (branding.title || '').trim() || (branding.titleEn || '').trim())
       : ((branding.titleEn || '').trim() || (branding.title || '').trim() || (branding.titleFa || '').trim());
-    const override = trc('brand.siteTitle', '');
+    const override = '';
     return localized || override || t('brand.name');
   }, [branding.title, branding.titleEn, branding.titleFa, language, trc, t]);
 
@@ -79,16 +79,15 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
     { id: 'dashboard', label: t('admin.dashboard'), icon: LayoutDashboard },
     { id: 'bookings', label: t('admin.bookings'), icon: Calendar, badge: 12 },
     { id: 'clients', label: t('admin.clients'), icon: Users },
-    { id: 'services', label: t('admin.services'), icon: Briefcase },
     { id: 'testimonials', label: t('admin.testimonials'), icon: Users },
     { id: 'home-content', label: t('admin.homeContent'), icon: LayoutDashboard },
+    { id: 'services', label: 'Services Content', icon: Briefcase },
     { id: 'about-content', label: t('admin.aboutContent'), icon: LayoutDashboard },
     { id: 'contact-content', label: t('admin.contactContent'), icon: LayoutDashboard },
     { id: 'seo-settings', label: t('admin.seoSettings'), icon: Search },
     { id: 'booking-config', label: t('admin.bookingConfig'), icon: Calendar },
     { id: 'booking-info', label: t('admin.bookingInfo'), icon: LayoutDashboard },
     { id: 'newsletter', label: t('admin.newsletter'), icon: BookOpen },
-    { id: 'translations', label: t('admin.translations'), icon: BookOpen },
     { id: 'media', label: t('admin.media'), icon: Video },
     { id: 'videos', label: t('admin.videos'), icon: Video },
     { id: 'magazine', label: t('admin.magazine'), icon: BookOpen },

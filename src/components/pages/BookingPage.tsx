@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Calendar as CalendarIcon, Clock, CheckCircle, User, Mail, Phone, MessageSquare, ChevronRight, Star, Heart } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
+import { useServices } from '../../contexts/ServicesContext';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -220,20 +221,20 @@ export function BookingPage() {
                       onClick={() => setSelectedService(service.id)}
                     >
                       <div className="flex items-start justify-between mb-4">
-                        <h3 className="text-gray-900">{trc(`service.${service.slug || service.id}.title`, service.title || service.name)}</h3>
+                        <h3 className="text-gray-900">{service.title || service.name}</h3>
                         {selectedService === service.id && (
                           <CheckCircle className="w-6 h-6 text-pink-500" />
                         )}
                       </div>
-                      <p className="text-gray-600 mb-4">{trc(`service.${service.slug || service.id}.description`, service.description || '')}</p>
+                      <p className="text-gray-600 mb-4">{service.description || ''}</p>
                       <div className="flex items-center gap-4 text-gray-500 mb-3">
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-pink-500" />
-                          <span>{trc(`service.${service.slug || service.id}.duration`, service.duration || '')}</span>
+                          <span>{service.duration || ''}</span>
                         </div>
                       </div>
                       <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white">
-                        {trc(`service.${service.slug || service.id}.priceRange`, service.priceRange || service.price || '')}
+                        {service.priceRange || service.price || ''}
                       </Badge>
                     </Card>
                   </motion.div>
@@ -421,7 +422,7 @@ export function BookingPage() {
                     <div className="flex justify-between items-start">
                       <span className="text-gray-600">{t('booking.summary.service')}</span>
                       <span className="text-gray-900">
-                        {(() => { const s = services.find(s => s.id === selectedService); return trc(`service.${s?.slug || s?.id}.title`, s?.title || s?.name || ''); })()}
+                        {(() => { const s = services.find(s => s.id === selectedService); return s?.title || s?.name || ''; })()}
                       </span>
                     </div>
                     <div className="flex justify-between items-start">
@@ -437,14 +438,14 @@ export function BookingPage() {
                     <div className="flex justify-between items-start">
                       <span className="text-gray-600">{t('booking.summary.duration')}</span>
                       <span className="text-gray-900">
-                        {(() => { const s = services.find(s => s.id === selectedService); return trc(`service.${s?.slug || s?.id}.duration`, s?.duration || ''); })()}
+                        {(() => { const s = services.find(s => s.id === selectedService); return s?.duration || ''; })()}
                       </span>
                     </div>
                     <div className="border-t border-gray-300 pt-4 mt-4">
                       <div className="flex justify-between items-start">
                         <span className="text-gray-600">{t('booking.summary.price')}</span>
                         <span className="bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                          {(() => { const s = services.find(s => s.id === selectedService); return trc(`service.${s?.slug || s?.id}.priceRange`, s?.priceRange || s?.price || ''); })()}
+                          {(() => { const s = services.find(s => s.id === selectedService); return s?.priceRange || s?.price || ''; })()}
                         </span>
                       </div>
                     </div>
@@ -452,7 +453,7 @@ export function BookingPage() {
 
                   <div className="mt-8 p-4 bg-white rounded-xl">
                     <p className="text-gray-600">
-                      <strong>{t('booking.note')}:</strong> {trc('booking.disclaimer', config?.disclaimer || t('booking.confirmedBody'))}
+                      <strong>{t('booking.note')}:</strong> {config?.disclaimer || t('booking.confirmedBody')}
                     </p>
                   </div>
                 </Card>
@@ -549,7 +550,7 @@ export function BookingPage() {
                       {renderIcon(item.icon)}
                     </div>
                     <h3 className="mb-3 text-gray-900">{item.title}</h3>
-                    <p className="text-gray-600">{trc(`booking.info.${item.id || index}.description`, item.description || '')}</p>
+                    <p className="text-gray-600">{item.description || ''}</p>
                   </Card>
                 </motion.div>
               ))}

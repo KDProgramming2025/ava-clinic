@@ -29,16 +29,18 @@ router.get('/', async (_req, res) => {
     const timeline = await prisma.aboutTimeline.findMany({ orderBy: { year: 'asc' } });
     const values = await prisma.aboutValue.findMany();
     const skills = await prisma.aboutSkill.findMany();
-  const mission = await prisma.aboutMission.findUnique({ where: { id: 1 } });
+    const mission = await prisma.aboutMission.findUnique({ where: { id: 1 } });
     const missionBullets = await prisma.aboutMissionBullet.findMany();
-    res.json({ timeline, values, skills, mission, missionBullets });
+    const stats = await prisma.aboutStat.findMany();
+    res.json({ timeline, values, skills, mission, missionBullets, stats });
   } catch (e) {
-    res.status(500).json({ error: 'about_fetch_failed' });
+    console.error('[about GET] Error:', e.message, e.stack);
+    res.status(500).json({ error: 'about_fetch_failed', details: e.message });
   }
 });
 
 router.put('/', async (req, res) => {
-  const { timeline, values, skills, mission, missionBullets } = req.body;
+  const { timeline, values, skills, mission, missionBullets, stats } = req.body;
   try {
     await prisma.$transaction(async (tx) => {
       if (timeline) {
@@ -126,10 +128,48 @@ router.put('/', async (req, res) => {
         });
         await tx.aboutMissionBullet.createMany({ data: bulletData });
       }
+      if (stats) {
+        await tx.aboutStat.deleteMany();
+        const statsData = stats.map((s, index) => {
+          const label = extractBilingual(s, 'label');
+          const entry = {
+            label: label.canonical || `Stat ${index + 1}`,
+            labelEn: label.en,
+            labelFa: label.fa,
+            value: stringOrNull(s.value) || '0',
+            icon: stringOrNull(s.icon),
+          };
+          const id = stringOrNull(s.id);
+          if (id) entry.id = id;
+          return entry;
+        });
+        await tx.aboutStat.createMany({ data: statsData });
+      }
     });
     res.json({ updated: true });
   } catch (e) {
     res.status(500).json({ error: 'about_update_failed' });
+  }
+});
+
+router.put('/mission/image', async (req, res) => {
+  const { field, imageUrl } = req.body;
+  try {
+    if (!field || !['imageHeroUrl', 'imageSecondaryUrl'].includes(field)) {
+      return res.status(400).json({ error: 'invalid_field', details: 'field must be imageHeroUrl or imageSecondaryUrl' });
+    }
+    
+    const updateData = { [field]: stringOrNull(imageUrl) };
+    const mission = await prisma.aboutMission.upsert({
+      where: { id: 1 },
+      update: updateData,
+      create: { id: 1, ...updateData }
+    });
+    
+    res.json(mission);
+  } catch (e) {
+    console.error('[about mission/image PUT] Error:', e.message, e.stack);
+    res.status(500).json({ error: 'mission_image_update_failed', details: e.message });
   }
 });
 

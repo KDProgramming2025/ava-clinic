@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { ChangeEvent, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Users, Plus, Edit, Trash2, UserPlus, Image as ImageIcon, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, UserPlus, Image as ImageIcon, CheckCircle, XCircle, UploadCloud } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { useLanguage } from '../../LanguageContext';
 import { Button } from '../../ui/button';
@@ -13,12 +13,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import { apiFetch } from '../../../api/client';
 import { ImageWithFallback } from '../../figma/ImageWithFallback';
+import { resolveMediaUrl } from '../../../utils/media';
 
 type TeamMember = {
   id: string;
   name: string;
+  nameEn?: string | null;
+  nameFa?: string | null;
   role: string;
+  roleEn?: string | null;
+  roleFa?: string | null;
   bio?: string | null;
+  bioEn?: string | null;
+  bioFa?: string | null;
   image?: string | null;
   active: boolean;
   createdAt?: string;
@@ -31,12 +38,23 @@ export function TeamManagement() {
   const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TeamMember | null>(null);
-  const [form, setForm] = useState<{ name: string; role: string; bio: string; image: string; active: boolean }>({ name: '', role: '', bio: '', image: '', active: true });
+  const [form, setForm] = useState<{ 
+    nameEn: string; 
+    nameFa: string; 
+    roleEn: string; 
+    roleFa: string; 
+    bioEn: string; 
+    bioFa: string; 
+    image: string; 
+    active: boolean;
+  }>({ nameEn: '', nameFa: '', roleEn: '', roleFa: '', bioEn: '', bioFa: '', image: '', active: true });
+  const [imageProcessing, setImageProcessing] = useState(false);
 
   const fetchAll = async () => {
     try {
       setLoading(true); setError(null);
-      const data = await apiFetch<TeamMember[]>('/team');
+      // Admin needs to see all members including inactive ones
+      const data = await apiFetch<TeamMember[]>('/team?includeInactive=true');
       setMembers(data);
     } catch (e: any) {
   setError(e?.message || t('admin.saveFailed'));
@@ -44,26 +62,106 @@ export function TeamManagement() {
   };
   useEffect(() => { fetchAll(); }, []);
 
-  const openNew = () => { setEditing(null); setForm({ name: '', role: '', bio: '', image: '', active: true }); setIsDialogOpen(true); };
+  const openNew = () => { 
+    setEditing(null); 
+    setForm({ nameEn: '', nameFa: '', roleEn: '', roleFa: '', bioEn: '', bioFa: '', image: '', active: true }); 
+    setIsDialogOpen(true); 
+  };
+  
   const openEdit = (m: TeamMember) => {
     setEditing(m);
-    setForm({ name: m.name, role: m.role, bio: m.bio || '', image: m.image || '', active: m.active });
+    setForm({ 
+      nameEn: m.nameEn || m.name || '', 
+      nameFa: m.nameFa || m.name || '', 
+      roleEn: m.roleEn || m.role || '', 
+      roleFa: m.roleFa || m.role || '', 
+      bioEn: m.bioEn || m.bio || '', 
+      bioFa: m.bioFa || m.bio || '', 
+      image: m.image || '', 
+      active: m.active 
+    });
     setIsDialogOpen(true);
   };
+
+  const persistImage = async (nextUrl: string | null) => {
+    setForm(f => ({ ...f, image: nextUrl || '' }));
+  };
+
+  const uploadImage = async (file: File) => {
+    const previousUrl = form.image || null;
+    try {
+      setImageProcessing(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const alt = form.nameFa || form.nameEn;
+      if (alt) formData.append('alt', alt);
+      const created = await apiFetch<{ url: string; publicUrl?: string | null }>('/media/upload', { 
+        method: 'POST', 
+        body: formData 
+      });
+      if (created?.url) {
+        await persistImage(created.url);
+      }
+    } catch (e: any) {
+      setForm(f => ({ ...f, image: previousUrl || '' }));
+      toast.error(e?.message || t('admin.media.uploadFailed'));
+    } finally {
+      setImageProcessing(false);
+    }
+  };
+
+  const handleImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await uploadImage(file);
+    event.target.value = '';
+  };
+
+  const removeImage = async () => {
+    if (!form.image) return;
+    setImageProcessing(true);
+    await persistImage(null);
+    setImageProcessing(false);
+  };
+
   const save = async () => {
     try {
-  if (!form.name.trim() || !form.role.trim()) { toast.error(t('admin.name') + ' & ' + t('admin.role') + ' ' + t('admin.required')); return; }
+      if ((!form.nameEn.trim() && !form.nameFa.trim()) || (!form.roleEn.trim() && !form.roleFa.trim())) { 
+        toast.error(t('admin.name') + ' & ' + t('admin.role') + ' ' + t('admin.required')); 
+        return; 
+      }
+      
+      const canonicalName = form.nameFa.trim() || form.nameEn.trim();
+      const canonicalRole = form.roleFa.trim() || form.roleEn.trim();
+      const canonicalBio = form.bioFa.trim() || form.bioEn.trim();
+      
       const payload = {
-        name: form.name.trim(),
-        role: form.role.trim(),
-        bio: form.bio.trim() || undefined,
-        image: form.image.trim() || undefined,
+        name: canonicalName,
+        nameEn: form.nameEn.trim() || null,
+        nameFa: form.nameFa.trim() || null,
+        role: canonicalRole,
+        roleEn: form.roleEn.trim() || null,
+        roleFa: form.roleFa.trim() || null,
+        bio: canonicalBio || null,
+        bioEn: form.bioEn.trim() || null,
+        bioFa: form.bioFa.trim() || null,
+        image: form.image.trim() || null,
         active: form.active,
       };
-  if (editing) { await apiFetch(`/team/${editing.id}`, { method: 'PUT', body: payload }); toast.success(t('admin.memberUpdated')); }
-  else { await apiFetch('/team', { method: 'POST', body: payload }); toast.success(t('admin.memberAdded')); }
-      setIsDialogOpen(false); setEditing(null); await fetchAll();
-  } catch (e: any) { toast.error(e?.message || t('admin.saveFailed')); }
+      
+      if (editing) { 
+        await apiFetch(`/team/${editing.id}`, { method: 'PUT', body: payload }); 
+        toast.success(t('admin.memberUpdated')); 
+      } else { 
+        await apiFetch('/team', { method: 'POST', body: payload }); 
+        toast.success(t('admin.memberAdded')); 
+      }
+      setIsDialogOpen(false); 
+      setEditing(null); 
+      await fetchAll();
+    } catch (e: any) { 
+      toast.error(e?.message || t('admin.saveFailed')); 
+    }
   };
   const del = async (m: TeamMember) => {
   if (!confirm(`${t('admin.deleteMemberConfirm')} "${m.name}"?`)) return;
@@ -78,6 +176,8 @@ export function TeamManagement() {
   const activeCount = members.filter(m => m.active).length;
 
   const initials = (name: string) => name.split(' ').map(p => p[0]).join('').toUpperCase();
+  
+  const imagePreviewUrl = resolveMediaUrl(form.image);
 
   return (
     <div className="space-y-6">
@@ -146,26 +246,76 @@ export function TeamManagement() {
       )}
 
   <Dialog open={isDialogOpen} onOpenChange={(o: boolean)=> { if(!o){ setIsDialogOpen(false); setEditing(null);} }}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editing ? t('admin.editMember') : t('admin.newMemberDialog')}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="tm-name">{t('admin.name')}*</Label>
-              <Input id="tm-name" value={form.name} onChange={(e)=> setForm(f=>({...f,name:e.target.value}))} className="mt-2 rounded-xl" placeholder="Dr. Jane Smith" />
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="tm-name-en">{t('admin.name')} (EN)*</Label>
+                <Input id="tm-name-en" value={form.nameEn} onChange={(e)=> setForm(f=>({...f,nameEn:e.target.value}))} className="mt-2 rounded-xl" placeholder="Dr. Jane Smith" />
+              </div>
+              <div>
+                <Label htmlFor="tm-name-fa">{t('admin.name')} (FA)*</Label>
+                <Input id="tm-name-fa" dir="rtl" value={form.nameFa} onChange={(e)=> setForm(f=>({...f,nameFa:e.target.value}))} className="mt-2 rounded-xl text-right" placeholder="دکتر جین اسمیت" />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="tm-role">{t('admin.role')}*</Label>
-              <Input id="tm-role" value={form.role} onChange={(e)=> setForm(f=>({...f,role:e.target.value}))} className="mt-2 rounded-xl" placeholder="Senior Specialist" />
+            
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="tm-role-en">{t('admin.role')} (EN)*</Label>
+                <Input id="tm-role-en" value={form.roleEn} onChange={(e)=> setForm(f=>({...f,roleEn:e.target.value}))} className="mt-2 rounded-xl" placeholder="Senior Specialist" />
+              </div>
+              <div>
+                <Label htmlFor="tm-role-fa">{t('admin.role')} (FA)*</Label>
+                <Input id="tm-role-fa" dir="rtl" value={form.roleFa} onChange={(e)=> setForm(f=>({...f,roleFa:e.target.value}))} className="mt-2 rounded-xl text-right" placeholder="متخصص ارشد" />
+              </div>
             </div>
+            
             <div>
-              <Label htmlFor="tm-image">{t('admin.imageUrl')}</Label>
-              <Input id="tm-image" value={form.image} onChange={(e)=> setForm(f=>({...f,image:e.target.value}))} className="mt-2 rounded-xl" placeholder="https://..." />
-              {form.image && <img src={form.image} alt="preview" className="mt-2 h-28 w-full object-cover rounded-xl border" />}
+              <Label>{t('admin.imageUrl')}</Label>
+              <div className="mt-2 space-y-3">
+                <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4">
+                  {form.image ? (
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                      <div className="w-full sm:w-32 h-32 rounded-xl overflow-hidden border border-gray-200 bg-white shadow-inner">
+                        <img src={imagePreviewUrl || form.image || undefined} alt="Team member" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 w-full">
+                        <p className="text-sm text-gray-900 truncate" title={form.image || undefined}>{form.image}</p>
+                        {imagePreviewUrl && (
+                          <p className="text-xs text-gray-500 break-all mt-1">{imagePreviewUrl}</p>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="sm" className="text-red-600" onClick={removeImage} disabled={imageProcessing}>
+                        {t('admin.remove')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-center gap-3 py-6">
+                      <ImageIcon className="w-8 h-8 text-gray-400" />
+                      <p className="text-sm text-gray-600">{t('admin.homeContent.heroImageEmpty')}</p>
+                    </div>
+                  )}
+                </div>
+                <Input type="file" accept="image/*" onChange={handleImageChange} disabled={imageProcessing} className="rounded-xl" />
+                <div className="text-xs text-gray-500 flex items-center gap-2">
+                  <UploadCloud className={`w-4 h-4 ${imageProcessing ? 'animate-spin' : ''}`} />
+                  {imageProcessing ? t('admin.media.uploading') : t('admin.homeContent.heroImageUploadHint')}
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="tm-bio">{t('admin.bio')}</Label>
-              <Textarea id="tm-bio" value={form.bio} onChange={(e)=> setForm(f=>({...f,bio:e.target.value}))} className="mt-2 rounded-xl" rows={4} placeholder="Short bio / expertise" />
+            
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="tm-bio-en">{t('admin.bio')} (EN)</Label>
+                <Textarea id="tm-bio-en" value={form.bioEn} onChange={(e)=> setForm(f=>({...f,bioEn:e.target.value}))} className="mt-2 rounded-xl" rows={4} placeholder="Short bio / expertise" />
+              </div>
+              <div>
+                <Label htmlFor="tm-bio-fa">{t('admin.bio')} (FA)</Label>
+                <Textarea id="tm-bio-fa" dir="rtl" value={form.bioFa} onChange={(e)=> setForm(f=>({...f,bioFa:e.target.value}))} className="mt-2 rounded-xl text-right" rows={4} placeholder="بیوگرافی کوتاه / تخصص" />
+              </div>
             </div>
+            
             <div className="flex items-center gap-2">
               <input id="tm-active" type="checkbox" checked={form.active} onChange={(e)=> setForm(f=>({...f,active:e.target.checked}))} className="rounded border-gray-300" />
               <Label htmlFor="tm-active">{t('admin.activeVisible')}</Label>

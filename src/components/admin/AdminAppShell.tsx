@@ -14,7 +14,6 @@ import { AboutContentManagement } from './pages/AboutContentManagement';
 import { ContactContentManagement } from './pages/ContactContentManagement';
 import { NewsletterSettings } from './pages/NewsletterSettings';
 import { SEOSettings } from './pages/SEOSettings';
-import { TranslationsManagement } from './pages/TranslationsManagement';
 import { MediaLibrary } from './pages/MediaLibrary';
 import { VideosManagement } from './pages/VideosManagement';
 import { MagazineManagement } from './pages/MagazineManagement';
@@ -60,8 +59,6 @@ export default function AdminAppShell() {
         return <BookingInfoManagement />;
       case 'newsletter':
         return <NewsletterSettings />;
-      case 'translations':
-        return <TranslationsManagement />;
       case 'media':
         return <MediaLibrary />;
       case 'videos':
@@ -88,7 +85,7 @@ export default function AdminAppShell() {
   return (
     <AdminLayout currentPage={currentPage} onNavigate={setCurrentPage}>
       <div className="flex justify-end mb-4">
-        <Button variant="outline" size="sm" onClick={() => { localStorage.setItem('view_mode','public'); window.location.reload(); }}>
+        <Button variant="outline" size="sm" onClick={() => { window.open('/', '_blank', 'noopener,noreferrer'); }}>
           {t('admin.toggleToPublic')}
         </Button>
       </div>

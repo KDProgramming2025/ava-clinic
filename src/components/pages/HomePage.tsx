@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Award, Users, TrendingUp, Heart, Shield, Clock, Star } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
+import { useServices } from '../../contexts/ServicesContext';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
@@ -44,14 +45,18 @@ interface Testimonial { name: string; text: string; rating?: number; image?: str
 
 export function HomePage() {
   const { t, isRTL, trc, language } = useLanguage();
+  const { services: servicesData } = useServices();
   const [hero, setHero] = useState<HomeHero | null>(null);
   const [stats, setStats] = useState<HomeStat[]>([]);
   const [features, setFeatures] = useState<HomeFeature[]>([]);
   const [cta, setCTA] = useState<HomeCTA | null>(null);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-  const [servicesPreview, setServicesPreview] = useState<any[]>([]);
   const [loading, setLoading] = useState(true); // used only for subtle skeletons now (no blocking spinner)
   const [error, setError] = useState<string | null>(null);
+
+  const servicesPreview = useMemo(() => {
+    return Array.isArray(servicesData) ? servicesData.slice(0, 3) : [];
+  }, [servicesData]);
 
   const pickLocalized = (fa?: string | null, en?: string | null, fallback?: string | null) => {
     const order = language === 'fa' ? [fa, en, fallback] : [en, fa, fallback];
@@ -69,14 +74,13 @@ export function HomePage() {
     (async () => {
       try {
         setLoading(true);
-        const [home, services] = await Promise.all([api.home(), api.services()]);
+        const home = await api.home();
         if (cancelled) return;
   setHero(home?.hero || null);
   setStats(Array.isArray(home?.stats) ? home!.stats : []);
   setFeatures(Array.isArray(home?.features) ? home!.features : []);
   setCTA(home?.cta || null);
   setTestimonials(Array.isArray(home?.testimonials) ? home!.testimonials : []);
-  setServicesPreview(Array.isArray(services) ? services.slice(0, 3) : []);
       } catch (e: any) {
         if (!cancelled) setError(e.message || t('home.loadFailed'));
       } finally {
@@ -152,21 +156,21 @@ export function HomePage() {
                 <motion.div initial={{ opacity: 0, x: isRTL ? 50 : -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }}>
                   {heroTitle && !loading ? (
                     <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="mb-6 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">
-                      {trc('home.hero.title', heroTitle)}
+                      {heroTitle}
                     </motion.h1>
                   ) : (
                     <div className="mb-6 h-12 rounded-md bg-gradient-to-r from-pink-200 to-purple-200 animate-pulse" />
                   )}
                   {heroSubtitle && !loading ? (
                     <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="mb-6 text-gray-700">
-                      {trc('home.hero.subtitle', heroSubtitle)}
+                      {heroSubtitle}
                     </motion.h2>
                   ) : (
                     <div className="mb-6 h-10 rounded-md bg-gradient-to-r from-purple-200 to-blue-200 animate-pulse" />
                   )}
                   {heroDescription && !loading ? (
                     <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mb-8 text-gray-600">
-                      {trc('home.hero.description', heroDescription)}
+                      {heroDescription}
                     </motion.p>
                   ) : (
                     <div className="mb-8 h-20 space-y-4">
@@ -176,10 +180,10 @@ export function HomePage() {
                   )}
                   <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="flex flex-wrap gap-4">
                     {heroCtaPrimary && !loading && (
-                      <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-full px-8 shadow-lg hover:shadow-xl transition-all">{trc('home.hero.ctaPrimary', heroCtaPrimary)}</Button>
+                      <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-full px-8 shadow-lg hover:shadow-xl transition-all">{heroCtaPrimary}</Button>
                     )}
                     {heroCtaSecondary && !loading && (
-                      <Button variant="outline" className="rounded-full px-8 border-2 hover:bg-white/50">{trc('home.hero.ctaSecondary', heroCtaSecondary)}</Button>
+                      <Button variant="outline" className="rounded-full px-8 border-2 hover:bg-white/50">{heroCtaSecondary}</Button>
                     )}
                   </motion.div>
                 </motion.div>
@@ -200,7 +204,7 @@ export function HomePage() {
                     <motion.div key={index} whileHover={{ y: -5 }} className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 text-center shadow-lg">
                       <div className="w-8 h-8 mx-auto mb-3 text-pink-500">{!loading && iconForStat(stat.icon)}</div>
                       <div className="mb-1 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent min-h-6">{!loading && stat.value}</div>
-                      <p className="text-gray-600 min-h-4">{!loading && trc(`home.stat.${(stat as any).id || index}.label`, statLabel as any)}</p>
+                      <p className="text-gray-600 min-h-4">{!loading && statLabel as any}</p>
                     </motion.div>
                   );
                 })}
@@ -221,8 +225,8 @@ export function HomePage() {
                     <motion.div key={index} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }} whileHover={{ y: -10 }}>
                       <Card className="p-6 h-full border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-white to-pink-50/30">
                         <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">{!loading && iconForFeature(feature.icon)}</div>
-                        <h3 className="mb-3 text-gray-900 min-h-6">{!loading && trc(`home.feature.${(feature as any).id || index}.title`, featureTitle as any)}</h3>
-                        <p className="text-gray-600 min-h-10">{!loading && trc(`home.feature.${(feature as any).id || index}.description`, featureDescription as any)}</p>
+                        <h3 className="mb-3 text-gray-900 min-h-6">{!loading && featureTitle as any}</h3>
+                        <p className="text-gray-600 min-h-10">{!loading && featureDescription as any}</p>
                       </Card>
                     </motion.div>
                   );
@@ -239,9 +243,9 @@ export function HomePage() {
               <div className="grid md:grid-cols-3 gap-8">
                 {(Array.isArray(servicesPreview) && servicesPreview.length ? servicesPreview : loading ? Array.from({length:3}).map(()=>({id:0,title:'',subtitle:'',image:''})) : []).map((service: any, index) => {
                   const serviceKey = service.slug || service.id;
-                  const localizedTitle = trc(`service.${serviceKey}.title`, pickLocalized(service.titleFa, service.titleEn, service.title));
+                  const localizedTitle = pickLocalized(service.titleFa, service.titleEn, service.title);
                   const subtitleFallback = service.subtitle || (service.description ? service.description.slice(0, 120) : '');
-                  const localizedSubtitle = trc(`service.${serviceKey}.subtitle`, pickLocalized(service.subtitleFa, service.subtitleEn, subtitleFallback)) || trc(`service.${serviceKey}.description`, subtitleFallback);
+                  const localizedSubtitle = pickLocalized(service.subtitleFa, service.subtitleEn, subtitleFallback) || subtitleFallback;
                   return (
                     <motion.div key={service.id || index} initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }} whileHover={{ y: -10 }}>
                       <Card className="overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all">
@@ -280,11 +284,11 @@ export function HomePage() {
                           <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
                         ))}
                       </div>
-                      <p className="text-gray-700 mb-6 italic min-h-12">{!loading && `"${trc(`testimonial.${(testimonial as any).id || index}.text`, selectTestimonialText(testimonial))}"`}</p>
+                      <p className="text-gray-700 mb-6 italic min-h-12">{!loading && `"${selectTestimonialText(testimonial)}"`}</p>
                       <div className="flex items-center gap-3">
-                        {loading ? <div className="w-12 h-12 rounded-full bg-pink-200 animate-pulse" /> : <ImageWithFallback src={testimonial.image} alt={trc(`testimonial.${(testimonial as any).id || index}.name`, selectTestimonialName(testimonial))} className="w-12 h-12 rounded-full object-cover" />}
+                        {loading ? <div className="w-12 h-12 rounded-full bg-pink-200 animate-pulse" /> : <ImageWithFallback src={testimonial.image} alt={selectTestimonialName(testimonial)} className="w-12 h-12 rounded-full object-cover" />}
                         <div>
-                          <p className="text-gray-900 min-h-4">{!loading && trc(`testimonial.${(testimonial as any).id || index}.name`, selectTestimonialName(testimonial))}</p>
+                          <p className="text-gray-900 min-h-4">{!loading && selectTestimonialName(testimonial)}</p>
                           <p className="text-gray-500 min-h-4">{!loading && t('testimonials.verifiedClient')}</p>
                         </div>
                       </div>
@@ -298,10 +302,10 @@ export function HomePage() {
           <section className="py-20 bg-gradient-to-r from-pink-500 via-purple-600 to-blue-600">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
               <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-                <h2 className="text-white mb-6 min-h-8">{!loading && (ctaHeading ? trc('home.cta.heading', ctaHeading) : t('services.ctaTitle'))}</h2>
-                <p className="text-white/90 mb-8 max-w-2xl mx-auto min-h-10">{!loading && (ctaSubheading ? trc('home.cta.subheading', ctaSubheading) : '')}</p>
+                <h2 className="text-white mb-6 min-h-8">{!loading && (ctaHeading ? ctaHeading : t('services.ctaTitle'))}</h2>
+                <p className="text-white/90 mb-8 max-w-2xl mx-auto min-h-10">{!loading && (ctaSubheading ? ctaSubheading : '')}</p>
                 {!loading && ctaButton && (
-                  <Button className="bg-white text-purple-600 hover:bg-gray-100 rounded-full px-8 shadow-xl">{trc('home.cta.button', ctaButton)}</Button>
+                  <Button className="bg-white text-purple-600 hover:bg-gray-100 rounded-full px-8 shadow-xl">{ctaButton}</Button>
                 )}
               </motion.div>
             </div>

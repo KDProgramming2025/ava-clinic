@@ -1,12 +1,14 @@
 import { Facebook, Instagram, Twitter, Youtube, Mail, Phone, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from './LanguageContext';
+import { useSettings } from '../contexts/SettingsContext';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { resolveMediaUrl } from '../utils/media';
 
 export function Footer() {
   const { t, isRTL, trc, language } = useLanguage();
+  const { settings: settingsData, footerLinks: footerLinksData } = useSettings();
   const [footerLinks, setFooterLinks] = useState<any[]>([]);
   const [social, setSocial] = useState<any[]>([]);
   const [contactBlocks, setContactBlocks] = useState<any[]>([]);
@@ -16,14 +18,14 @@ export function Footer() {
     let cancelled = false;
     (async () => {
       try {
-        const [settings, contact] = await Promise.all([api.settings(), api.contact()]);
+        const contact = await api.contact();
         if (cancelled) return;
-        setFooterLinks(settings?.footerLinks || []);
+        setFooterLinks(footerLinksData || []);
         setBrand({
-          title: settings?.settings?.siteTitle,
-          titleEn: settings?.settings?.siteTitleEn,
-          titleFa: settings?.settings?.siteTitleFa,
-          logoUrl: resolveMediaUrl(settings?.settings?.logoUrl),
+          title: settingsData?.siteTitle,
+          titleEn: settingsData?.siteTitleEn,
+          titleFa: settingsData?.siteTitleFa,
+          logoUrl: resolveMediaUrl(settingsData?.logoUrl),
         });
         setSocial(contact?.social || []);
         setContactBlocks(contact?.blocks || []);
@@ -32,7 +34,7 @@ export function Footer() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [settingsData, footerLinksData]);
 
   const grouped = useMemo(() => {
     const groups: Record<string, { links: any[]; titleEn?: string | null; titleFa?: string | null; fallback: string }> = {};
@@ -66,7 +68,7 @@ export function Footer() {
     const localizedTitle = language === 'fa'
       ? ((brand?.titleFa || '').trim() || (brand?.title || '').trim() || (brand?.titleEn || '').trim())
       : ((brand?.titleEn || '').trim() || (brand?.title || '').trim() || (brand?.titleFa || '').trim());
-    const translationOverride = trc('brand.siteTitle', '');
+    const translationOverride = '';
     return localizedTitle || translationOverride || t('brand.name');
   }, [brand, language, t, trc]);
 
@@ -89,7 +91,7 @@ export function Footer() {
               </span>
             </div>
             <p className="text-gray-300 mb-6">
-              {trc('brand.tagline', t('brand.tagline'))}
+              {t('brand.tagline')}
             </p>
             <div className="flex gap-3">
               {social.map((s, idx) => (
@@ -115,15 +117,15 @@ export function Footer() {
                   const localizedTitle = language === 'fa'
                     ? (meta.titleFa || meta.titleEn || meta.fallback)
                     : (meta.titleEn || meta.titleFa || meta.fallback);
-                  return trc(`footer.group.${groupName}.label`, localizedTitle || t('footer.linksGroupDefault'));
+                  return localizedTitle || t('footer.linksGroupDefault');
                 })()}
               </h3>
               <ul className="space-y-3">
                 {meta.links.map((l: any, i: number) => {
                   const localizedLabel = language === 'fa'
-                    ? (l.labelFa || l.label || trc(`footer.link.${l.id || i}.label`, l.label))
-                    : (l.labelEn || l.label || trc(`footer.link.${l.id || i}.label`, l.label));
-                  const fallbackLabel = trc(`footer.link.${l.id || i}.label`, l.label);
+                    ? (l.labelFa || l.label || l.label)
+                    : (l.labelEn || l.label || l.label);
+                  const fallbackLabel = l.label;
                   const labelText = localizedLabel || fallbackLabel || l.url;
                   const isInternal = typeof l.url === 'string' && l.url.startsWith('/');
                   const isHash = typeof l.url === 'string' && l.url.startsWith('#');
@@ -156,7 +158,7 @@ export function Footer() {
                   {b.type === 'address' && <MapPin className="w-5 h-5 text-pink-400 flex-shrink-0 mt-1" />}
                   {b.type === 'phone' && <Phone className="w-5 h-5 text-pink-400 flex-shrink-0" />}
                   {b.type === 'email' && <Mail className="w-5 h-5 text-pink-400 flex-shrink-0" />}
-                  <span className="text-gray-300">{(b.values || []).map((v: any, i: number) => trc(`contact.block.${b.id || idx}.value.${i}`, v.value || v)).join(' | ')}</span>
+                  <span className="text-gray-300">{(b.values || []).map((v: any, i: number) => v.value || v).join(' | ')}</span>
                 </li>
               ))}
             </ul>

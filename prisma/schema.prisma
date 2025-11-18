@@ -81,8 +81,14 @@ model Testimonial {
 model TeamMember {
   id        String   @id @default(cuid())
   name      String
+  nameEn    String?
+  nameFa    String?
   role      String
+  roleEn    String?
+  roleFa    String?
   bio       String?  @db.Text
+  bioEn     String?  @db.Text
+  bioFa     String?  @db.Text
   image     String?
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -123,9 +129,11 @@ model Article {
   id              String         @id @default(cuid())
   // Canonical fallback fields (kept for backward-compat + SEO)
   title        String
+  slug         String         @unique
   subtitle     String?
   excerpt         String?
-  description  String        @db.Text
+  body         String?        @db.Text
+  description  String?        @db.Text
   image           String?
   readTimeMinutes Int?
   status          ArticleStatus  @default(DRAFT)
@@ -191,6 +199,11 @@ model Settings {
   emailReminderTemplate String? @db.Text
   contactAutoReply      String? @db.Text
   perPageSeo      Json?   // { "/services": { title, description }, ... }
+  // Page content fields
+  servicesHeroTitleEn    String?
+  servicesHeroTitleFa    String?
+  servicesHeroSubtitleEn String? @db.Text
+  servicesHeroSubtitleFa String? @db.Text
 }
 
 model HomeHero {
@@ -293,6 +306,15 @@ model AboutMissionBullet {
   text     String
   textEn   String?
   textFa   String?
+}
+
+model AboutStat {
+  id      String @id @default(cuid())
+  label   String
+  labelEn String?
+  labelFa String?
+  value   String
+  icon    String?
 }
 
 enum ContactInfoType {
@@ -436,11 +458,6 @@ model Message {
   @@index([status, receivedAt])
 }
 
-model Translation {
-  key       String @id
-  data      Json
-  updatedAt DateTime @updatedAt
-}
 
 model VideoCategory {
   id        String   @id @default(cuid())

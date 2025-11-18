@@ -7,6 +7,7 @@ import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { Progress } from '../ui/progress';
 import { api } from '../../api/client';
 import { SEO } from '../SEO';
+import { resolveMediaUrl } from '../../utils/media';
 
 interface TimelineItem {
   id?: string;
@@ -51,7 +52,20 @@ interface MissionBullet {
   textEn?: string | null;
   textFa?: string | null;
 }
-interface TeamMember { id?: string; name: string; role: string; bio?: string | null; image?: string | null; active?: boolean; }
+interface TeamMember { 
+  id?: string; 
+  name: string; 
+  nameEn?: string | null;
+  nameFa?: string | null;
+  role: string; 
+  roleEn?: string | null;
+  roleFa?: string | null;
+  bio?: string | null; 
+  bioEn?: string | null;
+  bioFa?: string | null;
+  image?: string | null; 
+  active?: boolean; 
+}
 interface StatItem { icon: string; value: string; label: string; labelEn?: string | null; labelFa?: string | null; id?: string; }
 
 export function AboutPage() {
@@ -83,10 +97,9 @@ export function AboutPage() {
     (async () => {
       try {
         setLoading(true);
-        const [aboutData, teamData, homeData] = await Promise.all([
+        const [aboutData, teamData] = await Promise.all([
           api.about(),
           api.team(),
-          api.home(), // reuse home stats for bottom section (assumption)
         ]);
         if (cancelled) return;
         const timelineItems = Array.isArray(aboutData.timeline) ? aboutData.timeline : [];
@@ -96,8 +109,8 @@ export function AboutPage() {
         setMission(aboutData.mission || null);
         setMissionBullets(Array.isArray(aboutData.missionBullets) ? aboutData.missionBullets : []);
         setTeam(Array.isArray(teamData) ? teamData : []);
-        const homeStats = Array.isArray(homeData?.stats) ? homeData.stats : [];
-        const mappedStats = homeStats.slice(0, 4).map((s: any) => ({
+        const aboutStats = Array.isArray(aboutData?.stats) ? aboutData.stats : [];
+        const mappedStats = aboutStats.map((s: any) => ({
           icon: s.icon || 'award',
           value: String(s.value ?? ''),
           label: s.label || '',
@@ -127,6 +140,20 @@ export function AboutPage() {
       case 'users': return Users;
       default: return Heart; // default icon
     }
+  };
+
+  const renderIcon = (iconValue: string | null | undefined, className: string = 'w-8 h-8') => {
+    if (!iconValue) {
+      const DefaultIcon = Heart;
+      return <DefaultIcon className={className} />;
+    }
+    // Check if it's an uploaded image (URL)
+    if (iconValue.includes('/') || iconValue.startsWith('http')) {
+      return <img src={resolveMediaUrl(iconValue)} alt="icon" className={className + ' object-contain'} />;
+    }
+    // Otherwise treat as icon name
+    const Icon = iconComponent(iconValue);
+    return <Icon className={className} />;
   };
 
   return (
@@ -174,7 +201,7 @@ export function AboutPage() {
               {t('about.title')}
             </h1>
             <p className="text-gray-700 max-w-3xl mx-auto">
-              {trc('about.mission.paragraph', missionHeroParagraph)}
+              {missionHeroParagraph}
             </p>
           </motion.div>
 
@@ -201,9 +228,9 @@ export function AboutPage() {
               transition={{ delay: 0.3 }}
               className="space-y-6"
             >
-              <h2 className="text-gray-900">{trc('about.mission.heading', missionHeadingLocalized)}</h2>
+              <h2 className="text-gray-900">{missionHeadingLocalized}</h2>
               <p className="text-gray-700">
-                {trc('about.mission.paragraph', missionParagraphLocalized)}
+                {missionParagraphLocalized}
               </p>
               <div className="space-y-4">
                 {(missionBullets || []).map((b, index) => {
@@ -217,7 +244,7 @@ export function AboutPage() {
                       className="flex items-center gap-3"
                     >
                       <CheckCircle className="w-6 h-6 text-pink-500 flex-shrink-0" />
-                      <span className="text-gray-700">{trc(`about.mission.bullet.${b.id || index}`, bulletText)}</span>
+                      <span className="text-gray-700">{bulletText}</span>
                     </motion.div>
                   );
                 })}
@@ -244,7 +271,7 @@ export function AboutPage() {
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="flex flex-wrap justify-center gap-8">
             {(values.length ? values : loading ? Array.from({length:4}).map(()=>({title:'', description:'', icon:'heart'})) : []).map((value: any, index) => {
               const localizedTitle = pickLocalized(value.titleFa, value.titleEn, value.title);
               const localizedDescription = pickLocalized(value.descriptionFa, value.descriptionEn, value.description);
@@ -256,13 +283,14 @@ export function AboutPage() {
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
                   whileHover={{ y: -10 }}
+                  className="sm:w-80 lg:w-72"
                 >
                   <Card className="p-6 text-center border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-white to-pink-50/30">
                     <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                      {loading ? <div className="w-8 h-8 bg-white/40 rounded animate-pulse" /> : (() => { const Icon = iconComponent(value.icon || 'heart'); return <Icon className="w-8 h-8 text-white" />; })()}
+                      {loading ? <div className="w-8 h-8 bg-white/40 rounded animate-pulse" /> : renderIcon(value.icon, 'w-8 h-8 text-white')}
                     </div>
                     <h3 className="mb-3 text-gray-900">
-                      {loading ? <div className="h-5 w-2/3 mx-auto bg-gray-200 rounded animate-pulse" /> : trc(`about.value.${value.id || index}.title`, localizedTitle)}
+                      {loading ? <div className="h-5 w-2/3 mx-auto bg-gray-200 rounded animate-pulse" /> : localizedTitle}
                     </h3>
                     <p className="text-gray-600">
                       {loading ? (
@@ -271,7 +299,7 @@ export function AboutPage() {
                           <div className="h-4 w-5/6 mx-auto bg-gray-200 rounded animate-pulse" />
                         </>
                       ) : (
-                        trc(`about.value.${value.id || index}.description`, localizedDescription)
+                        localizedDescription
                       )}
                     </p>
                   </Card>
@@ -318,8 +346,8 @@ export function AboutPage() {
                     <div className={`flex-1 ${index % 2 === 0 ? 'text-right rtl:text-left' : 'text-left rtl:text-right'}`}>
                       <Card className="p-6 bg-white shadow-lg inline-block">
                         <div className="text-pink-600 mb-2">{loading ? <span className="inline-block h-4 w-12 bg-gray-200 rounded animate-pulse" /> : item.year}</div>
-                        <h3 className="mb-2 text-gray-900">{loading ? <div className="h-5 w-2/3 inline-block bg-gray-200 rounded animate-pulse" /> : trc(`about.timeline.${item.id || index}.title`, localizedTitle)}</h3>
-                        <p className="text-gray-600">{loading ? <div className="h-4 w-5/6 bg-gray-200 rounded animate-pulse" /> : trc(`about.timeline.${item.id || index}.description`, localizedDescription)}</p>
+                        <h3 className="mb-2 text-gray-900">{loading ? <div className="h-5 w-2/3 inline-block bg-gray-200 rounded animate-pulse" /> : localizedTitle}</h3>
+                        <p className="text-gray-600">{loading ? <div className="h-4 w-5/6 bg-gray-200 rounded animate-pulse" /> : localizedDescription}</p>
                       </Card>
                     </div>
                     <div className="w-4 h-4 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full ring-4 ring-white shadow-lg z-10" />
@@ -359,7 +387,7 @@ export function AboutPage() {
                       transition={{ delay: index * 0.1 }}
                     >
                       <div className="flex justify-between mb-2">
-                        <span className="text-gray-900">{loading ? <span className="inline-block h-4 w-32 bg-gray-200 rounded animate-pulse" /> : trc(`about.skill.${skill.id || index}.name`, skillName)}</span>
+                        <span className="text-gray-900">{loading ? <span className="inline-block h-4 w-32 bg-gray-200 rounded animate-pulse" /> : skillName}</span>
                         <span className="text-pink-600">{loading ? <span className="inline-block h-4 w-10 bg-gray-200 rounded animate-pulse" /> : `${skill.level}%`}</span>
                       </div>
                       {loading ? (
@@ -409,48 +437,54 @@ export function AboutPage() {
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {(team.length ? team : loading ? Array.from({length:4}).map(()=>({name:'', role:'', bio:''})) : []).map((member: any, index) => (
-              <motion.div
-                key={member.id || index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ y: -10 }}
-              >
-                <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all">
-                  <div className="relative h-64 overflow-hidden">
-                    {loading ? (
-                      <div className="w-full h-full bg-gray-200 animate-pulse" />
-                    ) : (
-                      <>
-                        <ImageWithFallback
-                          src={member.image || undefined}
-                          alt={member.name}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                      </>
-                    )}
-                  </div>
-                  <div className="p-6 text-center bg-white">
-                    <h3 className="mb-2 text-gray-900">{loading ? <div className="h-5 w-2/3 mx-auto bg-gray-200 rounded animate-pulse" /> : trc(`team.${member.id || index}.name`, member.name)}</h3>
-                    <p className="text-pink-600 mb-3">{loading ? <div className="h-4 w-1/2 mx-auto bg-gray-200 rounded animate-pulse" /> : trc(`team.${member.id || index}.role`, member.role)}</p>
-                    <p className="text-gray-600">{loading ? <div className="h-4 w-5/6 mx-auto bg-gray-200 rounded animate-pulse" /> : trc(`team.${member.id || index}.bio`, member.bio || '')}</p>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
+          <div className="flex flex-wrap justify-center gap-8">
+            {(team.length ? team.filter(m => m.active !== false) : loading ? Array.from({length:4}).map(()=>({name:'', role:'', bio:''})) : []).map((member: any, index) => {
+              const memberName = pickLocalized(member.nameFa, member.nameEn, member.name);
+              const memberRole = pickLocalized(member.roleFa, member.roleEn, member.role);
+              const memberBio = pickLocalized(member.bioFa, member.bioEn, member.bio);
+              
+              return (
+                <motion.div
+                  key={member.id || index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -10 }}
+                  className="sm:w-80 lg:w-72"
+                >
+                  <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all">
+                    <div className="relative h-64 overflow-hidden">
+                      {loading ? (
+                        <div className="w-full h-full bg-gray-200 animate-pulse" />
+                      ) : (
+                        <>
+                          <ImageWithFallback
+                            src={member.image || undefined}
+                            alt={memberName}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        </>
+                      )}
+                    </div>
+                    <div className="p-6 text-center bg-white">
+                      <h3 className="mb-2 text-gray-900">{loading ? <div className="h-5 w-2/3 mx-auto bg-gray-200 rounded animate-pulse" /> : memberName}</h3>
+                      <p className="text-pink-600 mb-3">{loading ? <div className="h-4 w-1/2 mx-auto bg-gray-200 rounded animate-pulse" /> : memberRole}</p>
+                      <p className="text-gray-600">{loading ? <div className="h-4 w-5/6 mx-auto bg-gray-200 rounded animate-pulse" /> : memberBio || ''}</p>
+                    </div>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
-        {/* Stats (dynamic from home stats) */}
+        {/* Stats */}
         <section className="py-20 bg-gradient-to-r from-pink-500 via-purple-600 to-blue-600">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-4 gap-8">
+            <div className="flex flex-wrap justify-center gap-8">
               {(stats.length ? stats : loading ? Array.from({length:4}).map(()=>({icon:'award', value:'', label:''})) : []).map((stat: any, index) => {
-                const Icon = iconComponent(stat.icon);
                 const statLabel = pickLocalized(stat.labelFa, stat.labelEn, stat.label);
                 return (
                   <motion.div
@@ -459,15 +493,17 @@ export function AboutPage() {
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
                     transition={{ delay: index * 0.1 }}
-                    className="text-center text-white"
+                    className="text-center text-white sm:w-64 lg:w-56"
                   >
                     {loading ? (
                       <div className="w-12 h-12 mx-auto mb-4 bg-white/30 rounded-full animate-pulse" />
                     ) : (
-                      <Icon className="w-12 h-12 mx-auto mb-4" />
+                      <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+                        {renderIcon(stat.icon, 'w-12 h-12')}
+                      </div>
                     )}
-                    <div className="mb-2">{loading ? <div className="h-6 w-16 mx-auto bg-white/40 rounded animate-pulse" /> : stat.value}</div>
-                    <p className="text-white/90">{loading ? <span className="inline-block h-4 w-20 bg-white/30 rounded animate-pulse" /> : trc(`home.stat.${stat.id || index}.label`, statLabel)}</p>
+                    <div className="mb-2 text-3xl font-bold">{loading ? <div className="h-8 w-16 mx-auto bg-white/40 rounded animate-pulse" /> : stat.value}</div>
+                    <p className="text-white/90">{loading ? <span className="inline-block h-4 w-20 bg-white/30 rounded animate-pulse" /> : statLabel}</p>
                   </motion.div>
                 );
               })}
