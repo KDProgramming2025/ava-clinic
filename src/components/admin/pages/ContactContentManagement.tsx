@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Phone, Mail, MapPin, Clock, HelpCircle, Plus, Edit, Trash2, Save, RefreshCcw, Share2, Link as LinkIcon } from 'lucide-react';
+import { ChangeEvent, useEffect, useState } from 'react';
+import { Phone, Mail, MapPin, Clock, HelpCircle, Plus, Edit, Trash2, Save, RefreshCcw, Share2, Link as LinkIcon, Map as MapIcon, Target, UploadCloud, Palette } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
@@ -11,6 +12,8 @@ import { Badge } from '../../ui/badge';
 import { toast } from 'sonner';
 import { apiFetch } from '../../../api/client';
 import { useLanguage } from '../../LanguageContext';
+import { resolveMediaUrl } from '../../../utils/media';
+import { IconPicker } from '../IconPicker';
 
 // Types based on backend schema
 type ContactInfoType = 'phone' | 'email' | 'address' | 'hours';
@@ -49,7 +52,13 @@ interface QuickAction {
   type: 'call' | 'email' | 'chat' | 'custom';
   target: string;
 }
-interface ContactData { blocks: ContactInfoBlock[]; faq: ContactFaq[]; social: SocialLink[]; quickActions: QuickAction[] }
+interface ContactMapConfig {
+  latitude?: number | null;
+  longitude?: number | null;
+  zoom?: number | null;
+  markerLabel?: string | null;
+}
+interface ContactData { blocks: ContactInfoBlock[]; faq: ContactFaq[]; social: SocialLink[]; quickActions: QuickAction[]; map?: ContactMapConfig | null }
 
 const pickInput = (...values: Array<string | null | undefined>) => {
   for (const value of values) {
@@ -112,6 +121,37 @@ const hydrateQuickActions = (items?: QuickAction[] | null): QuickAction[] =>
     type: (item.type as QuickAction['type']) || 'call',
   }));
 
+const hydrateMap = (map?: ContactMapConfig | null) => ({
+  latitude: map?.latitude ?? null,
+  longitude: map?.longitude ?? null,
+  zoom: map?.zoom ?? 15,
+  markerLabel: pickInput(map?.markerLabel) || '',
+});
+
+const buildBilingualPair = (fa?: string | null, en?: string | null, fallback?: string | null) => ({
+  fa: pickInput(fa, fallback),
+  en: pickInput(en, fallback),
+});
+
+const BilingualPreview = ({ fa, en, dense = false }: { fa?: string | null; en?: string | null; dense?: boolean }) => {
+  const faText = fa?.trim() ? fa : '—';
+  const enText = en?.trim() ? en : '—';
+  const padding = dense ? 'py-1' : 'py-2';
+  const textSize = dense ? 'text-xs' : 'text-sm';
+  return (
+    <div className="space-y-1">
+      <div className="grid grid-cols-2 gap-2 text-[11px] uppercase tracking-wide text-gray-500">
+        <span>FA</span>
+        <span>EN</span>
+      </div>
+      <div className={`grid grid-cols-2 gap-2 ${textSize} text-gray-900`}>
+        <div dir="rtl" className={`rounded-lg bg-gray-50 px-2 ${padding} min-h-[1.75rem] flex items-center`}>{faText}</div>
+        <div className={`rounded-lg bg-gray-50 px-2 ${padding} min-h-[1.75rem] flex items-center`}>{enText}</div>
+      </div>
+    </div>
+  );
+};
+
 export function ContactContentManagement() {
   const { t } = useLanguage();
   const [data, setData] = useState<ContactData>({ blocks: [], faq: [], social: [], quickActions: [] });
@@ -124,6 +164,8 @@ export function ContactContentManagement() {
   const [faq, setFaq] = useState<ContactFaq[]>([]);
   const [social, setSocial] = useState<SocialLink[]>([]);
   const [quickActions, setQuickActions] = useState<QuickAction[]>([]);
+  const [mapConfig, setMapConfig] = useState<{ latitude: string; longitude: string; zoom: string; markerLabel: string }>({ latitude: '', longitude: '', zoom: '15', markerLabel: '' });
+  const socialIconUploadInputId = 'contact-social-icon-upload';
 
   // Dialog states & forms
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
@@ -137,6 +179,8 @@ export function ContactContentManagement() {
   const [socialDialogOpen, setSocialDialogOpen] = useState(false);
   const [editingSocial, setEditingSocial] = useState<SocialLink|null>(null);
   const [socialForm, setSocialForm] = useState<{ platformEn: string; platformFa: string; url: string; icon: string }>({ platformEn: '', platformFa: '', url: '', icon: '' });
+  const [socialIconPickerOpen, setSocialIconPickerOpen] = useState(false);
+  const [socialIconProcessing, setSocialIconProcessing] = useState(false);
 
   const [quickDialogOpen, setQuickDialogOpen] = useState(false);
   const [editingQuick, setEditingQuick] = useState<QuickAction|null>(null);
@@ -151,12 +195,19 @@ export function ContactContentManagement() {
         faq: hydrateFaq(res.faq),
         social: hydrateSocial(res.social),
         quickActions: hydrateQuickActions(res.quickActions),
+        map: res.map ? hydrateMap(res.map) : hydrateMap(),
       };
       setData(normalized);
       setBlocks(normalized.blocks || []);
       setFaq(normalized.faq || []);
       setSocial(normalized.social || []);
       setQuickActions(normalized.quickActions || []);
+      setMapConfig({
+        latitude: normalized.map?.latitude != null ? String(normalized.map.latitude) : '',
+        longitude: normalized.map?.longitude != null ? String(normalized.map.longitude) : '',
+        zoom: normalized.map?.zoom != null ? String(normalized.map.zoom) : '15',
+        markerLabel: normalized.map?.markerLabel || '',
+      });
       setDirty(false);
     } catch (e: any) {
   setError(e?.message || t('admin.contactContent.loadFailed'));
@@ -281,7 +332,7 @@ export function ContactContentManagement() {
   const openNewQuick = () => { setEditingQuick(null); setQuickForm({ labelEn: '', labelFa: '', type: 'call', target: '' }); setQuickDialogOpen(true); };
   const openEditQuick = (q: QuickAction) => {
     setEditingQuick(q);
-    setQuickForm({ labelEn: q.labelEn || q.label || '', labelFa: q.labelFa || q.label || '', type: q.type, target: q.target || '' });
+    setQuickForm({ labelEn: q.labelEn || q.label || '', labelFa: q.labelFa || q.label || '', type: (q.type as QuickAction['type']) || 'call', target: q.target || '' });
     setQuickDialogOpen(true);
   };
   const saveQuick = () => {
@@ -302,6 +353,15 @@ export function ContactContentManagement() {
 
   const saveAll = async () => {
     try {
+      const latNumber = Number(mapConfig.latitude);
+      const lngNumber = Number(mapConfig.longitude);
+      const zoomNumber = Number(mapConfig.zoom);
+      const mapPayload = {
+        latitude: Number.isFinite(latNumber) ? latNumber : null,
+        longitude: Number.isFinite(lngNumber) ? lngNumber : null,
+        zoom: Number.isFinite(zoomNumber) ? zoomNumber : null,
+        markerLabel: trimOrNull(mapConfig.markerLabel),
+      };
       const payload = {
         blocks: blocks.map(b => ({
           id: b.id,
@@ -341,6 +401,7 @@ export function ContactContentManagement() {
           type: q.type,
           target: trimOrNull(q.target),
         })),
+        map: mapPayload,
       };
       await apiFetch('/contact', { method: 'PUT', body: payload });
   toast.success(t('admin.contactContent.saved'));
@@ -354,8 +415,70 @@ export function ContactContentManagement() {
     setFaq(hydrateFaq(data.faq));
     setSocial(hydrateSocial(data.social));
     setQuickActions(hydrateQuickActions(data.quickActions));
+    const nextMap = data.map ? hydrateMap(data.map) : hydrateMap();
+    setMapConfig({
+      latitude: nextMap.latitude != null ? String(nextMap.latitude) : '',
+      longitude: nextMap.longitude != null ? String(nextMap.longitude) : '',
+      zoom: nextMap.zoom != null ? String(nextMap.zoom) : '15',
+      markerLabel: nextMap.markerLabel || '',
+    });
     setDirty(false);
   };
+
+  const updateMapField = (field: 'latitude' | 'longitude' | 'zoom' | 'markerLabel', value: string) => {
+    setMapConfig((prev) => ({ ...prev, [field]: value }));
+    setDirty(true);
+  };
+
+  const lucideIconByName = (name?: string | null) => {
+    if (!name) return null;
+    return (LucideIcons as Record<string, any>)[name] || null;
+  };
+
+  const renderSocialIconPreview = (iconValue?: string | null) => {
+    const trimmed = iconValue?.trim();
+    if (!trimmed) return <Share2 className="w-6 h-6 text-gray-400" />;
+    if (trimmed.startsWith('lucide:')) {
+      const IconComponent = lucideIconByName(trimmed.replace('lucide:', ''));
+      if (IconComponent) return <IconComponent className="w-6 h-6 text-pink-500" />;
+    }
+    if (/^data:/i.test(trimmed) || trimmed.startsWith('/') || /^https?:/i.test(trimmed)) {
+      return <img src={resolveMediaUrl(trimmed)} alt="icon preview" className="w-full h-full object-contain" />;
+    }
+    const IconComponent = lucideIconByName(trimmed);
+    if (IconComponent) return <IconComponent className="w-6 h-6 text-pink-500" />;
+    return <Share2 className="w-6 h-6 text-gray-400" />;
+  };
+
+  const handleSocialIconUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      setSocialIconProcessing(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const alt = socialForm.platformFa || socialForm.platformEn || 'Social icon';
+      if (alt) formData.append('alt', alt);
+      const result = await apiFetch<{ url: string; publicUrl?: string | null }>('/media/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      if (result?.url) {
+        setSocialForm((prev) => ({ ...prev, icon: result.url }));
+        toast.success(t('admin.media.uploaded'));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || t('admin.media.uploadFailed'));
+    } finally {
+      setSocialIconProcessing(false);
+      event.target.value = '';
+    }
+  };
+
+  const hasCoordinates = mapConfig.latitude.trim().length && mapConfig.longitude.trim().length;
+  const mapEmbedUrl = hasCoordinates
+    ? `https://www.google.com/maps?q=${encodeURIComponent(mapConfig.latitude)},${encodeURIComponent(mapConfig.longitude)}&z=${encodeURIComponent(mapConfig.zoom || '15')}&output=embed`
+    : null;
 
   const blockIcon = (type: ContactInfoBlock['type']) => {
     switch (type) {
@@ -392,24 +515,35 @@ export function ContactContentManagement() {
             </div>
             {blocks.length === 0 && <p className="text-gray-500">{t('admin.contactContent.noBlocks')}</p>}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {blocks.map((b, idx) => (
-                <Card key={(b.id||'')+idx} className="p-4 relative group">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {blockIcon(b.type)}
-                      <span className="font-medium text-gray-900 line-clamp-1" title={b.title}>{b.title}</span>
+              {blocks.map((b, idx) => {
+                const titlePair = buildBilingualPair(b.titleFa, b.titleEn, b.title);
+                return (
+                  <Card key={(b.id||'')+idx} className="p-4 relative group space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {blockIcon(b.type)}
+                        <span className="font-medium text-gray-900" title={titlePair.fa || titlePair.en || b.title}>{titlePair.fa || titlePair.en || b.title}</span>
+                      </div>
+                      <Badge className="bg-purple-100 text-purple-700 capitalize">{b.type}</Badge>
                     </div>
-                    <Badge className="bg-purple-100 text-purple-700 capitalize">{b.type}</Badge>
-                  </div>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    {b.values.map((v,i)=>(<li key={(v.id||'')+i}>{v.value}</li>))}
-                  </ul>
-                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="outline" size="sm" onClick={()=> openEditBlock(b)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
-                    <Button variant="outline" size="sm" onClick={()=> deleteBlock(b)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
-                  </div>
-                </Card>
-              ))}
+                    <BilingualPreview fa={titlePair.fa} en={titlePair.en} />
+                    <ul className="space-y-3">
+                      {b.values.map((v,i)=>{
+                        const valuePair = buildBilingualPair(v.valueFa, v.valueEn, v.value);
+                        return (
+                          <li key={(v.id||'')+i}>
+                            <BilingualPreview fa={valuePair.fa} en={valuePair.en} dense />
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="outline" size="sm" onClick={()=> openEditBlock(b)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={()=> deleteBlock(b)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           </Card>
 
@@ -421,16 +555,26 @@ export function ContactContentManagement() {
               </div>
               {faq.length === 0 && <p className="text-gray-500">{t('admin.contactContent.noFaq')}</p>}
               <div className="space-y-4">
-                {faq.map((f, idx) => (
-                  <Card key={(f.id||'')+idx} className="p-4 relative group">
-                    <div className="font-medium text-gray-900 mb-2 line-clamp-1" title={f.question}>{f.question}</div>
-                    <p className="text-sm text-gray-600 whitespace-pre-line">{f.answer}</p>
-                    <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="outline" size="sm" onClick={()=> openEditFaq(f)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
-                      <Button variant="outline" size="sm" onClick={()=> deleteFaq(f)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
-                    </div>
-                  </Card>
-                ))}
+                {faq.map((f, idx) => {
+                  const questionPair = buildBilingualPair(f.questionFa, f.questionEn, f.question);
+                  const answerPair = buildBilingualPair(f.answerFa, f.answerEn, f.answer);
+                  return (
+                    <Card key={(f.id||'')+idx} className="p-4 relative group space-y-4">
+                      <div>
+                        <p className="text-xs uppercase text-gray-500 mb-1">{t('admin.contactContent.faq.questionLabel')}</p>
+                        <BilingualPreview fa={questionPair.fa} en={questionPair.en} />
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase text-gray-500 mb-1">{t('admin.contactContent.faq.answerLabel')}</p>
+                        <BilingualPreview fa={answerPair.fa} en={answerPair.en} dense />
+                      </div>
+                      <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="outline" size="sm" onClick={()=> openEditFaq(f)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
+                        <Button variant="outline" size="sm" onClick={()=> deleteFaq(f)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
+                      </div>
+                    </Card>
+                  );
+                })}
               </div>
             </Card>
 
@@ -442,19 +586,33 @@ export function ContactContentManagement() {
             </div>
             {social.length === 0 && <p className="text-gray-500">{t('admin.contactContent.noSocial')}</p>}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {social.map((s, idx) => (
-                <Card key={(s.id||'')+idx} className="p-4 relative group">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-gray-900 line-clamp-1" title={s.platform}>{s.platform}</span>
-                    <Badge className="bg-pink-100 text-pink-700">{s.icon || '—'}</Badge>
-                  </div>
-                  <a href={s.url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline break-all flex items-center gap-1"><LinkIcon className="w-3 h-3" />{s.url}</a>
-                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="outline" size="sm" onClick={()=> openEditSocial(s)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
-                    <Button variant="outline" size="sm" onClick={()=> deleteSocial(s)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
-                  </div>
-                </Card>
-              ))}
+              {social.map((s, idx) => {
+                const platformPair = buildBilingualPair(s.platformFa, s.platformEn, s.platform);
+                const iconBadgeText = s.icon
+                  ? (s.icon.startsWith('lucide:')
+                      ? t('admin.contactContent.social.iconSourceLucide')
+                      : t('admin.contactContent.social.iconSourceUpload'))
+                  : t('admin.contactContent.social.iconSourceNone');
+                return (
+                  <Card key={(s.id||'')+idx} className="p-4 relative group space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-12 rounded-xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden">
+                          {renderSocialIconPreview(s.icon)}
+                        </div>
+                        <span className="font-medium text-gray-900 line-clamp-1" title={platformPair.fa || platformPair.en}>{platformPair.fa || platformPair.en || '—'}</span>
+                      </div>
+                      <Badge className="bg-pink-100 text-pink-700 whitespace-nowrap">{iconBadgeText}</Badge>
+                    </div>
+                    <BilingualPreview fa={platformPair.fa} en={platformPair.en} dense />
+                    <a href={s.url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline break-all flex items-center gap-1"><LinkIcon className="w-3 h-3" />{s.url}</a>
+                    <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="outline" size="sm" onClick={()=> openEditSocial(s)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={()=> deleteSocial(s)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           </Card>
 
@@ -466,20 +624,64 @@ export function ContactContentManagement() {
             </div>
             {quickActions.length === 0 && <p className="text-gray-500">{t('admin.contactContent.noQuick')}</p>}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {quickActions.map((q, idx) => (
-                <Card key={(q.id||'')+idx} className="p-4 relative group">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-gray-900 line-clamp-1" title={q.label}>{q.label}</span>
-                    <Badge className="bg-indigo-100 text-indigo-700 capitalize">{q.type}</Badge>
-                  </div>
-                  <p className="text-sm text-gray-600 break-all">{q.target}</p>
-                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="outline" size="sm" onClick={()=> openEditQuick(q)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
-                    <Button variant="outline" size="sm" onClick={()=> deleteQuick(q)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
-                  </div>
-                </Card>
-              ))}
+              {quickActions.map((q, idx) => {
+                const labelPair = buildBilingualPair(q.labelFa, q.labelEn, q.label);
+                return (
+                  <Card key={(q.id||'')+idx} className="p-4 relative group space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-900 line-clamp-1" title={labelPair.fa || labelPair.en}>{labelPair.fa || labelPair.en || '—'}</span>
+                      <Badge className="bg-indigo-100 text-indigo-700 capitalize">{q.type}</Badge>
+                    </div>
+                    <BilingualPreview fa={labelPair.fa} en={labelPair.en} dense />
+                    <p className="text-sm text-gray-600 break-all">{q.target}</p>
+                    <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="outline" size="sm" onClick={()=> openEditQuick(q)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={()=> deleteQuick(q)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
+          </Card>
+
+          {/* Map Configuration */}
+          <Card className="p-6 border-0 shadow-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-gray-900 flex items-center gap-2"><MapIcon className="w-5 h-5 text-blue-600" />{t('admin.contactContent.mapSection')}</h2>
+              <div className="text-sm text-gray-500 flex items-center gap-2"><Target className="w-4 h-4" />{t('admin.contactContent.mapHint')}</div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="map-lat">{t('admin.contactContent.map.latitude')}</Label>
+                <Input id="map-lat" value={mapConfig.latitude} onChange={(e)=> updateMapField('latitude', e.target.value)} className="mt-2 rounded-xl" placeholder="35.757093" />
+              </div>
+              <div>
+                <Label htmlFor="map-lng">{t('admin.contactContent.map.longitude')}</Label>
+                <Input id="map-lng" value={mapConfig.longitude} onChange={(e)=> updateMapField('longitude', e.target.value)} className="mt-2 rounded-xl" placeholder="51.409537" />
+              </div>
+              <div>
+                <Label htmlFor="map-zoom">{t('admin.contactContent.map.zoom')}</Label>
+                <Input id="map-zoom" value={mapConfig.zoom} onChange={(e)=> updateMapField('zoom', e.target.value)} className="mt-2 rounded-xl" placeholder="16" />
+              </div>
+              <div>
+                <Label htmlFor="map-marker">{t('admin.contactContent.map.markerLabel')}</Label>
+                <Input id="map-marker" value={mapConfig.markerLabel} onChange={(e)=> updateMapField('markerLabel', e.target.value)} className="mt-2 rounded-xl" placeholder="Ava Beauty Clinic" />
+              </div>
+            </div>
+            {mapEmbedUrl ? (
+              <div className="mt-4 rounded-2xl overflow-hidden border border-gray-200 shadow-inner">
+                <iframe
+                  title="Contact Map Preview"
+                  src={mapEmbedUrl}
+                  width="100%"
+                  height="320"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+            ) : (
+              <div className="mt-2 p-4 text-sm text-gray-500 bg-gray-50 rounded-xl">{t('admin.contactContent.map.placeholder')}</div>
+            )}
           </Card>
         </>
       )}
@@ -587,8 +789,45 @@ export function ContactContentManagement() {
               </div>
             </div>
             <div>
-              <Label htmlFor="soc-icon">{t('admin.contactContent.social.iconLabel')}</Label>
-              <Input id="soc-icon" value={socialForm.icon} onChange={(e)=> setSocialForm(f=>({ ...f, icon: e.target.value }))} className="mt-2 rounded-xl" placeholder="lucide icon name" />
+              <Label htmlFor={socialIconUploadInputId}>{t('admin.contactContent.social.iconLabel')}</Label>
+              {socialForm.icon && (
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden">
+                    {renderSocialIconPreview(socialForm.icon)}
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-red-600" onClick={()=> setSocialForm(f=>({ ...f, icon: '' }))}>
+                    <Trash2 className="w-4 h-4 mr-2" />{t('admin.delete')}
+                  </Button>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2 mt-3">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  id={socialIconUploadInputId}
+                  onChange={handleSocialIconUpload}
+                  disabled={socialIconProcessing}
+                  className="rounded-xl flex-1"
+                />
+                <Button
+                  variant="outline"
+                  disabled={socialIconProcessing}
+                  className="whitespace-nowrap"
+                  onClick={()=> document.getElementById(socialIconUploadInputId)?.click()}
+                >
+                  <UploadCloud className={`w-4 h-4 mr-2 ${socialIconProcessing ? 'animate-spin' : ''}`} />
+                  {socialIconProcessing ? t('admin.media.uploading') : t('admin.media.upload')}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="whitespace-nowrap"
+                  onClick={()=> setSocialIconPickerOpen(true)}
+                >
+                  <Palette className="w-4 h-4 mr-2" />
+                  {t('admin.contactContent.social.chooseIcon')}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">{t('admin.contactContent.social.iconHint')}</p>
             </div>
             <div>
               <Label htmlFor="soc-url">{t('admin.contactContent.social.urlLabel')}</Label>
@@ -620,7 +859,7 @@ export function ContactContentManagement() {
               </div>
               <div>
                 <Label htmlFor="qa-type">{t('admin.contactContent.quick.typeLabel')}</Label>
-                <select id="qa-type" value={quickForm.type} onChange={(e)=> setQuickForm(f=>({ ...f, type: e.target.value as any }))} className="mt-2 rounded-xl w-full border-gray-300">
+                <select id="qa-type" value={quickForm.type} onChange={(e)=> setQuickForm(f=>({ ...f, type: e.target.value as QuickAction['type'] }))} className="mt-2 rounded-xl w-full border-gray-300">
                   <option value="call">call</option>
                   <option value="email">email</option>
                   <option value="chat">chat</option>
@@ -639,6 +878,13 @@ export function ContactContentManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <IconPicker
+        open={socialIconPickerOpen}
+        onOpenChange={setSocialIconPickerOpen}
+        onSelect={(iconName) => setSocialForm(f => ({ ...f, icon: iconName }))}
+        currentIcon={socialForm.icon}
+      />
     </div>
   );
 }

@@ -12,6 +12,11 @@ const stringOrNull = (value) => {
   return null;
 };
 
+const numberOrNull = (value) => {
+  const num = typeof value === 'string' ? Number(value) : value;
+  return Number.isFinite(num) ? Number(num) : null;
+};
+
 const extractBilingual = (payload = {}, key) => {
   const en = stringOrNull(payload[`${key}En`] ?? payload[`${key}_en`]);
   const fa = stringOrNull(payload[`${key}Fa`] ?? payload[`${key}_fa`]);
@@ -21,18 +26,21 @@ const extractBilingual = (payload = {}, key) => {
 
 router.get('/', async (_req, res) => {
   try {
-    const blocks = await prisma.contactInfoBlock.findMany({ include: { values: true } });
-    const faq = await prisma.contactFaq.findMany();
-    const social = await prisma.socialLink.findMany();
-    const quickActions = await prisma.quickAction.findMany();
-    res.json({ blocks, faq, social, quickActions });
+    const [blocks, faq, social, quickActions, map] = await Promise.all([
+      prisma.contactInfoBlock.findMany({ include: { values: true } }),
+      prisma.contactFaq.findMany(),
+      prisma.socialLink.findMany(),
+      prisma.quickAction.findMany(),
+      prisma.contactMap.findUnique({ where: { id: 1 } }),
+    ]);
+    res.json({ blocks, faq, social, quickActions, map: map || null });
   } catch (e) {
     res.status(500).json({ error: 'contact_fetch_failed' });
   }
 });
 
 router.put('/', async (req, res) => {
-  const { blocks, faq, social, quickActions } = req.body;
+  const { blocks, faq, social, quickActions, map } = req.body;
   try {
     await prisma.$transaction(async (tx) => {
       if (blocks) {
@@ -110,9 +118,22 @@ router.put('/', async (req, res) => {
         });
         if (quickData.length) await tx.quickAction.createMany({ data: quickData });
       }
+      if (map && typeof map === 'object') {
+        const latitude = numberOrNull(map.latitude);
+        const longitude = numberOrNull(map.longitude);
+        const parsedZoom = numberOrNull(map.zoom);
+        const zoom = Number.isFinite(parsedZoom) ? Math.max(1, Math.min(20, Math.round(parsedZoom))) : 15;
+        const markerLabel = stringOrNull(map.markerLabel);
+        await tx.contactMap.upsert({
+          where: { id: 1 },
+          update: { latitude, longitude, zoom, markerLabel },
+          create: { id: 1, latitude, longitude, zoom, markerLabel },
+        });
+      }
     });
     res.json({ updated: true });
   } catch (e) {
+    console.error('[contact] update failed', e);
     res.status(500).json({ error: 'contact_update_failed' });
   }
 });

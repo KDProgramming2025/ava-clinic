@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,86 +8,481 @@ datasource db {
 }
 
 model Service {
-  id           String        @id @default(cuid())
-  title        String
-  subtitle     String?
-  slug         String        @unique
-  description  String        @db.Text
-  // Bilingual fields
-  titleEn      String?
-  titleFa      String?
-  subtitleEn   String?
-  subtitleFa   String?
-  descriptionEn String?      @db.Text
-  descriptionFa String?      @db.Text
-  image        String?
-  priceRange   String?
-  duration     String?
+  id              String        @id @default(cuid())
+  title           String
+  subtitle        String?
+  slug            String        @unique
+  description     String
+  image           String?
+  priceRange      String?
+  duration        String?
+  recovery        String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
   durationMinutes Int?
-  recovery     String?
-  benefits     Benefit[]
-  processSteps ProcessStep[]
-  faq          Faq[]
-  bookings     Booking[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  titleEn         String?
+  titleFa         String?
+  subtitleEn      String?
+  subtitleFa      String?
+  descriptionEn   String?
+  descriptionFa   String?
+  benefits        Benefit[]
+  bookings        Booking[]
+  faq             Faq[]
+  processSteps    ProcessStep[]
 }
 
 model Benefit {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   text      String
-  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 }
 
 model ProcessStep {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   stepNumber  Int
   title       String?
-  description String   @db.Text
-  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  description String
   serviceId   String
+  service     Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
   @@index([serviceId, stepNumber])
 }
 
 model Faq {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   question  String
-  answer    String   @db.Text
-  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  answer    String
   serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 }
 
 model Testimonial {
   id        String   @id @default(cuid())
   name      String
-  text      String   @db.Text
-  rating    Int      // 1..5
+  text      String
+  rating    Int
   image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   nameEn    String?
   nameFa    String?
-  textEn    String?  @db.Text
-  textFa    String?  @db.Text
+  textEn    String?
+  textFa    String?
+}
+
+model TeamMember {
+  id        String    @id @default(cuid())
+  name      String
+  role      String
+  bio       String?
+  image     String?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  nameEn    String?
+  nameFa    String?
+  roleEn    String?
+  roleFa    String?
+  bioEn     String?
+  bioFa     String?
+  articles  Article[] @relation("ArticleAuthor")
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  color     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  articles  Article[]
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  articles  Article[] @relation("ArticleTags")
+}
+
+model Article {
+  id              String        @id @default(cuid())
+  title           String
+  slug            String        @unique
+  excerpt         String?
+  body            String?
+  image           String?
+  readTimeMinutes Int?
+  status          ArticleStatus @default(DRAFT)
+  featured        Boolean       @default(false)
+  publishedAt     DateTime?
+  categoryId      String?
+  authorId        String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  description     String?
+  descriptionEn   String?
+  descriptionFa   String?
+  subtitle        String?
+  subtitleEn      String?
+  subtitleFa      String?
+  titleEn         String?
+  titleFa         String?
+  author          TeamMember?   @relation("ArticleAuthor", fields: [authorId], references: [id])
+  category        Category?     @relation(fields: [categoryId], references: [id])
+  tags            Tag[]         @relation("ArticleTags")
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([featured])
+}
+
+model NavigationItem {
+  id      String  @id @default(cuid())
+  label   String
+  path    String
+  order   Int     @default(0)
+  visible Boolean @default(true)
+  labelEn String?
+  labelFa String?
+}
+
+model FooterLink {
+  id      String  @id @default(cuid())
+  label   String
+  url     String
+  group   String?
+  labelEn String?
+  labelFa String?
+  groupEn String?
+  groupFa String?
+}
+
+model Settings {
+  id                     Int     @id @default(1)
+  siteTitle              String?
+  metaDescription        String?
+  ogImage                String?
+  primaryColor           String?
+  secondaryColor         String?
+  languagesJson          Json?
+  contactAutoReply       String?
+  emailConfirmTemplate   String?
+  emailReminderTemplate  String?
+  logoUrl                String?
+  perPageSeo             Json?
+  siteTitleEn            String?
+  siteTitleFa            String?
+  metaDescriptionEn      String?
+  metaDescriptionFa      String?
+  servicesHeroSubtitleEn String?
+  servicesHeroSubtitleFa String?
+  servicesHeroTitleEn    String?
+  servicesHeroTitleFa    String?
+}
+
+model HomeHero {
+  id                  Int     @id @default(1)
+  title               String?
+  subtitle            String?
+  description         String?
+  ctaPrimaryLabel     String?
+  ctaSecondaryLabel   String?
+  imageUrl            String?
+  titleEn             String?
+  titleFa             String?
+  subtitleEn          String?
+  subtitleFa          String?
+  descriptionEn       String?
+  descriptionFa       String?
+  ctaPrimaryLabelEn   String?
+  ctaPrimaryLabelFa   String?
+  ctaSecondaryLabelEn String?
+  ctaSecondaryLabelFa String?
+}
+
+model HomeStat {
+  id      String  @id @default(cuid())
+  label   String
+  value   Int
+  icon    String?
+  labelEn String?
+  labelFa String?
+}
+
+model HomeFeature {
+  id            String  @id @default(cuid())
+  title         String
+  description   String?
+  icon          String?
+  titleEn       String?
+  titleFa       String?
+  descriptionEn String?
+  descriptionFa String?
+}
+
+model HomeCTA {
+  id            Int     @id @default(1)
+  heading       String?
+  subheading    String?
+  buttonLabel   String?
+  headingEn     String?
+  headingFa     String?
+  subheadingEn  String?
+  subheadingFa  String?
+  buttonLabelEn String?
+  buttonLabelFa String?
+}
+
+model Translation {
+  key       String   @id
+  data      Json
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model AboutTimeline {
+  id            String  @id @default(cuid())
+  year          Int
+  title         String
+  description   String?
+  titleEn       String?
+  titleFa       String?
+  descriptionEn String?
+  descriptionFa String?
+}
+
+model AboutValue {
+  id            String  @id @default(cuid())
+  title         String
+  description   String?
+  icon          String?
+  titleEn       String?
+  titleFa       String?
+  descriptionEn String?
+  descriptionFa String?
+}
+
+model AboutSkill {
+  id     String  @id @default(cuid())
+  name   String
+  level  Int
+  nameEn String?
+  nameFa String?
+}
+
+model AboutMission {
+  id                Int     @id @default(1)
+  heading           String?
+  paragraph         String?
+  imageHeroUrl      String?
+  imageSecondaryUrl String?
+  headingEn         String?
+  headingFa         String?
+  paragraphEn       String?
+  paragraphFa       String?
+}
+
+model AboutMissionBullet {
+  id     String  @id @default(cuid())
+  text   String
+  textEn String?
+  textFa String?
+}
+
+model AboutStat {
+  id      String  @id @default(cuid())
+  label   String
+  labelEn String?
+  labelFa String?
+  value   String
+  icon    String?
+}
+
+model ContactInfoBlock {
+  id      String             @id @default(cuid())
+  type    ContactInfoType
+  title   String
+  titleEn String?
+  titleFa String?
+  values  ContactInfoValue[]
+}
+
+model ContactInfoValue {
+  id      String           @id @default(cuid())
+  value   String
+  blockId String
+  valueEn String?
+  valueFa String?
+  block   ContactInfoBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+}
+
+model ContactFaq {
+  id         String  @id @default(cuid())
+  question   String
+  answer     String
+  questionEn String?
+  questionFa String?
+  answerEn   String?
+  answerFa   String?
+}
+
+model SocialLink {
+  id         String  @id @default(cuid())
+  platform   String
+  url        String
+  icon       String?
+  platformEn String?
+  platformFa String?
+}
+
+model QuickAction {
+  id      String          @id @default(cuid())
+  label   String
+  type    QuickActionType
+  target  String
+  labelEn String?
+  labelFa String?
+}
+
+model ContactMap {
+  id          Int     @id
+  latitude    Float?
+  longitude   Float?
+  zoom        Int?    @default(15)
+  markerLabel String?
+}
+
+model Newsletter {
+  id          Int     @id @default(1)
+  headline    String?
+  description String?
+  buttonLabel String?
+}
+
+model TrendingTopic {
+  id    String @id @default(cuid())
+  text  String
+  order Int    @default(0)
+}
+
+model Client {
+  id        String       @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  joinDate  DateTime     @default(now())
+  lastVisit DateTime?
+  status    ClientStatus @default(ACTIVE)
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  bookings  Booking[]
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  clientId   String
+  serviceId  String?
+  startTime  DateTime
+  endTime    DateTime?
+  status     BookingStatus @default(PENDING)
+  notes      String?
+  priceCents Int?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  client     Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  service    Service?      @relation(fields: [serviceId], references: [id])
+
+  @@index([clientId])
+  @@index([serviceId])
+  @@index([status, startTime])
+}
+
+model Message {
+  id         String        @id @default(cuid())
+  fromName   String
+  email      String?
+  phone      String?
+  subject    String?
+  body       String
+  receivedAt DateTime      @default(now())
+  status     MessageStatus @default(NEW)
+  starred    Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([status, receivedAt])
+}
+
+model VideoCategory {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  videos    Video[]
+}
+
+model Video {
+  id              String         @id @default(cuid())
+  title           String
+  description     String?
+  thumbnail       String?
+  durationSeconds Int?
+  views           Int            @default(0)
+  status          VideoStatus    @default(DRAFT)
+  categoryId      String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  slug            String?        @unique
+  category        VideoCategory? @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId])
+  @@index([status])
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  url       String
+  alt       String?
+  type      String?
+  labels    Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model TeamMember {
-  id        String   @id @default(cuid())
-  name      String
-  nameEn    String?
-  nameFa    String?
-  role      String
-  roleEn    String?
-  roleFa    String?
-  bio       String?  @db.Text
-  bioEn     String?  @db.Text
-  bioFa     String?  @db.Text
-  image     String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  articles  Article[] @relation("ArticleAuthor")
+model BookingSettings {
+  id                     Int     @id @default(1)
+  timeSlots              Json?
+  blackoutDates          Json?
+  disclaimer             String?
+  bufferMinutes          Int?
+  defaultDurationMinutes Int?    @default(60)
+  businessHours          Json?
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  role         AdminRole @default(EDITOR)
+  passwordHash String
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  username     String?   @unique
+}
+
+model BookingInfo {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+  icon        String?
+  order       Int     @default(0)
 }
 
 enum ArticleStatus {
@@ -106,259 +495,11 @@ enum VideoStatus {
   PUBLISHED
 }
 
-model Category {
-  id        String    @id @default(cuid())
-  name      String
-  slug      String    @unique
-  color     String?
-  articles  Article[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-}
-
-model Tag {
-  id        String    @id @default(cuid())
-  name      String
-  slug      String    @unique
-  articles  Article[] @relation("ArticleTags")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-}
-
-model Article {
-  id              String         @id @default(cuid())
-  // Canonical fallback fields (kept for backward-compat + SEO)
-  title        String
-  slug         String         @unique
-  subtitle     String?
-  excerpt         String?
-  body         String?        @db.Text
-  description  String?        @db.Text
-  image           String?
-  readTimeMinutes Int?
-  status          ArticleStatus  @default(DRAFT)
-  featured        Boolean        @default(false)
-  publishedAt     DateTime?
-  // Bilingual fields for content-managed UI
-  titleEn      String?
-  titleFa      String?
-  subtitleEn   String?
-  subtitleFa   String?
-  descriptionEn String?      @db.Text
-  descriptionFa String?      @db.Text
-  categoryId      String?
-  category        Category?      @relation(fields: [categoryId], references: [id])
-  authorId        String?
-  author          TeamMember?    @relation("ArticleAuthor", fields: [authorId], references: [id])
-  tags            Tag[]          @relation("ArticleTags")
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  @@index([categoryId])
-  @@index([status])
-  @@index([featured])
-}
-
-// Phase 2 content & settings
-
-model NavigationItem {
-  id        String   @id @default(cuid())
-  label     String
-  labelEn   String?
-  labelFa   String?
-  path      String
-  order     Int      @default(0)
-  visible   Boolean  @default(true)
-}
-
-model FooterLink {
-  id    String @id @default(cuid())
-  label String
-  labelEn String?
-  labelFa String?
-  url   String
-  group String?
-  groupEn String?
-  groupFa String?
-}
-
-model Settings {
-  id              Int      @id @default(1)
-  siteTitle       String?
-  metaDescription String?  @db.Text
-  ogImage         String?
-  primaryColor    String?
-  secondaryColor  String?
-  // Bilingual branding/SEO fields
-  siteTitleEn     String?
-  siteTitleFa     String?
-  metaDescriptionEn String? @db.Text
-  metaDescriptionFa String? @db.Text
-  languagesJson   Json?
-  logoUrl         String?
-  emailConfirmTemplate  String? @db.Text
-  emailReminderTemplate String? @db.Text
-  contactAutoReply      String? @db.Text
-  perPageSeo      Json?   // { "/services": { title, description }, ... }
-  // Page content fields
-  servicesHeroTitleEn    String?
-  servicesHeroTitleFa    String?
-  servicesHeroSubtitleEn String? @db.Text
-  servicesHeroSubtitleFa String? @db.Text
-}
-
-model HomeHero {
-  id                   Int     @id @default(1)
-  title                String?
-  titleEn              String?
-  titleFa              String?
-  subtitle             String?
-  subtitleEn           String?
-  subtitleFa           String?
-  description          String? @db.Text
-  descriptionEn        String? @db.Text
-  descriptionFa        String? @db.Text
-  ctaPrimaryLabel      String?
-  ctaPrimaryLabelEn    String?
-  ctaPrimaryLabelFa    String?
-  ctaSecondaryLabel    String?
-  ctaSecondaryLabelEn  String?
-  ctaSecondaryLabelFa  String?
-  imageUrl             String?
-}
-
-model HomeStat {
-  id     String @id @default(cuid())
-  label  String
-  labelEn String?
-  labelFa String?
-  value  Int
-  icon   String?
-}
-
-model HomeFeature {
-  id          String @id @default(cuid())
-  title       String
-  titleEn     String?
-  titleFa     String?
-  description String? @db.Text
-  descriptionEn String? @db.Text
-  descriptionFa String? @db.Text
-  icon        String?
-}
-
-model HomeCTA {
-  id         Int    @id @default(1)
-  heading    String?
-  headingEn  String?
-  headingFa  String?
-  subheading String?
-  subheadingEn String?
-  subheadingFa String?
-  buttonLabel String?
-  buttonLabelEn String?
-  buttonLabelFa String?
-}
-
-model AboutTimeline {
-  id          String @id @default(cuid())
-  year        Int
-  title       String
-  titleEn     String?
-  titleFa     String?
-  description String? @db.Text
-  descriptionEn String? @db.Text
-  descriptionFa String? @db.Text
-}
-
-model AboutValue {
-  id          String @id @default(cuid())
-  title       String
-  titleEn     String?
-  titleFa     String?
-  description String? @db.Text
-  descriptionEn String? @db.Text
-  descriptionFa String? @db.Text
-  icon        String?
-}
-
-model AboutSkill {
-  id    String @id @default(cuid())
-  name  String
-  nameEn String?
-  nameFa String?
-  level Int
-}
-
-model AboutMission {
-  id         Int     @id @default(1)
-  heading    String?
-  headingEn  String?
-  headingFa  String?
-  paragraph  String? @db.Text
-  paragraphEn String? @db.Text
-  paragraphFa String? @db.Text
-  imageHeroUrl      String?
-  imageSecondaryUrl String?
-}
-
-model AboutMissionBullet {
-  id       String @id @default(cuid())
-  text     String
-  textEn   String?
-  textFa   String?
-}
-
-model AboutStat {
-  id      String @id @default(cuid())
-  label   String
-  labelEn String?
-  labelFa String?
-  value   String
-  icon    String?
-}
-
 enum ContactInfoType {
   phone
   email
   address
   hours
-}
-
-model ContactInfoBlock {
-  id     String          @id @default(cuid())
-  type   ContactInfoType
-  title  String
-  titleEn String?
-  titleFa String?
-  values ContactInfoValue[]
-}
-
-model ContactInfoValue {
-  id       String  @id @default(cuid())
-  value    String
-  valueEn  String?
-  valueFa  String?
-  blockId  String
-  block    ContactInfoBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
-}
-
-model ContactFaq {
-  id       String @id @default(cuid())
-  question String
-  questionEn String?
-  questionFa String?
-  answer   String @db.Text
-  answerEn String? @db.Text
-  answerFa String? @db.Text
-}
-
-model SocialLink {
-  id       String @id @default(cuid())
-  platform String
-  platformEn String?
-  platformFa String?
-  url      String
-  icon     String?
 }
 
 enum QuickActionType {
@@ -367,30 +508,6 @@ enum QuickActionType {
   chat
   custom
 }
-
-model QuickAction {
-  id     String          @id @default(cuid())
-  label  String
-  labelEn String?
-  labelFa String?
-  type   QuickActionType
-  target String
-}
-
-model Newsletter {
-  id          Int    @id @default(1)
-  headline    String?
-  description String?
-  buttonLabel String?
-}
-
-model TrendingTopic {
-  id    String @id @default(cuid())
-  text  String
-  order Int    @default(0)
-}
-
-// Phase 3 operational models
 
 enum BookingStatus {
   PENDING
@@ -411,127 +528,9 @@ enum MessageStatus {
   ARCHIVED
 }
 
-model Client {
-  id         String    @id @default(cuid())
-  name       String
-  email      String?
-  phone      String?
-  joinDate   DateTime  @default(now())
-  lastVisit  DateTime?
-  status     ClientStatus @default(ACTIVE)
-  notes      String?   @db.Text
-  bookings   Booking[]
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-}
-
-model Booking {
-  id         String        @id @default(cuid())
-  clientId   String
-  client     Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  serviceId  String?
-  service    Service?      @relation(fields: [serviceId], references: [id])
-  startTime  DateTime
-  endTime    DateTime?
-  status     BookingStatus @default(PENDING)
-  notes      String?       @db.Text
-  priceCents Int?
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  @@index([clientId])
-  @@index([serviceId])
-  @@index([status, startTime])
-}
-
-model Message {
-  id         String        @id @default(cuid())
-  fromName   String
-  email      String?
-  phone      String?
-  subject    String?
-  body       String        @db.Text
-  receivedAt DateTime      @default(now())
-  status     MessageStatus @default(NEW)
-  starred    Boolean       @default(false)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  @@index([status, receivedAt])
-}
-
-
-model VideoCategory {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  videos    Video[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Video {
-  id             String       @id @default(cuid())
-  title          String
-  slug           String?      @unique
-  description    String?      @db.Text
-  thumbnail      String?
-  durationSeconds Int?
-  views          Int          @default(0)
-  status         VideoStatus  @default(DRAFT)
-  categoryId     String?
-  category       VideoCategory? @relation(fields: [categoryId], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  @@index([categoryId])
-  @@index([status])
-}
-
-// Phase 4 enhancements: Media library and Admin users (access control)
-
-model Media {
-  id        String   @id @default(cuid())
-  url       String
-  alt       String?
-  type      String?
-  labels    Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// Operational configuration for booking flow and availability
-model BookingSettings {
-  id                     Int     @id @default(1)
-  timeSlots              Json?
-  blackoutDates          Json?
-  disclaimer             String?
-  bufferMinutes          Int?
-  defaultDurationMinutes Int?    @default(60)
-  businessHours          Json?
-}
-
 enum AdminRole {
   SUPERADMIN
   ADMIN
   EDITOR
   VIEWER
-}
-
-model AdminUser {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  username     String?   @unique
-  name         String?
-  role         AdminRole @default(EDITOR)
-  passwordHash String
-  active       Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-}
-
-// Booking page informational cards (admin-managed)
-model BookingInfo {
-  id          String  @id @default(cuid())
-  title       String
-  description String? @db.Text
-  icon        String?
-  order       Int     @default(0)
 }

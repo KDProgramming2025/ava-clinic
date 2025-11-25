@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Award, Heart, Users, Target, CheckCircle, TrendingUp } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
 import { Card } from '../ui/card';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
@@ -147,11 +148,24 @@ export function AboutPage() {
       const DefaultIcon = Heart;
       return <DefaultIcon className={className} />;
     }
+    
+    // Check if it's a Lucide icon (format: lucide:IconName)
+    if (iconValue.startsWith('lucide:')) {
+      const iconName = iconValue.replace('lucide:', '');
+      const IconComponent = (LucideIcons as any)[iconName];
+      if (IconComponent) {
+        return <IconComponent className={className} />;
+      }
+      // Fallback to Heart if icon not found
+      return <Heart className={className} />;
+    }
+    
     // Check if it's an uploaded image (URL)
     if (iconValue.includes('/') || iconValue.startsWith('http')) {
       return <img src={resolveMediaUrl(iconValue)} alt="icon" className={className + ' object-contain'} />;
     }
-    // Otherwise treat as icon name
+    
+    // Legacy: treat as icon name (old format)
     const Icon = iconComponent(iconValue);
     return <Icon className={className} />;
   };

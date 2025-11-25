@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { motion } from 'motion/react';
 import { Mail, Phone, MapPin, Clock, Send, MessageSquare, Facebook, Instagram, Twitter, Youtube, Globe } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -10,6 +11,7 @@ import { Label } from '../ui/label';
 import { toast } from 'sonner';
 import { api, apiFetch } from '../../api/client';
 import { SEO } from '../SEO';
+import { resolveMediaUrl } from '../../utils/media';
 
 interface ContactInfoValue { id?: string; value?: string | null; valueEn?: string | null; valueFa?: string | null }
 interface ContactInfoBlock {
@@ -45,6 +47,12 @@ interface QuickAction {
   type?: string | null;
   target?: string | null;
 }
+interface ContactMapConfig {
+  latitude?: number | null;
+  longitude?: number | null;
+  zoom?: number | null;
+  markerLabel?: string | null;
+}
 
 export function ContactPage() {
   const { t, isRTL, trc, language } = useLanguage();
@@ -54,6 +62,7 @@ export function ContactPage() {
   const [faq, setFaq] = useState<ContactFaq[]>([]);
   const [social, setSocial] = useState<SocialLink[]>([]);
   const [quickActions, setQuickActions] = useState<QuickAction[]>([]);
+  const [mapConfig, setMapConfig] = useState<ContactMapConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +105,7 @@ export function ContactPage() {
         setFaq(Array.isArray(data.faq) ? data.faq : []);
         setSocial(Array.isArray(data.social) ? data.social : []);
         setQuickActions(Array.isArray(data.quickActions) ? data.quickActions : []);
+        setMapConfig(data.map || null);
       } catch (e: any) {
         if (!cancelled) setError(e.message || t('contact.loadFailed'));
       } finally {
@@ -148,6 +158,45 @@ export function ContactPage() {
       default: return Send;
     }
   };
+
+  const dynamicLucideIcon = (name?: string | null) => {
+    if (!name) return null;
+    return (LucideIcons as Record<string, ComponentType<{ className?: string }>>)[name] || null;
+  };
+
+  const renderSocialIcon = (iconValue?: string | null, platform?: string | null, label?: string) => {
+    const trimmed = iconValue?.trim();
+    if (trimmed) {
+      if (trimmed.startsWith('lucide:')) {
+        const iconName = trimmed.replace('lucide:', '');
+        const IconComponent = dynamicLucideIcon(iconName);
+        if (IconComponent) return <IconComponent className="w-7 h-7" aria-hidden="true" />;
+      }
+      if (/^data:/i.test(trimmed) || trimmed.startsWith('/') || /^https?:/i.test(trimmed)) {
+        return (
+          <img
+            src={resolveMediaUrl(trimmed)}
+            alt={label || platform || 'social link'}
+            className="w-7 h-7 object-contain"
+            loading="lazy"
+          />
+        );
+      }
+      const IconComponent = dynamicLucideIcon(trimmed);
+      if (IconComponent) return <IconComponent className="w-7 h-7" aria-hidden="true" />;
+    }
+    const Icon = iconForSocial(platform);
+    return <Icon className="w-7 h-7" aria-hidden="true" />;
+  };
+
+  const hasMapCoordinates = Number.isFinite(mapConfig?.latitude as number) && Number.isFinite(mapConfig?.longitude as number);
+  const mapEmbedUrl = hasMapCoordinates
+    ? `https://www.google.com/maps?q=${mapConfig?.latitude},${mapConfig?.longitude}&z=${mapConfig?.zoom || 15}&output=embed`
+    : null;
+  const mapLink = hasMapCoordinates ? `https://maps.google.com/?q=${mapConfig?.latitude},${mapConfig?.longitude}` : null;
+  const addressBlock = blocks.find((b) => (b.type || '').toLowerCase() === 'address');
+  const primaryAddress = addressBlock?.values?.[0];
+  const addressText = primaryAddress ? pickLocalized(primaryAddress.valueFa, primaryAddress.valueEn, primaryAddress.value) : '';
 
   const primaryActionIndex = useMemo(() => quickActions.findIndex((q) => (q.type || '').toLowerCase() === 'call'), [quickActions]);
 
@@ -330,13 +379,41 @@ export function ContactPage() {
             >
               {/* Map */}
               <Card className="overflow-hidden border-0 shadow-xl">
-                <div className="h-80 bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
-                    <div className="text-center">
-                    <MapPin className="w-16 h-16 text-pink-500 mx-auto mb-4" />
-                    <p className="text-gray-600">{t('contact.map.title')}</p>
-                    <p className="text-gray-500 mt-2">{t('contact.map.addressPlaceholder')}</p>
+                {mapEmbedUrl ? (
+                  <div className="relative h-80">
+                    <iframe
+                      title={mapConfig?.markerLabel || 'Clinic Map'}
+                      src={mapEmbedUrl}
+                      width="100%"
+                      height="100%"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      className="absolute inset-0 w-full h-full border-0"
+                    />
+                    <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur rounded-2xl p-4 shadow-lg flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-gray-900 font-semibold">{mapConfig?.markerLabel || t('contact')}</p>
+                        <p className="text-gray-600 text-sm">{addressText || t('contact.map.addressPlaceholder')}</p>
+                      </div>
+                      {mapLink && (
+                        <Button asChild variant="outline" className="rounded-xl">
+                          <a href={mapLink} target="_blank" rel="noreferrer" className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            {t('contact.map.title')}
+                          </a>
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="h-80 bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
+                    <div className="text-center">
+                      <MapPin className="w-16 h-16 text-pink-500 mx-auto mb-4" />
+                      <p className="text-gray-600">{t('contact.map.title')}</p>
+                      <p className="text-gray-500 mt-2">{t('contact.map.addressPlaceholder')}</p>
+                    </div>
+                  </div>
+                )}
               </Card>
 
               {/* Social Media */}
@@ -349,10 +426,9 @@ export function ContactPage() {
                   <p className="text-white/90 mb-6">
                     {t('contact.social.subtitle')}
                   </p>
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="flex flex-wrap justify-center gap-4">
                     {social.map((s, index) => {
                       const platformLabel = pickLocalized(s.platformFa, s.platformEn, s.platform);
-                      const Icon = iconForSocial(s.platform);
                       return (
                         <motion.a
                           key={s.id || index}
@@ -364,7 +440,7 @@ export function ContactPage() {
                           className="w-14 h-14 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-2xl flex items-center justify-center transition-all"
                           aria-label={platformLabel}
                         >
-                          <Icon className="w-7 h-7" />
+                          {renderSocialIcon(s.icon, s.platform, platformLabel)}
                         </motion.a>
                       );
                     })}

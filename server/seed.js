@@ -261,6 +261,11 @@ async function main() {
     for (const qa of qas) {
       await prisma.translation.create({ data: { key: `contact.quickAction.${qa.id}.label`, data: { en: qa.label, fa: qa.label === 'Call Now' ? 'همین حالا تماس بگیرید' : 'برای ما ایمیل بفرستید' } } });
     }
+    await prisma.contactMap.upsert({
+      where: { id: 1 },
+      update: { latitude: 35.757093, longitude: 51.409537, zoom: 16, markerLabel: 'Ava Beauty Clinic' },
+      create: { id: 1, latitude: 35.757093, longitude: 51.409537, zoom: 16, markerLabel: 'Ava Beauty Clinic' },
+    });
 
   // Newsletter
   await prisma.newsletter.create({ data: { headline: 'Stay Informed', description: 'Clinic updates & hair restoration insights.', buttonLabel: 'Subscribe' } });

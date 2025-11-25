@@ -1,5 +1,5 @@
 import { ChangeEvent, useEffect, useState } from 'react';
-import { History, Target, ListChecks, Quote, Plus, Edit, Trash2, Save, RefreshCcw, TrendingUp, UploadCloud, Image as ImageIcon } from 'lucide-react';
+import { History, Target, ListChecks, Quote, Plus, Edit, Trash2, Save, RefreshCcw, TrendingUp, UploadCloud, Image as ImageIcon, Palette } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { apiFetch } from '../../../api/client';
 import { useLanguage } from '../../LanguageContext';
 import { resolveMediaUrl } from '../../../utils/media';
+import { IconPicker } from '../IconPicker';
 
 interface AboutTimeline {
   id?: string;
@@ -110,6 +111,10 @@ export function AboutContentManagement() {
   const [secondaryImageProcessing, setSecondaryImageProcessing] = useState(false);
   const [valueIconProcessing, setValueIconProcessing] = useState(false);
   const [statIconProcessing, setStatIconProcessing] = useState(false);
+
+  // Icon picker states
+  const [valueIconPickerOpen, setValueIconPickerOpen] = useState(false);
+  const [statIconPickerOpen, setStatIconPickerOpen] = useState(false);
 
   const pickInput = (...values: Array<string | null | undefined>) => {
     for (const value of values) {
@@ -853,7 +858,13 @@ export function AboutContentManagement() {
               <Label htmlFor="val-icon">{t('admin.aboutContent.value.iconLabel')}</Label>
               {valueForm.icon && (
                 <div className="mt-2 mb-2 relative w-20 h-20 rounded-lg overflow-hidden border">
-                  <img src={resolveMediaUrl(valueForm.icon)} alt="Icon preview" className="w-full h-full object-cover" />
+                  {valueForm.icon.startsWith('lucide:') ? (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-500 to-purple-600">
+                      <span className="text-white text-xs text-center px-1">{valueForm.icon.replace('lucide:', '')}</span>
+                    </div>
+                  ) : (
+                    <img src={resolveMediaUrl(valueForm.icon)} alt="Icon preview" className="w-full h-full object-cover" />
+                  )}
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -872,18 +883,27 @@ export function AboutContentManagement() {
                   onChange={handleValueIconUpload} 
                   disabled={valueIconProcessing} 
                   className="rounded-xl flex-1" 
+                  id="value-icon-upload"
                 />
                 <Button 
                   variant="outline" 
                   disabled={valueIconProcessing}
                   className="whitespace-nowrap"
-                  onClick={() => document.querySelector<HTMLInputElement>('input[type="file"][accept="image/*"]')?.click()}
+                  onClick={() => document.getElementById('value-icon-upload')?.click()}
                 >
                   <UploadCloud className={`w-4 h-4 mr-2 ${valueIconProcessing ? 'animate-spin' : ''}`} />
                   {valueIconProcessing ? t('admin.media.uploading') : 'Upload'}
                 </Button>
+                <Button 
+                  variant="outline" 
+                  className="whitespace-nowrap"
+                  onClick={() => setValueIconPickerOpen(true)}
+                >
+                  <Palette className="w-4 h-4 mr-2" />
+                  Choose
+                </Button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Upload an icon image or leave empty to use default</p>
+              <p className="text-xs text-gray-500 mt-1">Upload an image, choose a Lucide icon, or leave empty</p>
             </div>
           </div>
           <DialogFooter>
@@ -966,7 +986,13 @@ export function AboutContentManagement() {
               <Label htmlFor="st-icon">Icon</Label>
               {statForm.icon && (
                 <div className="mt-2 mb-2 relative w-20 h-20 rounded-lg overflow-hidden border">
-                  <img src={resolveMediaUrl(statForm.icon)} alt="Icon preview" className="w-full h-full object-cover" />
+                  {statForm.icon.startsWith('lucide:') ? (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-500 to-purple-600">
+                      <span className="text-white text-xs text-center px-1">{statForm.icon.replace('lucide:', '')}</span>
+                    </div>
+                  ) : (
+                    <img src={resolveMediaUrl(statForm.icon)} alt="Icon preview" className="w-full h-full object-cover" />
+                  )}
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -984,22 +1010,28 @@ export function AboutContentManagement() {
                   accept="image/*" 
                   onChange={handleStatIconUpload} 
                   disabled={statIconProcessing} 
-                  className="rounded-xl flex-1" 
+                  className="rounded-xl flex-1"
+                  id="stat-icon-upload"
                 />
                 <Button 
                   variant="outline" 
                   disabled={statIconProcessing}
                   className="whitespace-nowrap"
-                  onClick={() => {
-                    const inputs = document.querySelectorAll<HTMLInputElement>('input[type="file"][accept="image/*"]');
-                    inputs[inputs.length - 1]?.click();
-                  }}
+                  onClick={() => document.getElementById('stat-icon-upload')?.click()}
                 >
                   <UploadCloud className={`w-4 h-4 mr-2 ${statIconProcessing ? 'animate-spin' : ''}`} />
                   {statIconProcessing ? t('admin.media.uploading') : 'Upload'}
                 </Button>
+                <Button 
+                  variant="outline" 
+                  className="whitespace-nowrap"
+                  onClick={() => setStatIconPickerOpen(true)}
+                >
+                  <Palette className="w-4 h-4 mr-2" />
+                  Choose
+                </Button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Upload an icon image or leave empty to use default</p>
+              <p className="text-xs text-gray-500 mt-1">Upload an image, choose a Lucide icon, or leave empty</p>
             </div>
           </div>
           <DialogFooter>
@@ -1008,6 +1040,21 @@ export function AboutContentManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Icon Pickers */}
+      <IconPicker
+        open={valueIconPickerOpen}
+        onOpenChange={setValueIconPickerOpen}
+        onSelect={(iconName) => setValueForm(f => ({ ...f, icon: iconName }))}
+        currentIcon={valueForm.icon}
+      />
+      
+      <IconPicker
+        open={statIconPickerOpen}
+        onOpenChange={setStatIconPickerOpen}
+        onSelect={(iconName) => setStatForm(f => ({ ...f, icon: iconName }))}
+        currentIcon={statForm.icon}
+      />
     </div>
   );
 }
