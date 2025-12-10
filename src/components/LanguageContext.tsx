@@ -124,6 +124,9 @@ const translations = {
     'magazine.trending': 'Trending Now',
     'magazine.popularTags': 'Popular Tags',
     'magazine.general': 'General',
+    'magazine.backToMagazine': 'Back to Magazine',
+    'magazine.noContent': 'No content available for this article.',
+    'common.share': 'Share',
     // Contact page
     'contact.subtitle': "We're here to answer your questions and help you begin your beauty journey",
     'contact.form.namePlaceholder': 'Your name',
@@ -1164,6 +1167,9 @@ const translations = {
     'magazine.trending': 'داغ‌ترین‌ها',
     'magazine.popularTags': 'برچسب‌های محبوب',
     'magazine.general': 'عمومی',
+    'magazine.backToMagazine': 'بازگشت به مجله',
+    'magazine.noContent': 'محتوایی برای این مقاله موجود نیست.',
+    'common.share': 'اشتراک‌گذاری',
     // Contact page
     'contact.subtitle': 'برای پاسخگویی به سوالات شما و شروع مسیر زیبایی شما کنار شما هستیم',
     'contact.form.namePlaceholder': 'نام شما',

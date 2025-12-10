@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Calendar, Clock, User, ArrowRight, TrendingUp, Heart, Sparkles } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
@@ -9,8 +10,12 @@ import { Badge } from '../ui/badge';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { api } from '../../api/client';
 import { SEO } from '../SEO';
+import { SingleArticlePage } from './SingleArticlePage';
 
 export function MagazinePage() {
+  const { slug } = useParams();
+  if (slug) return <SingleArticlePage slug={slug} />;
+
   const { t, isRTL, trc } = useLanguage();
   const { settings } = useSettings();
 
@@ -173,10 +178,12 @@ export function MagazinePage() {
                           <span>{featured.readTimeMinutes ? `${featured.readTimeMinutes} ${t('magazine.minReadSuffix')}` : ''}</span>
                         </div>
                       </div>
-                      <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-full w-fit px-8">
-                        {t('readMore')}
-                        <ArrowRight className={`w-4 h-4 ${isRTL ? 'mr-2' : 'ml-2'}`} />
-                      </Button>
+                      <Link to={`/magazine/${featured.slug}`}>
+                        <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-full w-fit px-8">
+                          {t('readMore')}
+                          <ArrowRight className={`w-4 h-4 ${isRTL ? 'mr-2' : 'ml-2'}`} />
+                        </Button>
+                      </Link>
                     </>
                   )}
                 </div>
@@ -250,9 +257,11 @@ export function MagazinePage() {
                                     {article.readTimeMinutes ? `${article.readTimeMinutes} ${t('magazine.minReadSuffix')}` : ''}
                                   </span>
                                 </div>
-                                <Button variant="ghost" className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 rounded-full">
-                                  {t('readMore')} <ArrowRight className={`w-4 h-4 ${isRTL ? 'mr-2' : 'ml-2'}`} />
-                                </Button>
+                                <Link to={`/magazine/${article.slug}`}>
+                                  <Button variant="ghost" className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 rounded-full">
+                                    {t('readMore')} <ArrowRight className={`w-4 h-4 ${isRTL ? 'mr-2' : 'ml-2'}`} />
+                                  </Button>
+                                </Link>
                               </div>
                             </>
                           )}

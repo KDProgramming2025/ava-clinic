@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Plus, Edit, Trash2, Star, Tag as TagIcon, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Star, Tag as TagIcon, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
@@ -25,6 +25,7 @@ type Article = {
   publishedAt?: string | null;
   category?: { id: string; name: string; slug: string } | null;
   tags?: { id: string; name: string; slug: string }[];
+  contentUrl?: string | null;
 };
 type Category = { id: string; name: string; slug: string };
 type Tag = { id: string; name: string; slug: string };
@@ -37,9 +38,12 @@ export function MagazineManagement() {
   const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Article | null>(null);
-  const [form, setForm] = useState<{ title: string; slug: string; excerpt: string; image: string; readTimeMinutes: string; status: string; featured: boolean; categoryId: string; tagIds: string[] }>({
-    title: '', slug: '', excerpt: '', image: '', readTimeMinutes: '', status: 'DRAFT', featured: false, categoryId: '', tagIds: []
+  const [form, setForm] = useState<{ title: string; slug: string; excerpt: string; image: string; readTimeMinutes: string; status: string; featured: boolean; categoryId: string; tagIds: string[]; contentUrl: string }>({
+    title: '', slug: '', excerpt: '', image: '', readTimeMinutes: '', status: 'DRAFT', featured: false, categoryId: '', tagIds: [], contentUrl: ''
   });
+  const [selectedDocFile, setSelectedDocFile] = useState<File | null>(null);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   const { t } = useLanguage();
 
@@ -60,7 +64,9 @@ export function MagazineManagement() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ title: '', slug: '', excerpt: '', image: '', readTimeMinutes: '', status: 'DRAFT', featured: false, categoryId: '', tagIds: [] });
+    setForm({ title: '', slug: '', excerpt: '', image: '', readTimeMinutes: '', status: 'DRAFT', featured: false, categoryId: '', tagIds: [], contentUrl: '' });
+    setSelectedDocFile(null);
+    setSelectedImageFile(null);
     setIsDialogOpen(true);
   };
   const openEdit = (a: Article) => {
@@ -75,22 +81,80 @@ export function MagazineManagement() {
       featured: a.featured,
       categoryId: a.category?.id || '',
       tagIds: (a.tags || []).map(t => t.id),
+      contentUrl: a.contentUrl || '',
     });
+    setSelectedDocFile(null);
+    setSelectedImageFile(null);
     setIsDialogOpen(true);
   };
+
+  const handleDocxSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith('.docx')) {
+      toast.error('Please upload a .docx file');
+      return;
+    }
+    setSelectedDocFile(file);
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    setSelectedImageFile(file);
+    // Preview
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if(ev.target?.result) setForm(f => ({ ...f, image: ev.target!.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const saveArticle = async () => {
     try {
-  if (!form.title.trim() || !form.slug.trim()) { toast.error(t('admin.magazine.titleRequired')); return; }
+      if (!form.title.trim() || !form.slug.trim()) { toast.error(t('admin.magazine.titleRequired')); return; }
+      
+      setUploadingDoc(true);
+      let finalContentUrl = form.contentUrl;
+      let finalImageUrl = form.image;
+
+      // Upload Doc if selected
+      if (selectedDocFile) {
+        const formData = new FormData();
+        formData.append('file', selectedDocFile);
+        const res = await fetch('/api/articles/upload-content', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error('Doc upload failed');
+        const data = await res.json();
+        finalContentUrl = data.contentUrl;
+      }
+
+      // Upload Image if selected (and it's a file, not just a base64 preview or existing url)
+      // Note: If it's a base64 string from preview, we still need to upload the file.
+      // If it's an existing URL, we don't upload.
+      if (selectedImageFile) {
+        const formData = new FormData();
+        formData.append('file', selectedImageFile);
+        const res = await fetch('/api/articles/upload-image', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error('Image upload failed');
+        const data = await res.json();
+        finalImageUrl = data.url;
+      }
+
       const payload = {
         title: form.title.trim(),
         slug: form.slug.trim(),
         excerpt: form.excerpt.trim() || undefined,
-        image: form.image.trim() || undefined,
+        image: finalImageUrl.trim() || undefined,
         readTimeMinutes: form.readTimeMinutes ? parseInt(form.readTimeMinutes) : undefined,
         status: form.status,
         featured: form.featured,
         categoryId: form.categoryId || undefined,
         tagIds: form.tagIds,
+        contentUrl: finalContentUrl || undefined,
       };
       if (editing) {
         await apiFetch(`/articles/${editing.id}`, { method: 'PUT', body: payload });
@@ -102,6 +166,8 @@ export function MagazineManagement() {
       setIsDialogOpen(false); setEditing(null); await fetchAll();
     } catch (e: any) {
       if (e?.code === 'slug_conflict') toast.error(t('admin.magazine.slugConflict')); else toast.error(e?.message || t('admin.magazine.saveFailed'));
+    } finally {
+      setUploadingDoc(false);
     }
   };
   const toggleFeatured = async (a: Article) => {
@@ -217,8 +283,41 @@ export function MagazineManagement() {
             </div>
             <div>
               <Label htmlFor="a-image">{t('admin.magazine.imageUrlLabel')}</Label>
-              <Input id="a-image" value={form.image} onChange={(e)=> setForm(f=>({...f,image:e.target.value}))} placeholder="https://..." className="mt-2 rounded-xl" />
+              <div className="mt-2 flex items-center gap-2">
+                <Input 
+                  id="a-image" 
+                  type="file" 
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="rounded-xl" 
+                />
+              </div>
               {form.image && <img src={form.image} alt="preview" className="mt-2 h-32 w-full object-cover rounded-xl border" />}
+            </div>
+            <div>
+              <Label htmlFor="a-content-doc">Upload Content (.docx)</Label>
+              <div className="mt-2 flex items-center gap-2">
+                <Input 
+                  id="a-content-doc" 
+                  type="file" 
+                  accept=".docx"
+                  onChange={handleDocxSelect}
+                  className="rounded-xl" 
+                />
+              </div>
+              {selectedDocFile && (
+                <div className="mt-2 text-sm text-blue-600 flex items-center gap-1">
+                  <span className="font-medium">Selected:</span> {selectedDocFile.name}
+                </div>
+              )}
+              {form.contentUrl && !selectedDocFile && (
+                <div className="mt-2 text-sm text-green-600 flex items-center gap-1">
+                  <span className="font-medium">✓ Current Content:</span> 
+                  <a href={form.contentUrl} target="_blank" rel="noopener noreferrer" className="underline truncate max-w-[200px] inline-block align-bottom">
+                    {form.contentUrl}
+                  </a>
+                </div>
+              )}
             </div>
             <div className="grid md:grid-cols-3 gap-4">
               <div>
@@ -263,8 +362,17 @@ export function MagazineManagement() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={()=> { setIsDialogOpen(false); setEditing(null);} }>{t('admin.cancel')}</Button>
-            <Button className="bg-gradient-to-r from-pink-500 to-purple-600" onClick={saveArticle}>{editing ? t('admin.magazine.update') : t('admin.magazine.create')}</Button>
+            <Button variant="outline" onClick={()=> { setIsDialogOpen(false); setEditing(null);} } disabled={uploadingDoc}>{t('admin.cancel')}</Button>
+            <Button className="bg-gradient-to-r from-pink-500 to-purple-600" onClick={saveArticle} disabled={uploadingDoc}>
+              {uploadingDoc ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {t('admin.saving')}
+                </>
+              ) : (
+                editing ? t('admin.magazine.update') : t('admin.magazine.create')
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

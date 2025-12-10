@@ -132,6 +132,7 @@ model Article {
   subtitleFa      String?
   titleEn         String?
   titleFa         String?
+  contentUrl      String?
   author          TeamMember?   @relation("ArticleAuthor", fields: [authorId], references: [id])
   category        Category?     @relation(fields: [categoryId], references: [id])
   tags            Tag[]         @relation("ArticleTags")
