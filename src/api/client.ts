@@ -1,3 +1,5 @@
+import type { VideoStatus } from '../utils/videoMedia';
+
 // Simple API client wrapper for fetch with JSON, error mapping, and auth token support
 export interface ApiError extends Error {
   status?: number;
@@ -88,6 +90,12 @@ export const api = {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null)).toString();
     return apiFetch(`/videos${qs ? `?${qs}` : ''}`);
   },
+  importInstagramVideo: (url: string, status: VideoStatus = 'DRAFT') =>
+    apiFetch('/videos/import', { body: { url, status } }),
+  createVideo: (body: any) => apiFetch('/videos', { body }),
+  updateVideo: (id: string, body: any) => apiFetch(`/videos/${id}`, { method: 'PUT', body }),
+  deleteVideo: (id: string) => apiFetch(`/videos/${id}`, { method: 'DELETE' }),
+  reorderVideos: (items: { id: string; order: number }[]) => apiFetch('/videos/reorder', { method: 'PUT', body: { items } }),
   videoCategories: () => apiFetch('/video-categories'),
   bookings: (params: Record<string, any> = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null)).toString();
@@ -115,6 +123,26 @@ export const api = {
   },
   settings: () => apiFetch('/settings'),
   newsletter: () => apiFetch('/newsletter'),
+  instagram: {
+    status: () => apiFetch('/instagram/status'),
+    loginUrl: () => apiFetch('/instagram/login-url'),
+    disconnect: () => apiFetch('/instagram/disconnect', { method: 'POST' }),
+    feed: (params: Record<string, any> = {}) => {
+      const qs = new URLSearchParams(
+        Object.entries(params)
+          .filter(([, value]) => value !== undefined && value !== null)
+          .map(([key, value]) => [key, String(value)])
+      ).toString();
+      return apiFetch(`/instagram/feed${qs ? `?${qs}` : ''}`);
+    },
+  },
+  instagramWidget: {
+    get: () => apiFetch<{ embedUrl: string | null }>('/instagram-widget'),
+    update: (embedUrl: string | null) => apiFetch<{ embedUrl: string | null }>('/instagram-widget', {
+      method: 'PUT',
+      body: { embedUrl },
+    }),
+  },
   // SEO
   seoJsonLd: (path: string) => apiFetch('/seo/jsonld?'+ new URLSearchParams({ path }).toString()),
 };

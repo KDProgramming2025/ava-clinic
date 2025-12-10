@@ -202,6 +202,10 @@ export function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!phone.trim()) {
+      toast.error(t('contact.form.phoneRequired'));
+      return;
+    }
     try {
       setSubmitting(true);
       await apiFetch('/messages', { body: { fromName: name, email, phone, subject, body: message } });
@@ -342,14 +346,14 @@ export function ContactPage() {
                       <Input id="name" placeholder={t('contact.form.namePlaceholder')} required className="mt-2 rounded-xl" value={name} onChange={e => setName(e.target.value)} />
                     </div>
                     <div>
-                      <Label htmlFor="email">{t('email')}*</Label>
-                      <Input id="email" type="email" placeholder={t('contact.form.emailPlaceholder')} required className="mt-2 rounded-xl" value={email} onChange={e => setEmail(e.target.value)} />
+                      <Label htmlFor="email">{t('email')}</Label>
+                      <Input id="email" type="email" placeholder={t('contact.form.emailPlaceholder')} className="mt-2 rounded-xl" value={email} onChange={e => setEmail(e.target.value)} />
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="phone">{t('phone')}</Label>
-                    <Input id="phone" type="tel" placeholder={t('contact.form.phonePlaceholder')} className="mt-2 rounded-xl" value={phone} onChange={e => setPhone(e.target.value)} />
+                    <Label htmlFor="phone">{t('phone')}*</Label>
+                    <Input id="phone" type="tel" placeholder={t('contact.form.phonePlaceholder')} required className="mt-2 rounded-xl" value={phone} onChange={e => setPhone(e.target.value)} />
                   </div>
 
                   <div>
@@ -538,14 +542,7 @@ export function ContactPage() {
             })}
           </div>
 
-          <div className="text-center mt-8">
-            <p className="text-gray-600">
-              {t('contact.faqs.moreQuestionsIntro')}{' '}
-              <button className="text-pink-600 hover:text-pink-700">
-                {t('contact.faqs.viewAll')}
-              </button>
-            </p>
-          </div>
+          
         </div>
       </section>
     </div>

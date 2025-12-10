@@ -183,6 +183,16 @@ model Settings {
   servicesHeroSubtitleFa String?
   servicesHeroTitleEn    String?
   servicesHeroTitleFa    String?
+  instagramAccessToken   String?
+  instagramUserId        String?
+  instagramUsername      String?
+  instagramAccountType   String?
+  instagramConnectedAt   DateTime?
+  instagramTokenExpiresAt DateTime?
+  instagramFeedCache     Json?
+  instagramFeedCachedAt  DateTime?
+  instagramLastError     String?
+  snapWidgetEmbedUrl     String?
 }
 
 model HomeHero {
@@ -436,9 +446,16 @@ model Video {
   views           Int            @default(0)
   status          VideoStatus    @default(DRAFT)
   categoryId      String?
+  sourceUrl       String?
+  caption         String?
+  media           Json?
+  takenAt         DateTime?
+  authorUsername  String?
+  authorFullName  String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   slug            String?        @unique
+  sortOrder       Int            @default(0)
   category        VideoCategory? @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId])

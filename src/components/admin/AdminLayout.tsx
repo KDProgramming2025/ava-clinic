@@ -44,6 +44,7 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
   const { t, toggleLanguage, language, trc } = useLanguage();
 
   const [branding, setBranding] = useState<{ title?: string | null; titleEn?: string | null; titleFa?: string | null; logoUrl?: string | null }>({});
+  const [newMessageCount, setNewMessageCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +66,28 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
       }
     })();
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const fetchCount = async () => {
+      try {
+        const items = await api.messages({ status: 'NEW' });
+        if (!cancelled) setNewMessageCount(Array.isArray(items) ? items.length : 0);
+      } catch {
+        if (!cancelled) setNewMessageCount(0);
+      }
+    };
+
+    fetchCount();
+    interval = setInterval(fetchCount, 60000);
+
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   const brandDisplayName = useMemo(() => {
@@ -91,7 +114,7 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
     { id: 'media', label: t('admin.media'), icon: Video },
     { id: 'videos', label: t('admin.videos'), icon: Video },
     { id: 'magazine', label: t('admin.magazine'), icon: BookOpen },
-    { id: 'messages', label: t('admin.messages'), icon: MessageSquare, badge: 5 },
+    { id: 'messages', label: t('admin.messages'), icon: MessageSquare, badge: newMessageCount > 0 ? newMessageCount : undefined },
     { id: 'team', label: t('admin.team'), icon: Users },
     { id: 'navigation', label: t('admin.navigation'), icon: LayoutDashboard },
     { id: 'footer-links', label: t('admin.footerLinks'), icon: LayoutDashboard },

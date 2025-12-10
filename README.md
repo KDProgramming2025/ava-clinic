@@ -13,6 +13,25 @@ The Express backend runs as a systemd service named `ava-beauty`.
 
 It serves the built frontend from the `build/` directory and exposes APIs under `/api/*` on port 4000 by default.
 
+### Enabling the service (required for Instagram APIs)
+
+1. Copy the provided unit file: `sudo cp server/ava-beauty.service /etc/systemd/system/ava-beauty.service`.
+2. Ensure `.env` defines `DATABASE_URL`, `JWT_SECRET`, **and** the Instagram vars (`INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `INSTAGRAM_REDIRECT_URI`).
+3. Reload systemd & start: `sudo systemctl daemon-reload && sudo systemctl enable --now ava-beauty`.
+4. Verify the API locally before exposing it: `curl http://127.0.0.1:4000/api/instagram/status` should return JSON instead of 404.
+
+If the curl check fails, the frontend will also receive 404s for `/api/instagram/*`, so resolve backend issues before redeploying static assets.
+
+### Reverse proxy (Nginx)
+
+Use `server/nginx.conf.example` as a starting point. Key requirements:
+
+- `location /api/` must `proxy_pass http://127.0.0.1:4000/;` so Express handles every `/api/*` request.
+- `root /var/www/ava-beauty/build;` should serve the Vite build artifacts.
+- Reload Nginx after editing: `sudo nginx -t && sudo systemctl reload nginx`.
+
+Without the proxy block the browser will hit the static server directly and receive `404 Not Found` for `/api/instagram/status` and `/api/instagram/feed`.
+
 ## Database and Prisma
 
 This project uses PostgreSQL with Prisma. The database URL is configured via the `.env` file (see `DATABASE_URL`).

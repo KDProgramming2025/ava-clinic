@@ -1,378 +1,396 @@
-import { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Play, X, Grid3x3, List, Filter, Search, Clock } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { motion } from 'motion/react';
+import { PlayCircle, ExternalLink } from 'lucide-react';
 import { Card } from '../ui/card';
+import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { api } from '../../api/client';
+import { Skeleton } from '../ui/skeleton';
 import { SEO } from '../SEO';
+import { useLanguage } from '../LanguageContext';
+import { Dialog, DialogContent } from '../ui/dialog';
+import { api } from '../../api/client';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
+  VideoRecord,
+  mediaItemsFor,
+  primaryMediaFor,
+  previewUrlFor,
+  formatVideoDuration,
+  resolveVideoMediaUrl,
+} from '../../utils/videoMedia';
+
+const truncateText = (value?: string | null, limit = 140): string | null => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.length > limit ? `${trimmed.slice(0, limit).trim()}…` : trimmed;
+};
 
 export function VideoGalleryPage() {
-  const { isRTL, t, trc } = useLanguage();
-  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [videos, setVideos] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const { t, language } = useLanguage();
+  const [videos, setVideos] = useState<VideoRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<VideoRecord | null>(null);
+  const [activeMediaId, setActiveMediaId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    async function loadVideos() {
       try {
         setLoading(true);
-    const [vids, cats] = await Promise.all([api.videos(), api.videoCategories()]);
-        if (cancelled) return;
-  setVideos(vids || []);
-  setCategories([{ id: 'all', name: t('videos.all'), slug: 'all' }, ...(cats || [])]);
-      } catch (e: any) {
-        if (!cancelled) setError(e.message || t('videos.loadFailed'));
+        setError(null);
+        const data = await api.videos({ status: 'PUBLISHED' });
+        if (!cancelled) {
+          setVideos(Array.isArray(data) ? data : []);
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setError(err?.message || 'load_failed');
+          setVideos([]);
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-    })();
-    return () => { cancelled = true; };
+    }
+    loadVideos();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const filteredVideos = useMemo(() => {
-    const lc = searchQuery.toLowerCase();
-    return videos.filter(v => {
-      const catSlug = v.category?.slug || v.category?.id || 'uncategorized';
-      const matchesCategory = filterCategory === 'all' || catSlug === filterCategory;
-      const matchesSearch = (v.title || '').toLowerCase().includes(lc) || (v.description || '').toLowerCase().includes(lc);
-      return matchesCategory && matchesSearch;
-    });
-  }, [videos, filterCategory, searchQuery]);
-
-  const formatDuration = (seconds?: number | null) => {
-    if (!seconds || seconds < 0) return '—';
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-  const formatViews = (views?: number | null) => {
-    if (views == null) return '0';
-    if (views >= 1_000_000) return `${(views / 1_000_000).toFixed(1)}M`;
-    if (views >= 1_000) return `${(views / 1_000).toFixed(1)}K`;
-    return String(views);
+  const handleOpenVideo = (video: VideoRecord) => {
+    const primary = primaryMediaFor(video);
+    setSelectedVideo(video);
+    setActiveMediaId(primary?.id || null);
+    setViewerOpen(true);
   };
 
-  return (
-    <div className="pt-20 min-h-screen">
-      {/* SEO Meta */}
-      {(() => {
-        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.example.com';
-        const canonical = `${origin}/videos`;
-        const alternates = [
-          { hrefLang: 'fa', href: `${origin}/videos` },
-          { hrefLang: 'en', href: `${origin}/videos?lang=en` }
-        ];
-        const breadcrumb = {
-          '@context': 'https://schema.org',
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: t('home'), item: origin + '/' },
-            { '@type': 'ListItem', position: 2, name: t('videos.title'), item: canonical }
-          ]
-        };
-        return (
-          <SEO
-            title={t('videos.title')}
-            description={t('videos.subtitle')}
-            canonical={canonical}
-            alternates={alternates}
-            image="/og-image.jpg"
-            type="website"
-            jsonLd={breadcrumb}
-          />
-        );
-      })()}
-      {/* Hero */}
-      <section className="py-20 bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
-            <h1 className="mb-6 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-              {t('videos.title')}
-            </h1>
-            <p className="text-gray-700 max-w-3xl mx-auto">
-              {t('videos.subtitle')}
-            </p>
-          </motion.div>
-        </div>
-      </section>
+  const handleViewerChange = (open: boolean) => {
+    setViewerOpen(open);
+    if (!open) {
+      setSelectedVideo(null);
+      setActiveMediaId(null);
+    }
+  };
 
-      {/* Filters */}
-      <section className="py-8 bg-white border-b border-gray-200 sticky top-20 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Search */}
-            <div className="flex-1 min-w-[250px]">
-              <div className="relative">
-                <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5`} />
-                <Input
-                  placeholder={t('videos.searchPlaceholder')}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`${isRTL ? 'pr-10' : 'pl-10'} rounded-full`}
-                />
-              </div>
-            </div>
+  const activeMedia = selectedVideo
+    ? mediaItemsFor(selectedVideo).find((item) => item.id === activeMediaId) || primaryMediaFor(selectedVideo)
+    : null;
 
-            {/* Category Filter */}
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-48 rounded-full">
-                <Filter className="w-4 h-4 mr-2 rtl:mr-0 rtl:ml-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.slug || cat.id}>
-                    {cat.id === 'all' ? t('videos.all') : cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.example.com';
+  const canonical = `${origin}/videos`;
+  const alternates = useMemo(() => [
+    { hrefLang: 'fa', href: `${origin}/videos` },
+    { hrefLang: 'en', href: `${origin}/videos?lang=en` },
+  ], [origin]);
+  const breadcrumb = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: t('home'), item: `${origin}/` },
+      { '@type': 'ListItem', position: 2, name: t('videos.title'), item: canonical },
+    ],
+  };
 
-            {/* View Mode Toggle */}
-            <div className="flex gap-2 bg-gray-100 rounded-full p-1">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="icon"
-                onClick={() => setViewMode('grid')}
-                className={`rounded-full ${viewMode === 'grid' ? 'bg-gradient-to-r from-pink-500 to-purple-600' : ''}`}
-              >
-                <Grid3x3 className="w-5 h-5" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="icon"
-                onClick={() => setViewMode('list')}
-                className={`rounded-full ${viewMode === 'list' ? 'bg-gradient-to-r from-pink-500 to-purple-600' : ''}`}
-              >
-                <List className="w-5 h-5" />
-              </Button>
-            </div>
+  const videoStructuredData = videos.slice(0, 12).map((video) => {
+    const primary = primaryMediaFor(video);
+    const preview = previewUrlFor(video);
+    const uploadDate = video.takenAt || video.createdAt || new Date().toISOString();
+    const payload: Record<string, any> = {
+      '@context': 'https://schema.org',
+      '@type': 'VideoObject',
+      name: video.title,
+      description: video.caption || video.description || t('videos.subtitle'),
+      uploadDate,
+      url: `${canonical}#video-${video.slug || video.id}`,
+    };
+    if (preview) {
+      payload.thumbnailUrl = preview.startsWith('http') ? preview : `${origin}${preview}`;
+    }
+    if (primary?.url) {
+      payload.contentUrl = primary.url.startsWith('http') ? primary.url : `${origin}${primary.url}`;
+    }
+    if (video.sourceUrl) {
+      payload.embedUrl = video.sourceUrl;
+    }
+    return payload;
+  });
+
+  const structuredData = [breadcrumb, ...videoStructuredData];
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    const locale = language === 'fa' ? 'fa-IR' : 'en-US';
+    return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parsed);
+  };
+
+  const renderLoading = () => (
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <Card key={`video-skeleton-${index}`} className="border border-gray-100 shadow-sm rounded-3xl p-0 overflow-hidden">
+          <Skeleton className="h-56 w-full" />
+          <div className="space-y-3 p-6">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
           </div>
+        </Card>
+      ))}
+    </div>
+  );
 
-          {/* Results Count */}
-          <p className="text-gray-600 mt-4">
-            {t('videos.title')}: {filteredVideos.length}
-          </p>
-        </div>
-      </section>
+  const renderEmpty = () => (
+    <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 px-8 py-12 text-center">
+      <p className="text-2xl font-semibold text-gray-900">{t('videos.emptyStateTitle')}</p>
+      <p className="mt-4 text-gray-600 max-w-2xl mx-auto">{t('videos.emptyStateBody')}</p>
+    </div>
+  );
 
-      {/* Video Gallery */}
-      <section className="py-12 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {error && <div className="text-center py-20 text-red-600">{error}</div>}
-          {viewMode === 'grid' ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {(filteredVideos.length ? filteredVideos : loading ? Array.from({length:6}).map(()=>({})) : []).map((video: any, index) => (
-                <motion.div
-                  key={video.id || index}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{ y: -10 }}
-                >
-                  <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer">
-                    <div
-                      className="relative h-56 overflow-hidden group"
-                      onClick={() => !loading && video.id && setSelectedVideo(video.id)}
-                    >
-                      {loading ? (
-                        <div className="w-full h-full bg-gray-200 animate-pulse" />
-                      ) : (
-                        <>
-                          <ImageWithFallback
-                            src={video.thumbnail || ''}
-                            alt={video.title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                          />
-                          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
-                          {/* Play Button */}
-                          <motion.div
-                            whileHover={{ scale: 1.1 }}
-                            className="absolute inset-0 flex items-center justify-center"
-                          >
-                            <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-xl">
-                              <Play className="w-8 h-8 text-pink-500 ml-1" fill="currentColor" />
-                            </div>
-                          </motion.div>
-                          {/* Duration */}
-                          <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {formatDuration(video.durationSeconds)}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      {loading ? (
-                        <>
-                          <div className="h-5 w-5/6 bg-gray-200 rounded mb-2 animate-pulse" />
-                          <div className="h-4 w-full bg-gray-200 rounded mb-2 animate-pulse" />
-                          <div className="h-4 w-4/5 bg-gray-200 rounded mb-3 animate-pulse" />
-                          <div className="flex items-center justify-between text-gray-500">
-                            <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
-                            <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <h3 className="mb-2 text-gray-900 line-clamp-2">{video.title}</h3>
-                          <p className="text-gray-600 mb-3 line-clamp-2">{video.description || ''}</p>
-                          <div className="flex items-center justify-between text-gray-500">
-                            <span>{formatViews(video.views)} {t('videos.viewsSuffix')}</span>
-                            <span className="text-pink-500 capitalize">{video.category?.name || t('videos.uncategorized')}</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {(filteredVideos.length ? filteredVideos : loading ? Array.from({length:5}).map(()=>({})) : []).map((video: any, index) => (
-                <motion.div
-                  key={video.id || index}
-                  initial={{ opacity: 0, x: isRTL ? 50 : -50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Card
-                    className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer"
-                    onClick={() => !loading && video.id && setSelectedVideo(video.id)}
-                  >
-                    <div className="flex flex-col md:flex-row">
-                      <div className="relative md:w-80 h-48 overflow-hidden group flex-shrink-0">
-                        {loading ? (
-                          <div className="w-full h-full bg-gray-200 animate-pulse" />
-                        ) : (
-                          <>
-                            <ImageWithFallback
-                              src={video.thumbnail || ''}
-                              alt={video.title}
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                            />
-                            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-xl">
-                                <Play className="w-8 h-8 text-pink-500 ml-1" fill="currentColor" />
-                              </div>
-                            </div>
-                            <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> {formatDuration(video.durationSeconds)}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <div className="p-6 flex-1">
-                        {loading ? (
-                          <>
-                            <div className="h-6 w-2/3 bg-gray-200 rounded mb-3 animate-pulse" />
-                            <div className="h-4 w-full bg-gray-200 rounded mb-2 animate-pulse" />
-                            <div className="h-4 w-5/6 bg-gray-200 rounded mb-4 animate-pulse" />
-                            <div className="flex items-center gap-4 text-gray-500">
-                              <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
-                              <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <h3 className="mb-3 text-gray-900">{video.title}</h3>
-                            <p className="text-gray-600 mb-4">{video.description || ''}</p>
-                            <div className="flex items-center gap-4 text-gray-500">
-                              <span>{formatViews(video.views)} {t('videos.viewsSuffix')}</span>
-                              <span className="text-pink-500 capitalize">{video.category?.name || t('videos.uncategorized')}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          )}
+  const renderError = () => (
+    <div className="rounded-3xl border border-red-100 bg-red-50 px-8 py-6 text-red-700">
+      <p className="font-semibold">{t('videos.loadFailed')}</p>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+    </div>
+  );
 
-          {!loading && filteredVideos.length === 0 && (
-            <div className="text-center py-20">
-              <p className="text-gray-500">{t('videos.noResults')}</p>
-            </div>
-          )}
-        </div>
-      </section>
+  const renderVideoCard = (video: VideoRecord, index: number) => {
+    const preview = previewUrlFor(video);
+    const captionPreview = truncateText(video.caption || video.description);
+    const primaryMedia = primaryMediaFor(video);
+    const duration = formatVideoDuration(video.durationSeconds || primaryMedia?.durationSeconds);
+    const mediaItems = mediaItemsFor(video);
+    const isPortrait = (primaryMedia?.height ?? 0) > (primaryMedia?.width ?? 0);
+    const mediaRatioClass = isPortrait ? 'aspect-[9/16]' : 'aspect-video';
+    // Prefer username (handle) over full name as per user request
+    const authorLine = video.authorUsername || video.authorFullName || null;
+    const mediaLabel = mediaItems.length > 1
+      ? t('videos.typeCarousel', { count: mediaItems.length })
+      : (primaryMedia?.type === 'VIDEO' ? t('videos.typeVideo') : t('videos.typeImage'));
+    const capturedDate = formatDate(video.takenAt || video.createdAt);
 
-      {/* Video Modal */}
-      <AnimatePresence>
-        {selectedVideo && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-            onClick={() => setSelectedVideo(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              className="relative w-full max-w-5xl bg-black rounded-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
+    return (
+      <motion.div
+        key={video.id}
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.4, delay: index * 0.05 }}
+        className="relative h-full"
+      >
+        <div className="group relative h-full">
+          <div className="pointer-events-none absolute inset-0 -z-10 rounded-[2rem] bg-gradient-to-r from-pink-200/30 via-purple-200/20 to-blue-200/30 blur-3xl opacity-0 transition duration-500 group-hover:opacity-100" />
+          <Card className="relative h-full overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/85 shadow-xl ring-1 ring-black/5 transition duration-300 group-hover:-translate-y-2 group-hover:shadow-2xl">
+            <button
+              type="button"
+              onClick={() => handleOpenVideo(video)}
+              className="flex h-full flex-col text-left focus:outline-none w-full"
+              aria-label={`${t('videos.watch')} – ${video.title}`}
             >
-              <button
-                onClick={() => setSelectedVideo(null)}
-                className="absolute top-4 right-4 z-10 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-              
-              {/* Video Player Placeholder */}
-              <div className="aspect-video bg-gray-900 flex items-center justify-center">
-                <div className="text-center">
-                  <Play className="w-20 h-20 text-white/50 mx-auto mb-4" />
-                  <p className="text-white/70">{t('videos.playerPlaceholder')}</p>
-                  <p className="text-white/50 mt-2">
-                    {(() => { const v = videos.find(v => v.id === selectedVideo); return v?.title || ''; })()}
-                  </p>
+              <div className={`relative w-full overflow-hidden ${mediaRatioClass}`}>
+                {preview ? (
+                  <img src={preview} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                ) : (
+                  <div className="h-full w-full bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <div className="absolute top-4 right-4">
+                  <Badge className="rounded-full bg-white/80 text-xs font-semibold text-gray-700 shadow">
+                    {mediaLabel}
+                  </Badge>
+                </div>
+                <div className="absolute bottom-4 left-4 flex items-center gap-2 text-white">
+                  <PlayCircle className="h-6 w-6" />
+                  <span className="text-sm font-semibold">{t('videos.watch')}</span>
+                  {duration && (
+                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                      {duration}
+                    </Badge>
+                  )}
                 </div>
               </div>
-              
-              {/* Video Info */}
-              <div className="p-6 bg-gray-900 text-white">
-                <h3 className="mb-2">
-                  {(() => { const v = videos.find(v => v.id === selectedVideo); return v?.title || ''; })()}
-                </h3>
-                <p className="text-white/70 mb-4">
-                  {(() => { const v = videos.find(v => v.id === selectedVideo); return v?.description || ''; })()}
-                </p>
-                <div className="flex items-center gap-4 text-white/60">
-                  <span>{formatViews(videos.find(v => v.id === selectedVideo)?.views)} views</span>
-                  <span>•</span>
-                  <span className="capitalize">{(() => { const v = videos.find(v => v.id === selectedVideo); return v?.category?.name || t('videos.uncategorized'); })()}</span>
+              <div className="flex flex-1 flex-col gap-4 p-6">
+                <h3 className="text-xl font-semibold text-gray-900 text-right" dir="rtl">{video.title}</h3>
+                <div className="mt-auto flex items-center justify-between text-sm text-gray-500 w-full">
+                  {capturedDate && <span>{capturedDate}</span>}
+                  {authorLine && <span className="text-gray-400" dir="ltr">@{authorLine}</span>}
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </button>
+          </Card>
+        </div>
+      </motion.div>
+    );
+  };
+
+  const mediaItems = selectedVideo ? mediaItemsFor(selectedVideo) : [];
+  const isActivePortrait = activeMedia ? (activeMedia.height ?? 0) > (activeMedia.width ?? 0) : false;
+  const { playerStyle, dialogMaxWidth } = useMemo(() => {
+    if (isActivePortrait) {
+      return {
+        playerStyle: {
+          aspectRatio: '9 / 16',
+          maxHeight: '80vh',
+          width: '100%',
+          borderRadius: '25px',
+        } as CSSProperties,
+        dialogMaxWidth: 'min(500px, 98vw)',
+      };
+    }
+    return {
+      playerStyle: {
+        aspectRatio: '16 / 9',
+        maxHeight: '60vh',
+        width: '100%',
+        borderRadius: '25px',
+      } as CSSProperties,
+      dialogMaxWidth: 'min(1200px, 98vw)',
+    };
+  }, [isActivePortrait]);
+  return (
+    <div className="min-h-screen bg-white pt-20">
+      <SEO
+        title={t('videos.title')}
+        description={t('videos.subtitle')}
+        canonical={canonical}
+        alternates={alternates}
+        image="/og-image.jpg"
+        type="website"
+        jsonLd={structuredData}
+      />
+
+      <section className="bg-white py-16">
+        <div className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6 lg:px-8">
+          {error && renderError()}
+          {loading && renderLoading()}
+          {!loading && !error && videos.length === 0 && renderEmpty()}
+          {!loading && !error && videos.length > 0 && (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {videos.map((video, index) => renderVideoCard(video, index))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <Dialog open={viewerOpen} onOpenChange={handleViewerChange}>
+        <DialogContent
+          className="border border-white/80 bg-white/95 shadow-[0_20px_80px_-30px_rgba(0,0,0,0.45)] backdrop-blur-md max-h-[calc(100vh-2rem)]"
+          style={{ width: '100%', maxWidth: dialogMaxWidth, borderRadius: '2rem' }}
+        >
+          {selectedVideo && (
+            <div
+              className="flex flex-col px-2 md:px-8"
+              style={{ paddingTop: '3rem', paddingBottom: '3rem' }}
+            >
+              <div className="flex-1 min-h-0 flex flex-col gap-6">
+                <div
+                  className="relative mx-auto w-full overflow-hidden rounded-[25px] bg-black shadow-inner flex-shrink-0"
+                  style={playerStyle}
+                >
+                  {(() => {
+                    // If we have active media (local video/image), show it first
+                    if (activeMedia?.type === 'VIDEO') {
+                      return (
+                        <video
+                          key={activeMedia.id}
+                          className="h-full w-full object-contain bg-black rounded-[25px]"
+                          controls
+                          preload="metadata"
+                          poster={resolveVideoMediaUrl(activeMedia.previewUrl || selectedVideo.thumbnail || undefined)}
+                        >
+                          <source src={resolveVideoMediaUrl(activeMedia.url)} type="video/mp4" />
+                        </video>
+                      );
+                    }
+                    
+                    if (activeMedia?.type === 'IMAGE') {
+                      return (
+                        <img 
+                          src={resolveVideoMediaUrl(activeMedia.url)} 
+                          alt={selectedVideo.title} 
+                          className="h-full w-full object-contain bg-black rounded-[25px]" 
+                        />
+                      );
+                    }
+
+                    // Fallback to Instagram Embed if no local media but sourceUrl is Instagram
+                    const instagramEmbedUrl = selectedVideo.sourceUrl && selectedVideo.sourceUrl.includes('instagram.com/p/') 
+                      ? `${selectedVideo.sourceUrl.replace(/\/$/, '')}/embed` 
+                      : null;
+
+                    if (instagramEmbedUrl) {
+                      return (
+                        <iframe
+                          src={instagramEmbedUrl}
+                          className="h-full w-full rounded-[25px] bg-white"
+                          frameBorder="0"
+                          scrolling="no"
+                          allowTransparency
+                        />
+                      );
+                    }
+
+                    return (
+                      <div className="h-full w-full bg-gradient-to-br from-gray-100 to-gray-200" />
+                    );
+                  })()}
+                </div>
+
+                <div className="mt-6 flex-1 min-h-0 space-y-4 overflow-y-auto rounded-2xl border border-gray-100 bg-white/80 p-6">
+                  {mediaItems.length > 1 && (
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-gray-900">{t('videos.relatedMediaLabel')}</p>
+                      <div className="flex gap-3 overflow-x-auto pb-2">
+                        {mediaItems.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setActiveMediaId(item.id)}
+                            className={`relative h-20 w-32 overflow-hidden rounded-xl border transition ${item.id === activeMedia?.id ? 'border-pink-500 ring-2 ring-pink-100' : 'border-gray-200'}`}
+                            aria-label={item.type === 'VIDEO' ? t('videos.typeVideo') : t('videos.typeImage')}
+                          >
+                            {item.previewUrl || item.url ? (
+                              <img src={resolveVideoMediaUrl(item.previewUrl || item.url)} alt={selectedVideo.title} className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="h-full w-full bg-gray-100" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedVideo.caption && (
+                    <div className="rounded-2xl bg-gray-50/90 p-5 text-sm leading-relaxed text-gray-700 mb-10 text-right" dir="rtl">
+                      <p className="whitespace-pre-wrap">{selectedVideo.caption}</p>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    {selectedVideo.sourceUrl && (
+                      <Button asChild variant="outline" className="rounded-2xl">
+                        <a href={selectedVideo.sourceUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                          {t('videos.sourceLink')}
+                        </a>
+                      </Button>
+                    )}
+                    {activeMedia?.durationSeconds && (
+                      <Badge className="bg-gray-900 text-white">
+                        {formatVideoDuration(activeMedia.durationSeconds)}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

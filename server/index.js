@@ -63,6 +63,8 @@ app.use('/api/media', mediaRouter);
 app.use('/api/admin-users', adminUsersRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/auth', authRouter);
+// app.use('/api/instagram', instagramRouter);
+// app.use('/api/instagram-widget', instagramWidgetRouter);
 app.use('/', seoRouter);
 
 // Health endpoint
