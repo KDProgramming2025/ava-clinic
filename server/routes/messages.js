@@ -1,5 +1,6 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
+import TelegramService from '../services/TelegramService.js';
 
 const router = express.Router();
 
@@ -22,6 +23,10 @@ router.post('/', async (req, res) => {
   if (!fromName || !body) return res.status(400).json({ error: 'missing_fields' });
   try {
     const created = await prisma.message.create({ data: { fromName, email: email || null, phone: phone || null, subject: subject || null, body } });
+    
+    // Notify via Telegram
+    TelegramService.notifyNewMessage(created);
+    
     res.status(201).json(created);
   } catch (e) {
     res.status(500).json({ error: 'create_failed' });

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { io, Socket } from 'socket.io-client';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useLanguage } from './LanguageContext';
@@ -8,13 +9,64 @@ import { useLanguage } from './LanguageContext';
 export function ChatWidget() {
   const { t, isRTL } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Load messages from localStorage
   const [messages, setMessages] = useState<{
     id: number;
     text: string;
     sender: 'bot' | 'user';
-  }[]>([]);
+  }[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('chat_messages');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
   const [input, setInput] = useState('');
   const listRef = useRef<HTMLDivElement | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const sessionIdRef = useRef<string>('');
+
+  // Initialize Session ID
+  useEffect(() => {
+    let sid = localStorage.getItem('chat_session_id');
+    if (!sid) {
+      sid = Math.floor(100000 + Math.random() * 900000).toString();
+      localStorage.setItem('chat_session_id', sid);
+    }
+    sessionIdRef.current = sid;
+  }, []);
+
+  // Save messages to localStorage
+  useEffect(() => {
+    localStorage.setItem('chat_messages', JSON.stringify(messages));
+  }, [messages]);
+
+  // Initialize Socket.io
+  useEffect(() => {
+    // Connect to the same origin
+    socketRef.current = io();
+
+    socketRef.current.on('connect', () => {
+      console.log('ChatWidget: Connected to socket server');
+      // Join session room
+      if (sessionIdRef.current) {
+        socketRef.current?.emit('join_session', sessionIdRef.current);
+      }
+    });
+
+    socketRef.current.on('admin_reply', (data: { text: string }) => {
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now(), text: data.text, sender: 'bot' },
+      ]);
+    });
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, []);
 
   // Friendly localized greeting when widget opens (once per open)
   useEffect(() => {
@@ -35,20 +87,24 @@ export function ChatWidget() {
 
   const handleSend = () => {
     if (input.trim()) {
-      setMessages([...messages, { id: Date.now(), text: input, sender: 'user' }]);
+      const text = input.trim();
+      setMessages([...messages, { id: Date.now(), text, sender: 'user' }]);
       setInput('');
       
-      // Simulate bot response
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            text: t('chat.autoReply'),
-            sender: 'bot',
-          },
-        ]);
-      }, 1000);
+      // Send to server
+      socketRef.current?.emit('user_message', { 
+        text,
+        sessionId: sessionIdRef.current
+      });
+      
+      // Optional: Show auto-reply only if it's the first message?
+      // Or maybe just let the admin reply.
+      // For now, let's keep the auto-reply but maybe delay it or remove it if we want real human chat.
+      // The user asked for "admin replies", so maybe remove the fake auto-reply.
+      // But a "We received your message" is good UX.
+      
+      // Let's remove the fake auto-reply simulation and rely on the server/admin.
+      // Or maybe show a "sent" status.
     }
   };
 

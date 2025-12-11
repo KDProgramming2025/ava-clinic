@@ -1,8 +1,11 @@
 import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
+import TelegramService from './services/TelegramService.js';
 import servicesRouter from './routes/services.js';
 import testimonialsRouter from './routes/testimonials.js';
 import teamRouter from './routes/team.js';
@@ -30,6 +33,39 @@ import seoRouter from './routes/seo.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+// Initialize Telegram Service with Socket.io
+TelegramService.setSocketIo(io);
+
+// Socket.io connection handler
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+
+  socket.on('join_session', (sessionId) => {
+    if (sessionId) {
+      socket.join(`session_${sessionId}`);
+      console.log(`Socket ${socket.id} joined session ${sessionId}`);
+    }
+  });
+
+  socket.on('user_message', (data) => {
+    if (data && data.text && data.sessionId) {
+      TelegramService.handleUserMessage(data.sessionId, data.text);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
 const port = process.env.PORT || 4000;
 
 app.use(cors());
@@ -113,7 +149,7 @@ app.get(/.*/, async (req, res, next) => {
   }
 });
 
-const server = app.listen(port, () => {
+const server = httpServer.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`[ava-beauty] backend listening on :${port}`);
 });

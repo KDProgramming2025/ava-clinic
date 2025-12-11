@@ -6,7 +6,13 @@ class TelegramService {
     this.bot = null;
     this.botToken = null;
     this.chatId = null;
+    this.io = null;
+    this.messageMap = new Map(); // telegramMessageId -> socketId
     this.init();
+  }
+
+  setSocketIo(io) {
+    this.io = io;
   }
 
   async init() {
@@ -62,10 +68,24 @@ class TelegramService {
       // Listen for replies
       this.bot.on('message', (msg) => {
         if (msg.text && !msg.text.startsWith('/')) {
-          console.log(`TelegramService: Received message from ${msg.chat.id}: ${msg.text}`);
-          // Here you can process the reply (e.g., save to DB, forward to another system)
-          // For now, we just acknowledge receipt
-          // this.bot.sendMessage(msg.chat.id, 'Message received by backend.');
+          // Check if it's a reply to a forwarded message
+          if (msg.reply_to_message) {
+            const originalMsgId = msg.reply_to_message.message_id;
+            const sessionId = this.messageMap.get(originalMsgId);
+            
+            if (sessionId && this.io) {
+              // Send to frontend room
+              this.io.to(`session_${sessionId}`).emit('admin_reply', { text: msg.text });
+              
+              // Also map this new admin message to the same session, so admin can reply to their own reply
+              this.messageMap.set(msg.message_id, sessionId);
+              
+              // Cleanup later
+              setTimeout(() => {
+                this.messageMap.delete(msg.message_id);
+              }, 24 * 60 * 60 * 1000);
+            }
+          }
         }
       });
 
@@ -80,6 +100,23 @@ class TelegramService {
 
   async reload() {
     await this.init();
+  }
+
+  async handleUserMessage(sessionId, text) {
+    if (!this.bot || !this.chatId) return;
+    
+    try {
+      const sentMsg = await this.bot.sendMessage(this.chatId, `💬 <b>User Message:</b> (ID: ${sessionId})\n${text}`, { parse_mode: 'HTML' });
+      this.messageMap.set(sentMsg.message_id, sessionId);
+      
+      // Cleanup map after 24 hours
+      setTimeout(() => {
+        this.messageMap.delete(sentMsg.message_id);
+      }, 24 * 60 * 60 * 1000);
+      
+    } catch (e) {
+      console.error('TelegramService: Failed to forward user message', e);
+    }
   }
 
   async notifyNewBooking(booking) {
@@ -120,6 +157,25 @@ class TelegramService {
       console.log('TelegramService: Notification sent');
     } catch (error) {
       console.error('TelegramService: Failed to send notification', error.message);
+    }
+  }
+
+  async notifyNewMessage(msgData) {
+    if (!this.bot || !this.chatId) return;
+
+    try {
+      const { fromName, email, phone, subject, body } = msgData;
+      
+      const message = `📧 <b>New Contact Form Message</b>\n\n` +
+        `👤 <b>Name:</b> ${fromName}\n` +
+        (email ? `✉️ <b>Email:</b> ${email}\n` : '') +
+        (phone ? `📞 <b>Phone:</b> ${phone}\n` : '') +
+        (subject ? `📌 <b>Subject:</b> ${subject}\n` : '') +
+        `\n📝 <b>Message:</b>\n${body}`;
+
+      await this.bot.sendMessage(this.chatId, message, { parse_mode: 'HTML' });
+    } catch (error) {
+      console.error('TelegramService: Failed to send message notification', error.message);
     }
   }
 }
