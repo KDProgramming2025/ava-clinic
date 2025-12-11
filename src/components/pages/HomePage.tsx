@@ -149,8 +149,8 @@ export function HomePage() {
           {/* Hero Section */}
           <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
-              <motion.div animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0] }} transition={{ duration: 20, repeat: Infinity, ease: 'linear' }} className="absolute top-20 left-20 w-72 h-72 bg-gradient-to-br from-pink-300/30 to-purple-300/30 rounded-full blur-3xl" />
-              <motion.div animate={{ scale: [1.2, 1, 1.2], rotate: [90, 0, 90] }} transition={{ duration: 15, repeat: Infinity, ease: 'linear' }} className="absolute bottom-20 right-20 w-96 h-96 bg-gradient-to-br from-purple-300/30 to-blue-300/30 rounded-full blur-3xl" />
+              <div className="absolute top-20 left-20 w-72 h-72 bg-gradient-to-br from-pink-300/30 to-purple-300/30 rounded-full blur-3xl" />
+              <div className="absolute bottom-20 right-20 w-96 h-96 bg-gradient-to-br from-purple-300/30 to-blue-300/30 rounded-full blur-3xl" />
             </div>
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
               <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -193,13 +193,13 @@ export function HomePage() {
                   </motion.div>
                 </motion.div>
                 <motion.div initial={{ opacity: 0, x: isRTL ? -50 : 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }} className="relative">
-                  <motion.div animate={{ y: [0, -20, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} className="rounded-3xl overflow-hidden shadow-2xl bg-white p-3">
+                  <div className="rounded-3xl overflow-hidden shadow-2xl bg-white p-3">
                     {heroImageUrl && !loading ? (
                       <ImageWithFallback src={heroImageUrl} alt={t('hero.homeAlt')} className="rounded-2xl w-full h-auto" />
                     ) : (
                       <div className="rounded-2xl w-full h-[360px] bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200" aria-label={t('hero.homeAlt')} />
                     )}
-                  </motion.div>
+                  </div>
                 </motion.div>
               </div>
               <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-20">

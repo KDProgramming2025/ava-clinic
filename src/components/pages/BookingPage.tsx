@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Calendar as CalendarIcon, Clock, CheckCircle, User, Mail, Phone, MessageSquare, ChevronRight, Star, Heart } from 'lucide-react';
+import { faIR } from 'date-fns/locale';
+import { Calendar as MultiCalendar } from "react-multi-date-picker";
+import persian from "react-date-object/calendars/persian";
+import persian_fa from "react-date-object/locales/persian_fa";
 import { useLanguage } from '../LanguageContext';
 import { useServices } from '../../contexts/ServicesContext';
 import { Card } from '../ui/card';
@@ -33,6 +37,17 @@ export function BookingPage() {
   const [loading, setLoading] = useState(true);
   const [loadingTimes, setLoadingTimes] = useState(false);
   const [infoCards, setInfoCards] = useState<any[]>([]);
+
+  const pickLocalized = (fa?: string | null, en?: string | null, fallback?: string | null) => {
+    const order = language === 'fa' ? [fa, en, fallback] : [en, fa, fallback];
+    for (const value of order) {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed.length) return trimmed;
+      }
+    }
+    return fallback || '';
+  };
 
   // Map stored icon name strings to Lucide components
   const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -72,7 +87,12 @@ export function BookingPage() {
       if (!selectedDate) { setAvailableTimes([]); return; }
       try {
         setLoadingTimes(true);
-        const dateStr = selectedDate.toISOString().slice(0, 10);
+        // Use local date components to avoid timezone shifts
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(selectedDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        
         const times = await api.availability(dateStr, selectedService || undefined);
         if (!cancelled) setAvailableTimes(times || []);
       } catch {
@@ -95,7 +115,10 @@ export function BookingPage() {
   if (!selectedService || !selectedDate || !selectedTime) { toast.error(t('booking.selectServiceError')); return; }
       const client = await api.createClient({ name: fullname, email, phone });
       const [h, m] = selectedTime.split(':').map(Number);
-      const start = new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), selectedDate.getUTCDate(), h, m, 0));
+      
+      // Construct start time using the selected local date and time, then convert to UTC
+      const start = new Date(Date.UTC(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), h, m, 0));
+      
   // Prefer per-service numeric durationMinutes when available
   const svc = services.find(s => s.id === selectedService);
   const durationMin = (svc?.durationMinutes && Number.isFinite(svc.durationMinutes)) ? svc.durationMinutes : (config?.defaultDurationMinutes ?? 60);
@@ -221,12 +244,12 @@ export function BookingPage() {
                       onClick={() => setSelectedService(service.id)}
                     >
                       <div className="flex items-start justify-between mb-4">
-                        <h3 className="text-gray-900">{service.title || service.name}</h3>
+                        <h3 className="text-gray-900">{pickLocalized(service.titleFa, service.titleEn, service.title || service.name)}</h3>
                         {selectedService === service.id && (
                           <CheckCircle className="w-6 h-6 text-pink-500" />
                         )}
                       </div>
-                      <p className="text-gray-600 mb-4">{service.description || ''}</p>
+                      <p className="text-gray-600 mb-4">{pickLocalized(service.descriptionFa, service.descriptionEn, service.description)}</p>
                       <div className="flex items-center gap-4 text-gray-500 mb-3">
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-pink-500" />
@@ -267,13 +290,32 @@ export function BookingPage() {
                     <CalendarIcon className="w-6 h-6 text-pink-500" />
                     <h3 className="text-gray-900">{t('booking.chooseDate')}</h3>
                   </div>
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(d: any) => setSelectedDate(d as Date | undefined)}
-                    className="rounded-xl border-0"
-                    disabled={(date: Date) => date < new Date()}
-                  />
+                  {language === 'fa' ? (
+                    <div className="flex justify-center w-full" dir="rtl">
+                      <MultiCalendar
+                        calendar={persian}
+                        locale={persian_fa}
+                        value={selectedDate}
+                        onChange={(date: any) => {
+                          if (date && date.toDate) setSelectedDate(date.toDate());
+                          else setSelectedDate(undefined);
+                        }}
+                        minDate={new Date(new Date().setDate(new Date().getDate() + 1))}
+                        className="rmdp-mobile"
+                        shadow={false}
+                      />
+                    </div>
+                  ) : (
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(d: any) => setSelectedDate(d as Date | undefined)}
+                      className="rounded-xl border-0"
+                      disabled={(date: Date) => date < new Date()}
+                      locale={undefined}
+                      dir="ltr"
+                    />
+                  )}
                 </Card>
 
                 {/* Time Slots */}
@@ -284,7 +326,7 @@ export function BookingPage() {
                   </div>
                   {selectedDate ? (
                     loadingTimes ? (
-                      <p className="text-gray-500 text-center py-12">Loading times…</p>
+                      <p className="text-gray-500 text-center py-12">{t('booking.loadingTimes')}</p>
                     ) : availableTimes.length ? (
                       <div className="grid grid-cols-2 gap-3">
                         {availableTimes.map((time) => (
@@ -422,7 +464,7 @@ export function BookingPage() {
                     <div className="flex justify-between items-start">
                       <span className="text-gray-600">{t('booking.summary.service')}</span>
                       <span className="text-gray-900">
-                        {(() => { const s = services.find(s => s.id === selectedService); return s?.title || s?.name || ''; })()}
+                        {(() => { const s = services.find(s => s.id === selectedService); return s ? pickLocalized(s.titleFa, s.titleEn, s.title || s.name) : ''; })()}
                       </span>
                     </div>
                     <div className="flex justify-between items-start">
@@ -454,7 +496,7 @@ export function BookingPage() {
                   <div className="mt-8 p-4 bg-white rounded-xl">
                     <p className="text-gray-600">
                       <strong>{t('booking.note')}:</strong> {
-                        (language === 'fa' ? (config?.disclaimerFa || config?.disclaimer) : (config?.disclaimerEn || config?.disclaimer)) || t('booking.confirmedBody')
+                        pickLocalized(config?.disclaimerFa, config?.disclaimerEn, config?.disclaimer) || t('booking.confirmedBody')
                       }
                     </p>
                   </div>
@@ -484,27 +526,27 @@ export function BookingPage() {
                 {t('booking.confirmedBody')}
               </p>
 
-              <Card className="p-8 border-0 shadow-xl bg-gradient-to-br from-pink-50 to-purple-50 text-left">
+              <Card id="printable-receipt" className="p-8 border-0 shadow-xl bg-gradient-to-br from-pink-50 to-purple-50 text-left">
                 <h3 className="mb-6 text-gray-900 text-center">{t('booking.yourAppointment')}</h3>
                 <div className="space-y-4">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Service:</span>
+                    <span className="text-gray-600">{t('booking.summary.service')}</span>
                     <span className="text-gray-900">
-                      {services.find(s => s.id === selectedService)?.title || services.find(s => s.id === selectedService)?.name}
+                      {(() => { const s = services.find(s => s.id === selectedService); return s ? pickLocalized(s.titleFa, s.titleEn, s.title || s.name) : ''; })()}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Date:</span>
+                    <span className="text-gray-600">{t('booking.summary.date')}</span>
                     <span className="text-gray-900">
                       {selectedDate?.toLocaleDateString()}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Time:</span>
+                    <span className="text-gray-600">{t('booking.summary.time')}</span>
                     <span className="text-gray-900">{selectedTime}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">{t('booking.confirmationNumber')}:</span>
+                    <span className="text-gray-600">{t('booking.confirmationNumber')}</span>
                     <span className="text-gray-900">BK{Math.floor(Math.random() * 100000)}</span>
                   </div>
                 </div>
@@ -525,6 +567,7 @@ export function BookingPage() {
                 </Button>
                 <Button
                   className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-full px-8"
+                  onClick={() => window.print()}
                 >
                   {t('booking.downloadReceipt')}
                 </Button>
@@ -551,8 +594,8 @@ export function BookingPage() {
                     <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                       {renderIcon(item.icon)}
                     </div>
-                    <h3 className="mb-3 text-gray-900">{item.title}</h3>
-                    <p className="text-gray-600">{item.description || ''}</p>
+                    <h3 className="mb-3 text-gray-900">{pickLocalized(item.titleFa, item.titleEn, item.title)}</h3>
+                    <p className="text-gray-600">{pickLocalized(item.descriptionFa, item.descriptionEn, item.description)}</p>
                   </Card>
                 </motion.div>
               ))}

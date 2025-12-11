@@ -5,10 +5,13 @@ import { io, Socket } from 'socket.io-client';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useLanguage } from './LanguageContext';
+import { useMobileHistoryState } from '../hooks/useMobileHistoryState';
 
 export function ChatWidget() {
   const { t, isRTL } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+
+  useMobileHistoryState(isOpen, () => setIsOpen(false));
   
   // Load messages from localStorage
   const [messages, setMessages] = useState<{

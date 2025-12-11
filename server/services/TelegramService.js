@@ -139,19 +139,19 @@ class TelegramService {
       };
       const dateStr = new Date(startTime).toLocaleString('fa-IR', dateOptions);
       
-      const clientName = client?.name || 'Unknown Client';
-      const clientPhone = client?.phone || 'No Phone';
-      const serviceName = service?.titleEn || service?.titleFa || 'General Service';
-      const notesText = notes ? `\n🗒 <b>Notes:</b> ${notes}` : '';
+      const clientName = client?.name || 'ناشناس';
+      const clientPhone = client?.phone || 'بدون شماره';
+      const serviceName = service?.titleFa || service?.titleEn || 'خدمت عمومی';
+      const notesText = notes ? `\n🗒 <b>یادداشت‌ها:</b> ${notes}` : '';
 
-      const message = `🔔 <b>New Booking Received</b>\n\n` +
-        `👤 <b>Client:</b> ${clientName}\n` +
-        `📞 <b>Phone:</b> ${clientPhone}\n` +
-        `💇‍♀️ <b>Service:</b> ${serviceName}\n` +
-        `📅 <b>Time:</b> ${dateStr}\n` +
-        `📝 <b>Status:</b> ${status}` +
+      const message = `🔔 <b>رزرو جدید دریافت شد</b>\n\n` +
+        `👤 <b>مشتری:</b> ${clientName}\n` +
+        `📞 <b>تلفن:</b> ${clientPhone}\n` +
+        `💇‍♀️ <b>خدمت:</b> ${serviceName}\n` +
+        `📅 <b>زمان:</b> ${dateStr}\n` +
+        `📝 <b>وضعیت:</b> ${status}` +
         notesText + `\n\n` +
-        `<i>Reply to this message to log a note on the server.</i>`;
+        `<i>برای ثبت یادداشت در سرور به این پیام پاسخ دهید.</i>`;
 
       await this.bot.sendMessage(this.chatId, message, { parse_mode: 'HTML' });
       console.log('TelegramService: Notification sent');
@@ -166,12 +166,12 @@ class TelegramService {
     try {
       const { fromName, email, phone, subject, body } = msgData;
       
-      const message = `📧 <b>New Contact Form Message</b>\n\n` +
-        `👤 <b>Name:</b> ${fromName}\n` +
-        (email ? `✉️ <b>Email:</b> ${email}\n` : '') +
-        (phone ? `📞 <b>Phone:</b> ${phone}\n` : '') +
-        (subject ? `📌 <b>Subject:</b> ${subject}\n` : '') +
-        `\n📝 <b>Message:</b>\n${body}`;
+      const message = `📧 <b>پیام جدید از فرم تماس</b>\n\n` +
+        `👤 <b>نام:</b> ${fromName}\n` +
+        (email ? `✉️ <b>ایمیل:</b> ${email}\n` : '') +
+        (phone ? `📞 <b>تلفن:</b> ${phone}\n` : '') +
+        (subject ? `📌 <b>موضوع:</b> ${subject}\n` : '') +
+        `\n📝 <b>پیام:</b>\n${body}`;
 
       await this.bot.sendMessage(this.chatId, message, { parse_mode: 'HTML' });
     } catch (error) {

@@ -513,6 +513,10 @@ model BookingInfo {
   description String?
   icon        String?
   order       Int     @default(0)
+  titleEn     String?
+  titleFa     String?
+  descriptionEn String?
+  descriptionFa String?
 }
 
 enum ArticleStatus {

@@ -17,6 +17,7 @@ import {
   formatVideoDuration,
   resolveVideoMediaUrl,
 } from '../../utils/videoMedia';
+import { useMobileHistoryState } from '../../hooks/useMobileHistoryState';
 
 const truncateText = (value?: string | null, limit = 140): string | null => {
   if (!value) return null;
@@ -75,6 +76,8 @@ export function VideoGalleryPage() {
       setActiveMediaId(null);
     }
   };
+
+  useMobileHistoryState(viewerOpen, () => handleViewerChange(false));
 
   const activeMedia = selectedVideo
     ? mediaItemsFor(selectedVideo).find((item) => item.id === activeMediaId) || primaryMediaFor(selectedVideo)

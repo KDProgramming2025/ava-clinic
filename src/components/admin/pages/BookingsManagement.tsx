@@ -57,7 +57,7 @@ interface BookingItem {
   clientId: string;
   client: { id: string; name: string; email?: string|null; phone?: string|null };
   serviceId?: string|null;
-  service?: { id: string; title: string } | null;
+  service?: { id: string; title: string; titleEn?: string; titleFa?: string } | null;
   startTime: string;
   endTime?: string|null;
   status: BookingStatus;
@@ -65,10 +65,10 @@ interface BookingItem {
   priceCents?: number|null;
 }
 interface ClientItem { id: string; name: string; email?: string|null; phone?: string|null }
-interface ServiceItem { id: string; title: string }
+interface ServiceItem { id: string; title: string; titleEn?: string; titleFa?: string }
 
 export function BookingsManagement() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all'|BookingStatus>('all');
   const [selectedBooking, setSelectedBooking] = useState<BookingItem|null>(null);
@@ -138,8 +138,11 @@ export function BookingsManagement() {
     });
   }, [bookings, filterStatus, searchQuery]);
 
-  const fmtDate = (iso?: string|null) => iso ? new Date(iso).toLocaleDateString() : '';
-  const fmtTime = (iso?: string|null) => iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const fmtDate = (iso?: string|null) => {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString(language === 'fa' ? 'fa-IR' : 'en-US', { timeZone: 'UTC' });
+  };
+  const fmtTime = (iso?: string|null) => iso ? iso.slice(11, 16) : '';
   const fmtPrice = (cents?: number|null) => (cents ?? 0) > 0 ? `$${((cents as number)/100).toLocaleString()}` : '—';
 
   const openCreate = () => {
@@ -273,14 +276,14 @@ export function BookingsManagement() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>{t('admin.client')}</TableHead>
-                <TableHead>{t('admin.service')}</TableHead>
-                <TableHead>{t('admin.dateTime')}</TableHead>
-                <TableHead>{t('admin.duration')}</TableHead>
-                <TableHead>{t('admin.price')}</TableHead>
-                <TableHead>{t('admin.status')}</TableHead>
-                <TableHead className="text-right">{t('admin.actions')}</TableHead>
+                <TableHead className={language === 'fa' ? 'text-right' : ''}>ID</TableHead>
+                <TableHead className={language === 'fa' ? 'text-right' : ''}>{t('admin.client')}</TableHead>
+                <TableHead className={language === 'fa' ? 'text-right' : ''}>{t('admin.service')}</TableHead>
+                <TableHead className={language === 'fa' ? 'text-right' : ''}>{t('admin.dateTime')}</TableHead>
+                <TableHead className={language === 'fa' ? 'text-right' : ''}>{t('admin.duration')}</TableHead>
+                <TableHead className={language === 'fa' ? 'text-right' : ''}>{t('admin.price')}</TableHead>
+                <TableHead className={language === 'fa' ? 'text-right' : ''}>{t('admin.status')}</TableHead>
+                <TableHead className={language === 'fa' ? 'text-left' : 'text-right'}>{t('admin.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -299,7 +302,7 @@ export function BookingsManagement() {
                       <p className="text-gray-500">{booking.client?.email}</p>
                     </div>
                   </TableCell>
-                  <TableCell>{booking.service?.title || '—'}</TableCell>
+                  <TableCell>{(language === 'fa' ? booking.service?.titleFa : booking.service?.titleEn) || booking.service?.title || '—'}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-400" />
@@ -321,7 +324,7 @@ export function BookingsManagement() {
                       {booking.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className={language === 'fa' ? 'text-left' : 'text-right'}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="rounded-full">
@@ -384,7 +387,7 @@ export function BookingsManagement() {
                 </div>
                 <div>
                   <p className="text-gray-600 mb-1">{t('admin.service')}</p>
-                  <p className="text-gray-900">{selectedBooking.service?.title || '—'}</p>
+                  <p className="text-gray-900">{(language === 'fa' ? selectedBooking.service?.titleFa : selectedBooking.service?.titleEn) || selectedBooking.service?.title || '—'}</p>
                 </div>
                 <div>
                   <p className="text-gray-600 mb-1">{t('admin.date')}</p>
@@ -444,7 +447,7 @@ export function BookingsManagement() {
               <label className="text-sm text-gray-700">{t('admin.service')}</label>
               <select value={form.serviceId || ''} onChange={(e)=> setForm(f=>({ ...f, serviceId: e.target.value }))} className="mt-2 w-full rounded-xl border-gray-300">
                 <option value="">—</option>
-                {services.map(s => (<option key={s.id} value={s.id}>{s.title}</option>))}
+                {services.map(s => (<option key={s.id} value={s.id}>{(language === 'fa' ? s.titleFa : s.titleEn) || s.title}</option>))}
               </select>
             </div>
             <div className="grid md:grid-cols-2 gap-4">

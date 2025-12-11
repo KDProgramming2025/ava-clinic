@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, ChevronDown, Globe, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from './LanguageContext';
@@ -7,11 +7,15 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useServices } from '../contexts/ServicesContext';
 import { Button } from './ui/button';
 import { resolveMediaUrl } from '../utils/media';
+import { useMobileHistoryState } from '../hooks/useMobileHistoryState';
 
 export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isServicesOpen, setIsServicesOpen] = useState(false);
+
+  useMobileHistoryState(isMobileMenuOpen, () => setIsMobileMenuOpen(false));
+
   const { t, toggleLanguage, language, isRTL, trc } = useLanguage();
   const { settings: settingsData, navigation: navData } = useSettings();
   const { services: servicesData } = useServices();
@@ -19,6 +23,14 @@ export function Navigation() {
   const [services, setServices] = useState<Array<{ id: string; label: string }>>([]);
   const [brand, setBrand] = useState<{ title?: string; logoUrl?: string }>({});
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleMobileNavClick = (e: React.MouseEvent, path: string) => {
+    e.preventDefault();
+    setIsMobileMenuOpen(false);
+    // Wait for history state cleanup to happen before navigating
+    setTimeout(() => navigate(path), 100);
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -129,7 +141,16 @@ export function Navigation() {
             className="flex items-center cursor-pointer"
             as-child="true"
           >
-            <Link to="/" aria-label={brand.title || 'Home'} className="flex items-center">
+            <Link 
+              to="/" 
+              aria-label={brand.title || 'Home'} 
+              className="flex items-center"
+              onClick={(e) => {
+                if (isMobileMenuOpen) {
+                  handleMobileNavClick(e, '/');
+                }
+              }}
+            >
             {brand.logoUrl ? (
               <img src={brand.logoUrl} alt={brand.title || 'Logo'} className="w-12 h-12 rounded-full object-cover shadow-lg" />
             ) : (
@@ -169,7 +190,7 @@ export function Navigation() {
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
-                          className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 bg-white rounded-2xl shadow-xl overflow-hidden`}
+                          className={`absolute ${isRTL ? 'right-0' : 'left-0'} mt-2 w-56 bg-white rounded-2xl shadow-xl overflow-hidden`}
                         >
                           {services.map((service, index) => (
                             <motion.div
@@ -182,7 +203,7 @@ export function Navigation() {
                               <Link
                                 to="/services"
                                 onClick={() => setIsServicesOpen(false)}
-                                className="block w-full text-left px-4 py-3 hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-colors"
+                                className={`block w-full px-4 py-3 hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 transition-colors ${isRTL ? 'text-right' : 'text-left'}`}
                               >
                                 {service.label}
                               </Link>
@@ -255,8 +276,8 @@ export function Navigation() {
                 <div key={item.id}>
                   <NavLink
                     to={item.path || '/'}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={({ isActive }) => `block w-full text-left px-4 py-3 rounded-xl transition-all ${
+                    onClick={(e) => handleMobileNavClick(e, item.path || '/')}
+                    className={({ isActive }) => `block w-full px-4 py-3 rounded-xl transition-all ${isRTL ? 'text-right' : 'text-left'} ${
                       isActive ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : 'hover:bg-gray-100'
                     }`}
                   >
@@ -268,8 +289,8 @@ export function Navigation() {
                         <Link
                           key={service.id}
                           to="/services"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                          className={`block w-full text-left px-8 py-2 rounded-xl text-gray-600 hover:bg-gray-100 ${isRTL ? 'pr-8' : 'pl-8'}`}
+                          onClick={(e) => handleMobileNavClick(e, '/services')}
+                          className={`block w-full px-8 py-2 rounded-xl text-gray-600 hover:bg-gray-100 ${isRTL ? 'text-right pr-8' : 'text-left pl-8'}`}
                         >
                           {service.label}
                         </Link>
@@ -279,7 +300,7 @@ export function Navigation() {
                 </div>
               ))}
               <Button asChild className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">
-                <Link to="/booking" onClick={() => setIsMobileMenuOpen(false)}>
+                <Link to="/booking" onClick={(e) => handleMobileNavClick(e, '/booking')}>
                   {t('booking')}
                 </Link>
               </Button>

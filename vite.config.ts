@@ -11,14 +11,14 @@
     plugins: [
       react(),
       // Bundle analysis (generates stats.html after build)
-      visualizer({ filename: 'stats.html', gzipSize: true, brotliSize: true, template: 'treemap' }),
+      // visualizer({ filename: 'stats.html', gzipSize: true, brotliSize: true, template: 'treemap' }),
       // Generate gzip and brotli compressed assets for production serving
-      compression({
-        include: /.(js|css|html|svg)$/,
-        algorithms: ['gzip', 'brotli'],
-        threshold: 1024,
-        deleteOriginalAssets: false,
-      }),
+      // compression({
+      //   include: /.(js|css|html|svg)$/,
+      //   algorithms: ['gzip', 'brotli'],
+      //   threshold: 1024,
+      //   deleteOriginalAssets: false,
+      // }),
       // Remove modulepreload links for admin chunks to prevent eager loading
       {
         name: 'remove-admin-modulepreload',

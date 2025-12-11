@@ -57,8 +57,7 @@ router.get('/availability', async (req, res) => {
     const bookings = await prisma.booking.findMany({
       where: {
         startTime: { gte: start, lt: end },
-        status: { in: ['CONFIRMED', 'COMPLETED'] },
-        ...(serviceId ? { serviceId: String(serviceId) } : {}),
+        status: { in: ['PENDING', 'CONFIRMED', 'COMPLETED'] },
       },
       select: { startTime: true, endTime: true },
     });
