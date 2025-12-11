@@ -33,7 +33,7 @@ export function TestimonialsManagement() {
   const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Testimonial | null>(null);
-  const [form, setForm] = useState<{ nameEn: string; nameFa: string; textEn: string; textFa: string; rating: string; image: string }>({ nameEn: '', nameFa: '', textEn: '', textFa: '', rating: '5', image: '' });
+  const [form, setForm] = useState<{ nameEn: string; nameFa: string; textEn: string; textFa: string; rating: string; image: string; imageFile: File | null }>({ nameEn: '', nameFa: '', textEn: '', textFa: '', rating: '5', image: '', imageFile: null });
 
   const fetchAll = async () => {
     try {
@@ -48,7 +48,7 @@ export function TestimonialsManagement() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ nameEn: '', nameFa: '', textEn: '', textFa: '', rating: '5', image: '' });
+    setForm({ nameEn: '', nameFa: '', textEn: '', textFa: '', rating: '5', image: '', imageFile: null });
     setIsDialogOpen(true);
   };
   const openEdit = (testi: Testimonial) => {
@@ -60,33 +60,40 @@ export function TestimonialsManagement() {
       textFa: (testi as any).textFa || testi.text,
       rating: String(testi.rating),
       image: testi.image || '',
+      imageFile: null,
     });
     setIsDialogOpen(true);
   };
 
   const save = async () => {
     try {
-  if ((!form.nameEn.trim() && !form.nameFa.trim()) || (!form.textEn.trim() && !form.textFa.trim())) { toast.error(tr('admin.nameTextRequired')); return; }
-      const payload = {
-        nameEn: form.nameEn.trim() || undefined,
-        nameFa: form.nameFa.trim() || undefined,
-        textEn: form.textEn.trim() || undefined,
-        textFa: form.textFa.trim() || undefined,
-        name: form.nameFa.trim() || form.nameEn.trim(),
-        text: form.textFa.trim() || form.textEn.trim(),
-        rating: parseInt(form.rating, 10),
-        image: form.image.trim() || undefined,
-      };
+      if ((!form.nameEn.trim() && !form.nameFa.trim()) || (!form.textEn.trim() && !form.textFa.trim())) { toast.error(tr('admin.nameTextRequired')); return; }
+      
+      const formData = new FormData();
+      if (form.nameEn.trim()) formData.append('nameEn', form.nameEn.trim());
+      if (form.nameFa.trim()) formData.append('nameFa', form.nameFa.trim());
+      if (form.textEn.trim()) formData.append('textEn', form.textEn.trim());
+      if (form.textFa.trim()) formData.append('textFa', form.textFa.trim());
+      formData.append('name', form.nameFa.trim() || form.nameEn.trim());
+      formData.append('text', form.textFa.trim() || form.textEn.trim());
+      formData.append('rating', form.rating);
+      
+      if (form.imageFile) {
+        formData.append('image', form.imageFile);
+      } else if (form.image) {
+        formData.append('image', form.image);
+      }
+
       if (editing) {
-    await apiFetch(`/testimonials/${editing.id}`, { method: 'PUT', body: payload });
-  toast.success(tr('admin.testimonialUpdated'));
+        await apiFetch(`/testimonials/${editing.id}`, { method: 'PUT', body: formData });
+        toast.success(tr('admin.testimonialUpdated'));
       } else {
-    await apiFetch('/testimonials', { method: 'POST', body: payload });
-  toast.success(tr('admin.testimonialCreated'));
+        await apiFetch('/testimonials', { method: 'POST', body: formData });
+        toast.success(tr('admin.testimonialCreated'));
       }
       setIsDialogOpen(false); setEditing(null); await fetchAll();
     } catch (e: any) {
-  toast.error(e?.message || tr('admin.saveFailed'));
+      toast.error(e?.message || tr('admin.saveFailed'));
     }
   };
 
@@ -209,10 +216,35 @@ export function TestimonialsManagement() {
               </div>
               <div>
                 <Label htmlFor="t-image">{L.imageUrl}</Label>
-                <Input id="t-image" value={form.image} onChange={(e) => setForm(f => ({ ...f, image: e.target.value }))} className="mt-2 rounded-xl" placeholder="https://..." />
+                <div className="flex flex-col gap-2 mt-2">
+                  <Input 
+                    id="t-image" 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setForm(f => ({ ...f, imageFile: file, image: URL.createObjectURL(file) }));
+                      }
+                    }} 
+                    className="rounded-xl" 
+                  />
+                  {form.image && (
+                    <div className="relative w-full h-28">
+                      <img src={form.image} alt="preview" className="w-full h-full object-cover rounded-xl border" />
+                      <Button 
+                        variant="destructive" 
+                        size="icon" 
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full"
+                        onClick={() => setForm(f => ({ ...f, image: '', imageFile: null }))}
+                      >
+                        <span className="text-xs">✕</span>
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            {form.image && <img src={form.image} alt="preview" className="mt-2 h-28 w-full object-cover rounded-xl border" />}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsDialogOpen(false); setEditing(null); }}>{L.cancel}</Button>
