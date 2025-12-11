@@ -954,6 +954,13 @@ const translations = {
     'admin.videos.reorderDesc': 'Drag and drop to reorder videos',
     'admin.videos.reorderSuccess': 'Order saved successfully',
     'admin.videos.reorderFailed': 'Failed to save order',
+    'admin.settings.notificationsTab': 'Notifications',
+    'admin.settings.notificationsTitle': 'Notifications',
+    'admin.settings.whatsappPhone': 'WhatsApp Phone',
+    'admin.settings.whatsappPhoneHint': 'International format without + (e.g., 989123456789)',
+    'admin.settings.whatsappApiKey': 'CallMeBot API Key',
+    'admin.settings.whatsappApiKeyHint': 'Get it from CallMeBot on WhatsApp',
+    'admin.settings.saveNotifications': 'Save Notifications',
   },
   fa: {
     'admin.videos.reorder': 'تغییر ترتیب',
@@ -1098,6 +1105,13 @@ const translations = {
   'admin.settings.saved': 'تنظیمات ذخیره شد',
   'admin.settings.saveFailed': 'ذخیره ناموفق بود',
   'admin.settings.loadFailed': 'بارگذاری تنظیمات ناموفق بود',
+  'admin.settings.notificationsTab': 'اعلان‌ها',
+  'admin.settings.notificationsTitle': 'تنظیمات اعلان‌ها',
+  'admin.settings.whatsappPhone': 'شماره واتساپ',
+  'admin.settings.whatsappPhoneHint': 'فرمت بین‌المللی بدون + (مثال: 989123456789)',
+  'admin.settings.whatsappApiKey': 'کلید API CallMeBot',
+  'admin.settings.whatsappApiKeyHint': 'دریافت از ربات CallMeBot در واتساپ',
+  'admin.settings.saveNotifications': 'ذخیره اعلان‌ها',
     
   // Admin Translations Management
   'admin.translations.title': 'ترجمه‌ها',

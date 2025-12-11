@@ -1,5 +1,6 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
+import NotificationService from '../services/NotificationService.js';
 
 const router = express.Router();
 
@@ -97,6 +98,10 @@ router.post('/', async (req, res) => {
       },
       include: { client: true, service: true },
     });
+
+    // Notify admin asynchronously
+    NotificationService.notifyAdminNewBooking(created).catch(err => console.error('Notification failed:', err));
+
     res.status(201).json(created);
   } catch (e) {
     // eslint-disable-next-line no-console

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef, ChangeEvent } from 'react';
 import { motion } from 'motion/react';
-import { Settings as SettingsIcon, Image as ImageIcon, Mail, UploadCloud } from 'lucide-react';
+import { Settings as SettingsIcon, Image as ImageIcon, Mail, UploadCloud, Bell } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
@@ -20,6 +20,10 @@ interface BrandingSettings {
   primaryColor?: string | null;
   secondaryColor?: string | null;
 }
+interface NotificationSettings {
+  whatsappPhone?: string | null;
+  whatsappApiKey?: string | null;
+}
 interface EmailTemplates {
   emailConfirmTemplate?: string | null;
   emailReminderTemplate?: string | null;
@@ -34,11 +38,12 @@ interface PerPageSeoEntry {
   descriptionFa?: string | null;
 }
 interface PerPageSeoMap { [path: string]: PerPageSeoEntry }
-interface SettingsPayload extends BrandingSettings, EmailTemplates {}
+interface SettingsPayload extends BrandingSettings, EmailTemplates, NotificationSettings {}
 
 export function SettingsManagement() {
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const [brand, setBrand] = useState<BrandingSettings>({});
+  const [notifications, setNotifications] = useState<NotificationSettings>({});
   const [emails, setEmails] = useState<EmailTemplates>({});
   const [perPageSeo, setPerPageSeo] = useState<PerPageSeoMap>({});
   const [loading, setLoading] = useState(true);
@@ -59,6 +64,10 @@ export function SettingsManagement() {
         primaryColor: s.primaryColor || '',
         secondaryColor: s.secondaryColor || '',
       });
+      setNotifications({
+        whatsappPhone: s.whatsappPhone || '',
+        whatsappApiKey: s.whatsappApiKey || '',
+      });
       setEmails({ emailConfirmTemplate: s.emailConfirmTemplate || '', emailReminderTemplate: s.emailReminderTemplate || '', contactAutoReply: s.contactAutoReply || '' });
   setPerPageSeo((s.perPageSeo as any) || {});
     } catch (e: any) {
@@ -71,7 +80,7 @@ export function SettingsManagement() {
   const save = async () => {
     try {
       setSaving(true);
-  const settings: SettingsPayload & { perPageSeo?: any } = { ...brand, ...emails, perPageSeo };
+  const settings: SettingsPayload & { perPageSeo?: any } = { ...brand, ...emails, ...notifications, perPageSeo };
   await apiFetch('/settings', { method: 'PUT', body: { settings } });
       toast.success(t('admin.settings.saved'));
     } catch (e: any) {
@@ -114,8 +123,9 @@ export function SettingsManagement() {
       </div>
 
       <Tabs defaultValue="branding" className="w-full">
-        <TabsList className="grid w-full max-w-3xl grid-cols-3">
+        <TabsList className="grid w-full max-w-3xl grid-cols-4">
           <TabsTrigger value="branding"><SettingsIcon className="w-4 h-4 mr-2" />{t('admin.settings.brandingTab')}</TabsTrigger>
+          <TabsTrigger value="notifications"><Bell className="w-4 h-4 mr-2" />{t('admin.settings.notificationsTab')}</TabsTrigger>
           <TabsTrigger value="emails"><Mail className="w-4 h-4 mr-2" />{t('admin.settings.emailsTab')}</TabsTrigger>
           <TabsTrigger value="seo"><SettingsIcon className="w-4 h-4 mr-2" />{t('admin.settings.seoTab')}</TabsTrigger>
         </TabsList>
@@ -168,6 +178,40 @@ export function SettingsManagement() {
                 </div>
               </div>
               <Button disabled={saving} onClick={save} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">{saving ? t('admin.saving') : t('admin.settings.saveBranding')}</Button>
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="mt-6">
+          <Card className="p-6 border-0 shadow-lg">
+            <h3 className="mb-6 text-gray-900">{t('admin.settings.notificationsTitle')}</h3>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label htmlFor="whatsapp-phone">{t('admin.settings.whatsappPhone')}</Label>
+                  <p className="text-xs text-gray-500 mb-2">{t('admin.settings.whatsappPhoneHint')}</p>
+                  <Input 
+                    id="whatsapp-phone" 
+                    dir="ltr" 
+                    className={`rounded-xl ${isRTL ? 'text-right' : ''}`}
+                    value={notifications.whatsappPhone || ''} 
+                    onChange={(e)=> setNotifications({ ...notifications, whatsappPhone: e.target.value })} 
+                    placeholder="989123456789" 
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="whatsapp-api-key">{t('admin.settings.whatsappApiKey')}</Label>
+                  <p className="text-xs text-gray-500 mb-2">{t('admin.settings.whatsappApiKeyHint')}</p>
+                  <Input 
+                    id="whatsapp-api-key" 
+                    dir="ltr"
+                    className={`rounded-xl ${isRTL ? 'text-right' : ''}`}
+                    value={notifications.whatsappApiKey || ''} 
+                    onChange={(e)=> setNotifications({ ...notifications, whatsappApiKey: e.target.value })} 
+                  />
+                </div>
+              </div>
+              <Button disabled={saving} onClick={save} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-xl">{saving ? t('admin.saving') : t('admin.settings.saveNotifications')}</Button>
             </div>
           </Card>
         </TabsContent>
