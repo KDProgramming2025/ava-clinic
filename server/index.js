@@ -113,7 +113,8 @@ app.get(/.*/, async (req, res, next) => {
   }
 });
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`[ava-beauty] backend listening on :${port}`);
 });
+server.setTimeout(300000); // 5 minutes timeout for long imports

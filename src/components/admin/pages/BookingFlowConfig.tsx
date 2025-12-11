@@ -13,13 +13,17 @@ interface Config {
   timeSlots?: string[];
   blackoutDates?: string[];
   disclaimer?: string;
+  disclaimerEn?: string;
+  disclaimerFa?: string;
   bufferMinutes?: number;
   defaultDurationMinutes?: number;
 }
 
 export function BookingFlowConfig() {
   const { t } = useLanguage();
-  const [cfg, setCfg] = useState<Config>({ timeSlots: [], blackoutDates: [], disclaimer: '', bufferMinutes: 0, defaultDurationMinutes: 60 });
+  const [cfg, setCfg] = useState<Config>({ timeSlots: [], blackoutDates: [], disclaimer: '', disclaimerEn: '', disclaimerFa: '', bufferMinutes: 0, defaultDurationMinutes: 60 });
+  const [rawTimeSlots, setRawTimeSlots] = useState('');
+  const [rawBlackoutDates, setRawBlackoutDates] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -31,9 +35,13 @@ export function BookingFlowConfig() {
         timeSlots: (data.timeSlots as any) || [],
         blackoutDates: (data.blackoutDates as any) || [],
         disclaimer: data.disclaimer || '',
+        disclaimerEn: data.disclaimerEn || '',
+        disclaimerFa: data.disclaimerFa || '',
         bufferMinutes: data.bufferMinutes ?? 0,
         defaultDurationMinutes: data.defaultDurationMinutes ?? 60,
       });
+      setRawTimeSlots(((data.timeSlots as any) || []).join(', '));
+      setRawBlackoutDates(((data.blackoutDates as any) || []).join(', '));
     } catch (e: any) {
       toast.error(e?.message || t('admin.bookingFlow.loadFailed'));
     } finally {
@@ -48,12 +56,15 @@ export function BookingFlowConfig() {
   const save = async () => {
     try {
       setSaving(true);
+      const timeSlots = parseCSV(rawTimeSlots);
+      const blackoutDates = parseCSV(rawBlackoutDates);
+      
       await apiFetch('/booking-config', {
         method: 'PUT',
         body: {
           ...cfg,
-          timeSlots: cfg.timeSlots,
-          blackoutDates: cfg.blackoutDates,
+          timeSlots,
+          blackoutDates,
         },
       });
       toast.success(t('admin.bookingFlow.saved'));
@@ -87,8 +98,8 @@ export function BookingFlowConfig() {
             <p className="text-sm text-gray-600 mb-2">{t('admin.bookingFlow.availableSlotsHint')}</p>
             <Textarea
               rows={8}
-              value={(cfg.timeSlots || []).join(', ')}
-              onChange={(e)=> setCfg(prev => ({ ...prev, timeSlots: parseCSV(e.target.value) }))}
+              value={rawTimeSlots}
+              onChange={(e)=> setRawTimeSlots(e.target.value)}
             />
             <div className="grid grid-cols-2 gap-4 mt-4">
               <div>
@@ -111,8 +122,8 @@ export function BookingFlowConfig() {
             <p className="text-sm text-gray-600 mb-2">{t('admin.bookingFlow.blackoutDatesHint')}</p>
             <Textarea
               rows={8}
-              value={(cfg.blackoutDates || []).join(', ')}
-              onChange={(e)=> setCfg(prev => ({ ...prev, blackoutDates: parseCSV(e.target.value) }))}
+              value={rawBlackoutDates}
+              onChange={(e)=> setRawBlackoutDates(e.target.value)}
             />
           </Card>
         </motion.div>
@@ -121,7 +132,27 @@ export function BookingFlowConfig() {
       <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }}>
         <Card className="p-6 border-0 shadow-lg">
           <h2 className="text-gray-900 mb-3">{t('admin.bookingFlow.disclaimer')}</h2>
-          <Textarea rows={4} value={cfg.disclaimer || ''} onChange={(e)=> setCfg(prev => ({ ...prev, disclaimer: e.target.value }))} />
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">English</label>
+              <Textarea 
+                rows={4} 
+                value={cfg.disclaimerEn || ''} 
+                onChange={(e)=> setCfg(prev => ({ ...prev, disclaimerEn: e.target.value }))} 
+                placeholder="Booking disclaimer in English..."
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">Persian</label>
+              <Textarea 
+                rows={4} 
+                dir="rtl"
+                value={cfg.disclaimerFa || ''} 
+                onChange={(e)=> setCfg(prev => ({ ...prev, disclaimerFa: e.target.value }))} 
+                placeholder="توضیحات رزرو به فارسی..."
+              />
+            </div>
+          </div>
         </Card>
       </motion.div>
     </div>

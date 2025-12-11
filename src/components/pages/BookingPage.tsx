@@ -22,7 +22,7 @@ import { api } from '../../api/client';
 import { SEO } from '../SEO';
 
 export function BookingPage() {
-  const { t, isRTL, trc } = useLanguage();
+  const { t, isRTL, trc, language } = useLanguage();
   const [step, setStep] = useState(1);
   const [services, setServices] = useState<any[]>([]);
   const [selectedService, setSelectedService] = useState('');
@@ -453,7 +453,9 @@ export function BookingPage() {
 
                   <div className="mt-8 p-4 bg-white rounded-xl">
                     <p className="text-gray-600">
-                      <strong>{t('booking.note')}:</strong> {config?.disclaimer || t('booking.confirmedBody')}
+                      <strong>{t('booking.note')}:</strong> {
+                        (language === 'fa' ? (config?.disclaimerFa || config?.disclaimer) : (config?.disclaimerEn || config?.disclaimer)) || t('booking.confirmedBody')
+                      }
                     </p>
                   </div>
                 </Card>

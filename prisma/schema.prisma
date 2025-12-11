@@ -184,6 +184,14 @@ model Settings {
   servicesHeroSubtitleFa String?
   servicesHeroTitleEn    String?
   servicesHeroTitleFa    String?
+  servicesCtaTitleEn     String?
+  servicesCtaTitleFa     String?
+  servicesCtaBodyEn      String?
+  servicesCtaBodyFa      String?
+  servicesCtaPrimaryEn   String?
+  servicesCtaPrimaryFa   String?
+  servicesCtaSecondaryEn String?
+  servicesCtaSecondaryFa String?
   instagramAccessToken   String?
   instagramUserId        String?
   instagramUsername      String?
@@ -478,6 +486,8 @@ model BookingSettings {
   timeSlots              Json?
   blackoutDates          Json?
   disclaimer             String?
+  disclaimerEn           String?
+  disclaimerFa           String?
   bufferMinutes          Int?
   defaultDurationMinutes Int?    @default(60)
   businessHours          Json?

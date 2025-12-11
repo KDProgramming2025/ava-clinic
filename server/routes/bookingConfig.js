@@ -15,12 +15,12 @@ router.get('/', async (_req, res) => {
 
 // PUT booking flow configuration
 router.put('/', async (req, res) => {
-  const { timeSlots, blackoutDates, disclaimer, bufferMinutes, defaultDurationMinutes, businessHours } = req.body || {};
+  const { timeSlots, blackoutDates, disclaimer, disclaimerEn, disclaimerFa, bufferMinutes, defaultDurationMinutes, businessHours } = req.body || {};
   try {
     const updated = await prisma.bookingSettings.upsert({
       where: { id: 1 },
-      update: { timeSlots, blackoutDates, disclaimer, bufferMinutes, defaultDurationMinutes, businessHours },
-      create: { id: 1, timeSlots, blackoutDates, disclaimer, bufferMinutes, defaultDurationMinutes, businessHours },
+      update: { timeSlots, blackoutDates, disclaimer, disclaimerEn, disclaimerFa, bufferMinutes, defaultDurationMinutes, businessHours },
+      create: { id: 1, timeSlots, blackoutDates, disclaimer, disclaimerEn, disclaimerFa, bufferMinutes, defaultDurationMinutes, businessHours },
     });
     res.json(updated);
   } catch (e) {

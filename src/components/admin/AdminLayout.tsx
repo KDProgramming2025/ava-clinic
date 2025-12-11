@@ -45,6 +45,7 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
 
   const [branding, setBranding] = useState<{ title?: string | null; titleEn?: string | null; titleFa?: string | null; logoUrl?: string | null }>({});
   const [newMessageCount, setNewMessageCount] = useState(0);
+  const [pendingBookingCount, setPendingBookingCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,17 +73,23 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
     let cancelled = false;
     let interval: ReturnType<typeof setInterval> | null = null;
 
-    const fetchCount = async () => {
+    const fetchCounts = async () => {
       try {
-        const items = await api.messages({ status: 'NEW' });
-        if (!cancelled) setNewMessageCount(Array.isArray(items) ? items.length : 0);
+        const [messages, bookings] = await Promise.all([
+          api.messages({ status: 'NEW' }),
+          api.bookings({ status: 'PENDING' })
+        ]);
+        if (!cancelled) {
+          setNewMessageCount(Array.isArray(messages) ? messages.length : 0);
+          setPendingBookingCount(Array.isArray(bookings) ? bookings.length : 0);
+        }
       } catch {
-        if (!cancelled) setNewMessageCount(0);
+        // Ignore errors to prevent UI flickering
       }
     };
 
-    fetchCount();
-    interval = setInterval(fetchCount, 60000);
+    fetchCounts();
+    interval = setInterval(fetchCounts, 60000);
 
     return () => {
       cancelled = true;
@@ -100,7 +107,7 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
 
   const menuItems = [
     { id: 'dashboard', label: t('admin.dashboard'), icon: LayoutDashboard },
-    { id: 'bookings', label: t('admin.bookings'), icon: Calendar, badge: 12 },
+    { id: 'bookings', label: t('admin.bookings'), icon: Calendar, badge: pendingBookingCount > 0 ? pendingBookingCount : undefined },
     { id: 'clients', label: t('admin.clients'), icon: Users },
     { id: 'testimonials', label: t('admin.testimonials'), icon: Users },
     { id: 'home-content', label: t('admin.homeContent'), icon: LayoutDashboard },

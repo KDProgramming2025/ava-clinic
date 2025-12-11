@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 export function SingleArticlePage({ slug: propSlug }: { slug?: string }) {
   const { slug: paramSlug } = useParams();
   const slug = propSlug || paramSlug;
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, language } = useLanguage();
   
   const [article, setArticle] = useState<any | null>(null);
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
@@ -177,7 +177,7 @@ export function SingleArticlePage({ slug: propSlug }: { slug?: string }) {
               <div className="flex flex-wrap items-center justify-center gap-4 text-sm md:text-base text-white/90">
                 <div className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
-                  {new Date(article.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                  {new Date(article.createdAt).toLocaleDateString(language === 'fa' ? 'fa-IR' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </div>
                 {article.readTimeMinutes && (
                   <div className="flex items-center gap-1">

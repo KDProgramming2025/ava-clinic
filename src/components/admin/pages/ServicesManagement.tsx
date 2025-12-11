@@ -84,6 +84,14 @@ export function ServicesManagement() {
     servicesHeroTitleFa: '',
     servicesHeroSubtitleEn: '',
     servicesHeroSubtitleFa: '',
+    servicesCtaTitleEn: '',
+    servicesCtaTitleFa: '',
+    servicesCtaBodyEn: '',
+    servicesCtaBodyFa: '',
+    servicesCtaPrimaryEn: '',
+    servicesCtaPrimaryFa: '',
+    servicesCtaSecondaryEn: '',
+    servicesCtaSecondaryFa: '',
   });
   const [heroSaving, setHeroSaving] = useState(false);
 
@@ -137,6 +145,14 @@ export function ServicesManagement() {
         servicesHeroTitleFa: s.servicesHeroTitleFa || '',
         servicesHeroSubtitleEn: s.servicesHeroSubtitleEn || '',
         servicesHeroSubtitleFa: s.servicesHeroSubtitleFa || '',
+        servicesCtaTitleEn: s.servicesCtaTitleEn || '',
+        servicesCtaTitleFa: s.servicesCtaTitleFa || '',
+        servicesCtaBodyEn: s.servicesCtaBodyEn || '',
+        servicesCtaBodyFa: s.servicesCtaBodyFa || '',
+        servicesCtaPrimaryEn: s.servicesCtaPrimaryEn || '',
+        servicesCtaPrimaryFa: s.servicesCtaPrimaryFa || '',
+        servicesCtaSecondaryEn: s.servicesCtaSecondaryEn || '',
+        servicesCtaSecondaryFa: s.servicesCtaSecondaryFa || '',
       });
     } catch (e: any) {
   setError(e?.message || t('admin.saveFailed'));
@@ -162,6 +178,14 @@ export function ServicesManagement() {
             servicesHeroTitleFa: heroContent.servicesHeroTitleFa,
             servicesHeroSubtitleEn: heroContent.servicesHeroSubtitleEn,
             servicesHeroSubtitleFa: heroContent.servicesHeroSubtitleFa,
+            servicesCtaTitleEn: heroContent.servicesCtaTitleEn,
+            servicesCtaTitleFa: heroContent.servicesCtaTitleFa,
+            servicesCtaBodyEn: heroContent.servicesCtaBodyEn,
+            servicesCtaBodyFa: heroContent.servicesCtaBodyFa,
+            servicesCtaPrimaryEn: heroContent.servicesCtaPrimaryEn,
+            servicesCtaPrimaryFa: heroContent.servicesCtaPrimaryFa,
+            servicesCtaSecondaryEn: heroContent.servicesCtaSecondaryEn,
+            servicesCtaSecondaryFa: heroContent.servicesCtaSecondaryFa,
           } 
         }
       });
@@ -408,6 +432,99 @@ export function ServicesManagement() {
               value={heroContent.servicesHeroSubtitleFa || ''}
               onChange={(e) => setHeroContent({ ...heroContent, servicesHeroSubtitleFa: e.target.value })}
               placeholder="درمان‌های تخصصی زیبایی..."
+            />
+          </div>
+        </div>
+
+        <h3 className="mb-4 mt-8 text-gray-900 flex items-center gap-2">
+          <Briefcase className="w-5 h-5 text-pink-600" />
+          {t('admin.servicesCta')}
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <Label htmlFor="cta-title-en" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.ctaTitleEn')}</Label>
+            <Input
+              id="cta-title-en"
+              value={heroContent.servicesCtaTitleEn || ''}
+              onChange={(e) => setHeroContent({ ...heroContent, servicesCtaTitleEn: e.target.value })}
+              className="mt-1 rounded-xl"
+              placeholder="Ready to Transform?"
+            />
+          </div>
+          <div>
+            <Label htmlFor="cta-title-fa" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.ctaTitleFa')}</Label>
+            <Input
+              id="cta-title-fa"
+              dir="rtl"
+              className="mt-1 rounded-xl text-right"
+              value={heroContent.servicesCtaTitleFa || ''}
+              onChange={(e) => setHeroContent({ ...heroContent, servicesCtaTitleFa: e.target.value })}
+              placeholder="آماده تغییر هستید؟"
+            />
+          </div>
+          <div>
+            <Label htmlFor="cta-body-en" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.ctaBodyEn')}</Label>
+            <Textarea
+              id="cta-body-en"
+              rows={3}
+              value={heroContent.servicesCtaBodyEn || ''}
+              onChange={(e) => setHeroContent({ ...heroContent, servicesCtaBodyEn: e.target.value })}
+              className="mt-1 rounded-xl"
+              placeholder="Book your appointment today..."
+            />
+          </div>
+          <div>
+            <Label htmlFor="cta-body-fa" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.ctaBodyFa')}</Label>
+            <Textarea
+              id="cta-body-fa"
+              dir="rtl"
+              rows={3}
+              className="mt-1 rounded-xl text-right"
+              value={heroContent.servicesCtaBodyFa || ''}
+              onChange={(e) => setHeroContent({ ...heroContent, servicesCtaBodyFa: e.target.value })}
+              placeholder="همین امروز نوبت خود را رزرو کنید..."
+            />
+          </div>
+          <div>
+            <Label htmlFor="cta-primary-en" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.ctaPrimaryEn')}</Label>
+            <Input
+              id="cta-primary-en"
+              value={heroContent.servicesCtaPrimaryEn || ''}
+              onChange={(e) => setHeroContent({ ...heroContent, servicesCtaPrimaryEn: e.target.value })}
+              className="mt-1 rounded-xl"
+              placeholder="Book a Service"
+            />
+          </div>
+          <div>
+            <Label htmlFor="cta-primary-fa" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.ctaPrimaryFa')}</Label>
+            <Input
+              id="cta-primary-fa"
+              dir="rtl"
+              className="mt-1 rounded-xl text-right"
+              value={heroContent.servicesCtaPrimaryFa || ''}
+              onChange={(e) => setHeroContent({ ...heroContent, servicesCtaPrimaryFa: e.target.value })}
+              placeholder="رزرو نوبت"
+            />
+          </div>
+          <div>
+            <Label htmlFor="cta-secondary-en" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.ctaSecondaryEn')}</Label>
+            <Input
+              id="cta-secondary-en"
+              value={heroContent.servicesCtaSecondaryEn || ''}
+              onChange={(e) => setHeroContent({ ...heroContent, servicesCtaSecondaryEn: e.target.value })}
+              className="mt-1 rounded-xl"
+              placeholder="Contact Us"
+            />
+          </div>
+          <div>
+            <Label htmlFor="cta-secondary-fa" className="text-xs uppercase tracking-wide text-gray-500">{t('admin.ctaSecondaryFa')}</Label>
+            <Input
+              id="cta-secondary-fa"
+              dir="rtl"
+              className="mt-1 rounded-xl text-right"
+              value={heroContent.servicesCtaSecondaryFa || ''}
+              onChange={(e) => setHeroContent({ ...heroContent, servicesCtaSecondaryFa: e.target.value })}
+              placeholder="تماس با ما"
             />
           </div>
         </div>

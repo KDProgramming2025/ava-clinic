@@ -7,7 +7,7 @@ import { Button } from '../ui/button';
 import { Skeleton } from '../ui/skeleton';
 import { SEO } from '../SEO';
 import { useLanguage } from '../LanguageContext';
-import { Dialog, DialogContent } from '../ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { api } from '../../api/client';
 import {
   VideoRecord,
@@ -132,14 +132,18 @@ export function VideoGalleryPage() {
   const renderLoading = () => (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 6 }).map((_, index) => (
-        <Card key={`video-skeleton-${index}`} className="border border-gray-100 shadow-sm rounded-3xl p-0 overflow-hidden">
+        <div 
+          key={`video-skeleton-${index}`} 
+          className="border border-gray-100 shadow-sm p-0 overflow-hidden bg-card text-card-foreground flex flex-col gap-6"
+          style={{ borderRadius: '40px' }}
+        >
           <Skeleton className="h-56 w-full" />
           <div className="space-y-3 p-6">
             <Skeleton className="h-6 w-3/4" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-2/3" />
           </div>
-        </Card>
+        </div>
       ))}
     </div>
   );
@@ -183,8 +187,16 @@ export function VideoGalleryPage() {
         className="relative h-full"
       >
         <div className="group relative h-full">
-          <div className="pointer-events-none absolute inset-0 -z-10 rounded-[2rem] bg-gradient-to-r from-pink-200/30 via-purple-200/20 to-blue-200/30 blur-3xl opacity-0 transition duration-500 group-hover:opacity-100" />
-          <Card className="relative h-full overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/85 shadow-xl ring-1 ring-black/5 transition duration-300 group-hover:-translate-y-2 group-hover:shadow-2xl">
+          <div className="pointer-events-none absolute inset-0 -z-10 rounded-[45px] bg-gradient-to-r from-pink-200/30 via-purple-200/20 to-blue-200/30 blur-3xl opacity-0 transition duration-500 group-hover:opacity-100" />
+          <div 
+            className="relative h-full overflow-hidden border border-white/60 bg-white/85 shadow-xl ring-1 ring-black/5 transition duration-300 group-hover:-translate-y-2 group-hover:shadow-2xl isolate"
+            style={{ 
+              borderRadius: '40px',
+              transform: 'translateZ(0)', // Force GPU layer for proper clipping
+              WebkitMaskImage: '-webkit-radial-gradient(white, black)', // Force clipping in some browsers
+              overflow: 'hidden'
+            }}
+          >
             <button
               type="button"
               onClick={() => handleOpenVideo(video)}
@@ -221,7 +233,7 @@ export function VideoGalleryPage() {
                 </div>
               </div>
             </button>
-          </Card>
+          </div>
         </div>
       </motion.div>
     );
@@ -278,13 +290,16 @@ export function VideoGalleryPage() {
 
       <Dialog open={viewerOpen} onOpenChange={handleViewerChange}>
         <DialogContent
-          className="border border-white/80 bg-white/95 shadow-[0_20px_80px_-30px_rgba(0,0,0,0.45)] backdrop-blur-md max-h-[calc(100vh-2rem)]"
+          className="border border-white/80 bg-white/95 shadow-[0_20px_80px_-30px_rgba(0,0,0,0.45)] backdrop-blur-md max-h-[calc(100vh-2rem)] overflow-hidden p-0"
           style={{ width: '100%', maxWidth: dialogMaxWidth, borderRadius: '2rem' }}
         >
+          <div className="sr-only">
+            <DialogTitle>{selectedVideo?.title || t('videos.watch')}</DialogTitle>
+          </div>
           {selectedVideo && (
             <div
-              className="flex flex-col px-2 md:px-8"
-              style={{ paddingTop: '3rem', paddingBottom: '3rem' }}
+              className="flex flex-col px-8 md:px-14 overflow-y-auto h-full w-full"
+              style={{ paddingTop: '4.5rem', paddingBottom: '4.5rem' }}
             >
               <div className="flex-1 min-h-0 flex flex-col gap-6">
                 <div

@@ -337,10 +337,14 @@ export function ServicesPage() {
             viewport={{ once: true }}
           >
             <h2 className="text-white mb-6">
-              {t('services.ctaTitle')}
+              {language === 'fa' 
+                ? (settings?.servicesCtaTitleFa || t('services.ctaTitle'))
+                : (settings?.servicesCtaTitleEn || t('services.ctaTitle'))}
             </h2>
             <p className="text-white/90 mb-8 max-w-2xl mx-auto">
-              {t('services.ctaBody')}
+              {language === 'fa'
+                ? (settings?.servicesCtaBodyFa || t('services.ctaBody'))
+                : (settings?.servicesCtaBodyEn || t('services.ctaBody'))}
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button 
@@ -365,7 +369,9 @@ export function ServicesPage() {
                 }}
                 className="rounded-full px-8 shadow-xl transition-all"
               >
-                {t('services.ctaPrimary')}
+                {language === 'fa'
+                  ? (settings?.servicesCtaPrimaryFa || t('services.ctaPrimary'))
+                  : (settings?.servicesCtaPrimaryEn || t('services.ctaPrimary'))}
               </Button>
               <Button 
                 onClick={() => {
@@ -389,7 +395,9 @@ export function ServicesPage() {
                 }}
                 className="rounded-full px-8 transition-all"
               >
-                {t('services.ctaSecondary')}
+                {language === 'fa'
+                  ? (settings?.servicesCtaSecondaryFa || t('services.ctaSecondary'))
+                  : (settings?.servicesCtaSecondaryEn || t('services.ctaSecondary'))}
               </Button>
             </div>
           </motion.div>

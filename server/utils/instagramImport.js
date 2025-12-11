@@ -47,10 +47,12 @@ export async function importInstagramPost(url) {
     // --merge-output-format mp4 ensures the video is mp4
     // -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" tries to get mp4 directly
     
-    const filenameBase = id;
+    // Use a random filename to avoid cache collisions
+    const randomSuffix = Date.now().toString(36) + Math.random().toString(36).substring(2);
+    const filenameBase = `${id}-${randomSuffix}`;
     const outputPath = path.join(outputDir, filenameBase);
     
-    console.log(`[Instagram Import] Downloading media for ${id}...`);
+    console.log(`[Instagram Import] Downloading media for ${id} as ${filenameBase}...`);
     
     await execAsync(
       `${ytDlpPath} -o "${outputPath}.%(ext)s" --write-thumbnail --convert-thumbnails jpg --merge-output-format mp4 -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --user-agent "${userAgent}" --no-warnings "${url}"`
@@ -78,7 +80,45 @@ export async function importInstagramPost(url) {
     const description = metadata.description || metadata.caption || '';
     // Use full description as title if available, otherwise fallback to title or default
     const title = description || metadata.title || 'Instagram Video';
-    const authorUsername = metadata.uploader || metadata.uploader_id || null;
+    
+    // Attempt to resolve the actual username (handle)
+    let authorUsername = null;
+
+    // 0. Try extracting from the input URL itself (Highest priority if present)
+    try {
+        const inputUrlObj = new URL(url);
+        const pathParts = inputUrlObj.pathname.split('/').filter(p => p);
+        // Patterns: /username/p/code/ or /username/reel/code/
+        // If first part is NOT a reserved word, it's likely the username
+        if (pathParts.length >= 2) {
+            const firstPart = pathParts[0];
+            const reserved = ['p', 'reel', 'reels', 'tv', 'stories', 'explore'];
+            if (!reserved.includes(firstPart.toLowerCase())) {
+                authorUsername = firstPart;
+            }
+        }
+    } catch (e) {}
+
+    // 1. Try extracting from uploader_url (e.g. https://www.instagram.com/username/)
+    if (!authorUsername && metadata.uploader_url) {
+        try {
+            const uObj = new URL(metadata.uploader_url);
+            // Path usually starts with /username/
+            const parts = uObj.pathname.split('/').filter(p => p && p !== 'channel');
+            if (parts.length > 0) authorUsername = parts[0];
+        } catch (e) {}
+    }
+
+    // 2. If not found or looks invalid, try uploader_id if it's NOT numeric
+    if (!authorUsername && metadata.uploader_id && !/^\d+$/.test(metadata.uploader_id)) {
+        authorUsername = metadata.uploader_id;
+    }
+
+    // 3. Fallback: Prefer Display Name (uploader) over Numeric ID
+    if (!authorUsername) {
+        authorUsername = metadata.uploader || metadata.uploader_id || null;
+    }
+
     const authorFullName = metadata.uploader || null; // yt-dlp might not give full name
     const durationSeconds = metadata.duration || 0;
     const takenAt = metadata.upload_date ? 
