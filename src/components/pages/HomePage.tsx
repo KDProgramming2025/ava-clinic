@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Award, Users, TrendingUp, Heart, Shield, Clock, Star } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
@@ -180,10 +181,14 @@ export function HomePage() {
                   )}
                   <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="flex flex-wrap gap-4">
                     {heroCtaPrimary && !loading && (
-                      <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-full px-8 shadow-lg hover:shadow-xl transition-all">{heroCtaPrimary}</Button>
+                      <Link to="/booking">
+                        <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-full px-8 shadow-lg hover:shadow-xl transition-all">{heroCtaPrimary}</Button>
+                      </Link>
                     )}
                     {heroCtaSecondary && !loading && (
-                      <Button variant="outline" className="rounded-full px-8 border-2 hover:bg-white/50">{heroCtaSecondary}</Button>
+                      <Link to="/services">
+                        <Button variant="outline" className="rounded-full px-8 border-2 hover:bg-white/50">{heroCtaSecondary}</Button>
+                      </Link>
                     )}
                   </motion.div>
                 </motion.div>
@@ -305,7 +310,9 @@ export function HomePage() {
                 <h2 className="text-white mb-6 min-h-8">{!loading && (ctaHeading ? ctaHeading : t('services.ctaTitle'))}</h2>
                 <p className="text-white/90 mb-8 max-w-2xl mx-auto min-h-10">{!loading && (ctaSubheading ? ctaSubheading : '')}</p>
                 {!loading && ctaButton && (
-                  <Button className="bg-white text-purple-600 hover:bg-gray-100 rounded-full px-8 shadow-xl">{ctaButton}</Button>
+                  <Link to="/booking">
+                    <Button className="bg-white text-purple-600 hover:bg-gray-100 rounded-full px-8 shadow-xl">{ctaButton}</Button>
+                  </Link>
                 )}
               </motion.div>
             </div>
