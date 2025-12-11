@@ -202,8 +202,8 @@ model Settings {
   instagramFeedCachedAt  DateTime?
   instagramLastError     String?
   snapWidgetEmbedUrl     String?
-  whatsappPhone          String?
-  whatsappApiKey         String?
+  telegramBotToken       String?
+  telegramChatId         String?
 }
 
 model HomeHero {

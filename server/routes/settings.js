@@ -1,5 +1,6 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
+import TelegramService from '../services/TelegramService.js';
 
 const router = express.Router();
 
@@ -39,6 +40,11 @@ router.put('/', async (req, res) => {
           update: settingsPayload,
           create: { id: 1, ...settingsPayload },
         });
+        
+        // Reload Telegram service if settings changed
+        if (settings.telegramBotToken !== undefined) {
+          TelegramService.reload();
+        }
       }
       if (navigation) {
         await tx.navigationItem.deleteMany();

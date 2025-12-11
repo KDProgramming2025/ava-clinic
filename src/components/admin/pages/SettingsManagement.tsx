@@ -21,8 +21,8 @@ interface BrandingSettings {
   secondaryColor?: string | null;
 }
 interface NotificationSettings {
-  whatsappPhone?: string | null;
-  whatsappApiKey?: string | null;
+  telegramBotToken?: string | null;
+  telegramChatId?: string | null;
 }
 interface EmailTemplates {
   emailConfirmTemplate?: string | null;
@@ -65,8 +65,8 @@ export function SettingsManagement() {
         secondaryColor: s.secondaryColor || '',
       });
       setNotifications({
-        whatsappPhone: s.whatsappPhone || '',
-        whatsappApiKey: s.whatsappApiKey || '',
+        telegramBotToken: s.telegramBotToken || '',
+        telegramChatId: s.telegramChatId || '',
       });
       setEmails({ emailConfirmTemplate: s.emailConfirmTemplate || '', emailReminderTemplate: s.emailReminderTemplate || '', contactAutoReply: s.contactAutoReply || '' });
   setPerPageSeo((s.perPageSeo as any) || {});
@@ -188,26 +188,27 @@ export function SettingsManagement() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="whatsapp-phone">{t('admin.settings.whatsappPhone')}</Label>
-                  <p className="text-xs text-gray-500 mb-2">{t('admin.settings.whatsappPhoneHint')}</p>
+                  <Label htmlFor="telegram-token">{t('admin.settings.telegramBotToken')}</Label>
+                  <p className="text-xs text-gray-500 mb-2">{t('admin.settings.telegramBotTokenHint')}</p>
                   <Input 
-                    id="whatsapp-phone" 
+                    id="telegram-token" 
                     dir="ltr" 
                     className={`rounded-xl ${isRTL ? 'text-right' : ''}`}
-                    value={notifications.whatsappPhone || ''} 
-                    onChange={(e)=> setNotifications({ ...notifications, whatsappPhone: e.target.value })} 
-                    placeholder="989123456789" 
+                    value={notifications.telegramBotToken || ''} 
+                    onChange={(e)=> setNotifications({ ...notifications, telegramBotToken: e.target.value })} 
+                    placeholder="123456789:ABCdef..." 
                   />
                 </div>
                 <div>
-                  <Label htmlFor="whatsapp-api-key">{t('admin.settings.whatsappApiKey')}</Label>
-                  <p className="text-xs text-gray-500 mb-2">{t('admin.settings.whatsappApiKeyHint')}</p>
+                  <Label htmlFor="telegram-chat-id">{t('admin.settings.telegramChatId')}</Label>
+                  <p className="text-xs text-gray-500 mb-2">{t('admin.settings.telegramChatIdHint')}</p>
                   <Input 
-                    id="whatsapp-api-key" 
+                    id="telegram-chat-id" 
                     dir="ltr"
                     className={`rounded-xl ${isRTL ? 'text-right' : ''}`}
-                    value={notifications.whatsappApiKey || ''} 
-                    onChange={(e)=> setNotifications({ ...notifications, whatsappApiKey: e.target.value })} 
+                    value={notifications.telegramChatId || ''} 
+                    onChange={(e)=> setNotifications({ ...notifications, telegramChatId: e.target.value })} 
+                    placeholder="123456789"
                   />
                 </div>
               </div>

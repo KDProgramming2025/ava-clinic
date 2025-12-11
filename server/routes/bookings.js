@@ -1,6 +1,6 @@
 import express from 'express';
 import prisma from '../prismaClient.js';
-import NotificationService from '../services/NotificationService.js';
+import TelegramService from '../services/TelegramService.js';
 
 const router = express.Router();
 
@@ -100,7 +100,7 @@ router.post('/', async (req, res) => {
     });
 
     // Notify admin asynchronously
-    NotificationService.notifyAdminNewBooking(created).catch(err => console.error('Notification failed:', err));
+    TelegramService.notifyNewBooking(created).catch(err => console.error('Notification failed:', err));
 
     res.status(201).json(created);
   } catch (e) {
