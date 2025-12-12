@@ -2,6 +2,12 @@ import { useEffect, useRef } from 'react';
 
 export function useMobileHistoryState(isOpen: boolean, onClose: () => void) {
   const isPoppingRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+
+  // Update ref whenever onClose changes to avoid re-triggering the effect
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -12,7 +18,7 @@ export function useMobileHistoryState(isOpen: boolean, onClose: () => void) {
       const onPopState = () => {
         // When back button is pressed, close the modal
         isPoppingRef.current = true;
-        onClose();
+        onCloseRef.current();
       };
 
       window.addEventListener('popstate', onPopState);
@@ -31,5 +37,5 @@ export function useMobileHistoryState(isOpen: boolean, onClose: () => void) {
         isPoppingRef.current = false;
       };
     }
-  }, [isOpen, onClose]);
+  }, [isOpen]); // Only re-run if isOpen changes
 }

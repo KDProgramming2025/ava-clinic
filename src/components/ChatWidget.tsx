@@ -56,6 +56,16 @@ export function ChatWidget() {
       // Join session room
       if (sessionIdRef.current) {
         socketRef.current?.emit('join_session', sessionIdRef.current);
+        
+        // Fetch history
+        fetch(`/api/messages/history?sessionId=${sessionIdRef.current}`)
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data) && data.length > 0) {
+              setMessages(data);
+            }
+          })
+          .catch(console.error);
       }
     });
 

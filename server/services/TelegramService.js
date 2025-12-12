@@ -7,7 +7,8 @@ class TelegramService {
     this.botToken = null;
     this.chatId = null;
     this.io = null;
-    this.messageMap = new Map(); // telegramMessageId -> socketId
+    this.messageMap = new Map(); // telegramMessageId -> { sessionId, timestamp }
+    this.cleanupInterval = null;
     this.init();
   }
 
@@ -16,6 +17,11 @@ class TelegramService {
   }
 
   async init() {
+    // Start cleanup interval (every 1 hour)
+    if (!this.cleanupInterval) {
+      this.cleanupInterval = setInterval(() => this.cleanupMessageMap(), 60 * 60 * 1000);
+    }
+
     try {
       const settings = await prisma.settings.findFirst({ where: { id: 1 } });
       if (settings?.telegramBotToken) {
@@ -23,6 +29,16 @@ class TelegramService {
       }
     } catch (error) {
       console.error('TelegramService: Failed to load settings', error);
+    }
+  }
+
+  cleanupMessageMap() {
+    const now = Date.now();
+    const expiry = 24 * 60 * 60 * 1000; // 24 hours
+    for (const [key, value] of this.messageMap.entries()) {
+      if (now - value.timestamp > expiry) {
+        this.messageMap.delete(key);
+      }
     }
   }
 
@@ -71,19 +87,19 @@ class TelegramService {
           // Check if it's a reply to a forwarded message
           if (msg.reply_to_message) {
             const originalMsgId = msg.reply_to_message.message_id;
-            const sessionId = this.messageMap.get(originalMsgId);
+            const entry = this.messageMap.get(originalMsgId);
             
-            if (sessionId && this.io) {
-              // Send to frontend room
-              this.io.to(`session_${sessionId}`).emit('admin_reply', { text: msg.text });
+            if (entry && entry.sessionId) {
+              // Save to DB first
+              this.saveChatMessage(entry.sessionId, msg.text, 'bot');
+
+              if (this.io) {
+                // Send to frontend room
+                this.io.to(`session_${entry.sessionId}`).emit('admin_reply', { text: msg.text });
+              }
               
               // Also map this new admin message to the same session, so admin can reply to their own reply
-              this.messageMap.set(msg.message_id, sessionId);
-              
-              // Cleanup later
-              setTimeout(() => {
-                this.messageMap.delete(msg.message_id);
-              }, 24 * 60 * 60 * 1000);
+              this.messageMap.set(msg.message_id, { sessionId: entry.sessionId, timestamp: Date.now() });
             }
           }
         }
@@ -106,13 +122,11 @@ class TelegramService {
     if (!this.bot || !this.chatId) return;
     
     try {
+      // Save to DB
+      await this.saveChatMessage(sessionId, text, 'user');
+
       const sentMsg = await this.bot.sendMessage(this.chatId, `💬 <b>User Message:</b> (ID: ${sessionId})\n${text}`, { parse_mode: 'HTML' });
-      this.messageMap.set(sentMsg.message_id, sessionId);
-      
-      // Cleanup map after 24 hours
-      setTimeout(() => {
-        this.messageMap.delete(sentMsg.message_id);
-      }, 24 * 60 * 60 * 1000);
+      this.messageMap.set(sentMsg.message_id, { sessionId, timestamp: Date.now() });
       
     } catch (e) {
       console.error('TelegramService: Failed to forward user message', e);
@@ -176,6 +190,60 @@ class TelegramService {
       await this.bot.sendMessage(this.chatId, message, { parse_mode: 'HTML' });
     } catch (error) {
       console.error('TelegramService: Failed to send message notification', error.message);
+    }
+  }
+
+  async saveChatMessage(sessionId, text, sender) {
+    try {
+      // We use the 'Message' model but repurpose it slightly or create a new one.
+      // Since schema changes are expensive, let's use a simple JSON file storage for chat history for now,
+      // or better, just use the existing 'Message' table if it fits, or create a new model.
+      // Given the constraints, let's use a simple in-memory cache backed by a file for persistence if needed,
+      // OR just use the Prisma 'Message' model if we can adapt it.
+      // Actually, the user asked for persistence. Let's add a ChatMessage model to schema.prisma?
+      // No, let's try to use the existing Message model if possible, or just use a JSON file for simplicity in this context
+      // to avoid schema migrations if not strictly necessary.
+      // BUT, a proper solution requires a DB. Let's check schema.prisma again.
+      
+      // Checking schema...
+      // We don't have a ChatMessage model.
+      // Let's use a simple JSON file for now to avoid migration complexity in this step unless requested.
+      // Wait, the user said "the message gets lost".
+      // Let's use a JSON file persistence for chat sessions.
+      
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const historyDir = path.resolve(process.cwd(), 'data/chat_history');
+      await fs.mkdir(historyDir, { recursive: true });
+      
+      const filePath = path.join(historyDir, `${sessionId}.json`);
+      let history = [];
+      try {
+        const data = await fs.readFile(filePath, 'utf8');
+        history = JSON.parse(data);
+      } catch (e) { /* ignore */ }
+      
+      history.push({ id: Date.now(), text, sender, timestamp: new Date().toISOString() });
+      
+      // Keep last 50 messages
+      if (history.length > 50) history = history.slice(-50);
+      
+      await fs.writeFile(filePath, JSON.stringify(history, null, 2));
+      
+    } catch (e) {
+      console.error('TelegramService: Failed to save chat message', e);
+    }
+  }
+
+  async getSessionHistory(sessionId) {
+    try {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const filePath = path.resolve(process.cwd(), `data/chat_history/${sessionId}.json`);
+      const data = await fs.readFile(filePath, 'utf8');
+      return JSON.parse(data);
+    } catch (e) {
+      return [];
     }
   }
 }

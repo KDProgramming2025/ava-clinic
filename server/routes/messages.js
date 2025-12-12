@@ -4,6 +4,20 @@ import TelegramService from '../services/TelegramService.js';
 
 const router = express.Router();
 
+// GET /api/messages/history?sessionId=...
+router.get('/history', async (req, res) => {
+  const { sessionId } = req.query;
+  if (!sessionId) return res.status(400).json({ error: 'missing_session_id' });
+
+  try {
+    const history = await TelegramService.getSessionHistory(sessionId);
+    res.json(history);
+  } catch (e) {
+    console.error('Failed to fetch message history:', e);
+    res.status(500).json({ error: 'fetch_failed' });
+  }
+});
+
 // GET /api/messages?status=
 router.get('/', async (req, res) => {
   const { status } = req.query;

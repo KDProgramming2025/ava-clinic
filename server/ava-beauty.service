@@ -12,6 +12,8 @@ Environment=PORT=4000
 Environment=JWT_SECRET=change_me_in_production
 Environment=RL_WINDOW_MS=900000
 Environment=RL_MAX=20
+# Optimize Node.js memory usage (limit to 1GB to prevent OOM on small VPS)
+Environment=NODE_OPTIONS="--max-old-space-size=1024"
 # Optional initial superadmin seed vars (remove after first run)
 # Environment=SUPERADMIN_USERNAME=admin
 # Environment=SUPERADMIN_EMAIL=admin@local
