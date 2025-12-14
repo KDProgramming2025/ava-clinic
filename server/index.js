@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs/promises';
+import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import TelegramService from './services/TelegramService.js';
 import servicesRouter from './routes/services.js';
@@ -41,6 +42,38 @@ const io = new Server(httpServer, {
   }
 });
 
+// --- Security Headers (simple, fast) ---
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
+  // CSP allowing Cloudflare Insights beacon
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none';");
+  next();
+});
+
+// --- Lightweight observability (errors only) ---
+app.use((req, res, next) => {
+  res.setHeader('X-Request-Id', `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  res.on('finish', () => {
+    if (res.statusCode >= 500) {
+      console.warn(`error/api status=${res.statusCode} method=${req.method} path=${req.originalUrl}`);
+    }
+  });
+  next();
+});
+
+// --- Rate limiting ---
+const windowMs = Number(process.env.RL_WINDOW_MS || 15 * 60 * 1000);
+const maxRequests = Number(process.env.RL_MAX || 200);
+const apiLimiter = rateLimit({ windowMs, max: maxRequests, standardHeaders: true, legacyHeaders: false });
+
+// --- Body parsers with sane limits (uploads handled via multer in routes) ---
+app.use(cors());
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+
 // Initialize Telegram Service with Socket.io
 TelegramService.setSocketIo(io);
 
@@ -68,12 +101,12 @@ io.on('connection', (socket) => {
 
 const port = process.env.PORT || 4000;
 
-app.use(cors());
-app.use(express.json());
 // Serve uploaded media
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads'), {
   maxAge: '7d',
 }));
+// Apply rate limit to API endpoints only (uploads still protected per-route)
+app.use('/api', apiLimiter);
 // API routes
 app.use('/api/services', servicesRouter);
 // Back-compat path kept; also expose a cleaner alias

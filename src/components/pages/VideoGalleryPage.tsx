@@ -206,7 +206,10 @@ export function VideoGalleryPage() {
               className="flex h-full flex-col text-left focus:outline-none w-full"
               aria-label={`${t('videos.watch')} – ${video.title}`}
             >
-              <div className={`relative w-full overflow-hidden ${mediaRatioClass}`}>
+              <div
+                className={`relative w-full overflow-hidden ${mediaRatioClass}`}
+                style={{ aspectRatio: isPortrait ? '9 / 16' : '16 / 9', minHeight: isPortrait ? 320 : 220 }}
+              >
                 {preview ? (
                   <img src={preview} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
                 ) : (

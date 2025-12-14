@@ -91,7 +91,7 @@ class TelegramService {
             
             if (entry && entry.sessionId) {
               // Save to DB first
-              this.saveChatMessage(entry.sessionId, msg.text, 'bot');
+              this.saveChatMessage(entry.sessionId, msg.text, 'ADMIN');
 
               if (this.io) {
                 // Send to frontend room
@@ -123,7 +123,7 @@ class TelegramService {
     
     try {
       // Save to DB
-      await this.saveChatMessage(sessionId, text, 'user');
+      await this.saveChatMessage(sessionId, text, 'USER');
 
       const sentMsg = await this.bot.sendMessage(this.chatId, `💬 <b>User Message:</b> (ID: ${sessionId})\n${text}`, { parse_mode: 'HTML' });
       this.messageMap.set(sentMsg.message_id, { sessionId, timestamp: Date.now() });
@@ -195,41 +195,17 @@ class TelegramService {
 
   async saveChatMessage(sessionId, text, sender) {
     try {
-      // We use the 'Message' model but repurpose it slightly or create a new one.
-      // Since schema changes are expensive, let's use a simple JSON file storage for chat history for now,
-      // or better, just use the existing 'Message' table if it fits, or create a new model.
-      // Given the constraints, let's use a simple in-memory cache backed by a file for persistence if needed,
-      // OR just use the Prisma 'Message' model if we can adapt it.
-      // Actually, the user asked for persistence. Let's add a ChatMessage model to schema.prisma?
-      // No, let's try to use the existing Message model if possible, or just use a JSON file for simplicity in this context
-      // to avoid schema migrations if not strictly necessary.
-      // BUT, a proper solution requires a DB. Let's check schema.prisma again.
-      
-      // Checking schema...
-      // We don't have a ChatMessage model.
-      // Let's use a simple JSON file for now to avoid migration complexity in this step unless requested.
-      // Wait, the user said "the message gets lost".
-      // Let's use a JSON file persistence for chat sessions.
-      
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const historyDir = path.resolve(process.cwd(), 'data/chat_history');
-      await fs.mkdir(historyDir, { recursive: true });
-      
-      const filePath = path.join(historyDir, `${sessionId}.json`);
-      let history = [];
-      try {
-        const data = await fs.readFile(filePath, 'utf8');
-        history = JSON.parse(data);
-      } catch (e) { /* ignore */ }
-      
-      history.push({ id: Date.now(), text, sender, timestamp: new Date().toISOString() });
-      
-      // Keep last 50 messages
-      if (history.length > 50) history = history.slice(-50);
-      
-      await fs.writeFile(filePath, JSON.stringify(history, null, 2));
-      
+      await prisma.chatMessage.create({ data: { sessionId, text, sender } });
+      // Trim history to last 200 messages per session to keep DB lean
+      const old = await prisma.chatMessage.findMany({
+        where: { sessionId },
+        orderBy: { createdAt: 'desc' },
+        skip: 200,
+        select: { id: true },
+      });
+      if (old.length) {
+        await prisma.chatMessage.deleteMany({ where: { id: { in: old.map((o) => o.id) } } });
+      }
     } catch (e) {
       console.error('TelegramService: Failed to save chat message', e);
     }
@@ -237,12 +213,19 @@ class TelegramService {
 
   async getSessionHistory(sessionId) {
     try {
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const filePath = path.resolve(process.cwd(), `data/chat_history/${sessionId}.json`);
-      const data = await fs.readFile(filePath, 'utf8');
-      return JSON.parse(data);
+      const rows = await prisma.chatMessage.findMany({
+        where: { sessionId },
+        orderBy: { createdAt: 'asc' },
+        take: 200,
+      });
+      return rows.map((r) => ({
+        id: new Date(r.createdAt).getTime(),
+        text: r.text,
+        sender: r.sender === 'ADMIN' ? 'bot' : 'user',
+        timestamp: r.createdAt,
+      }));
     } catch (e) {
+      console.error('TelegramService: Failed to fetch chat history', e);
       return [];
     }
   }

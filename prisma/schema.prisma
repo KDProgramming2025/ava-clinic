@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ChatSender {
+  USER
+  ADMIN
+}
+
 model Service {
   id              String        @id @default(cuid())
   title           String
@@ -70,6 +75,16 @@ model Testimonial {
   nameFa    String?
   textEn    String?
   textFa    String?
+}
+
+model ChatMessage {
+  id        String     @id @default(cuid())
+  sessionId String
+  sender    ChatSender
+  text      String
+  createdAt DateTime   @default(now())
+
+  @@index([sessionId, createdAt])
 }
 
 model TeamMember {
