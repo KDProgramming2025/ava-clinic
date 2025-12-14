@@ -1927,6 +1927,17 @@ export function LanguageProvider({ children, storageKey = 'lang_public', default
   const [language, setLanguage] = useState<Language>(readStoredLanguage);
   const [languages, setLanguages] = useState<Language[]>(['en', 'fa']);
 
+  // Support query param override (?l=en|fa) on load; persist to localStorage.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const param = new URLSearchParams(window.location.search).get('l');
+    if (param === 'en' || param === 'fa') {
+      setLanguage(param);
+      try { window.localStorage?.setItem(storageKey, param); } catch { /* ignore */ }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const toggleLanguage = () => {
     setLanguage((prev) => {
       const idx = languages.indexOf(prev);

@@ -114,7 +114,6 @@ export function AdminLayout({ children, currentPage, onNavigate }: AdminLayoutPr
     { id: 'services', label: 'Services Content', icon: Briefcase },
     { id: 'about-content', label: t('admin.aboutContent'), icon: LayoutDashboard },
     { id: 'contact-content', label: t('admin.contactContent'), icon: LayoutDashboard },
-    { id: 'seo-settings', label: t('admin.seoSettings'), icon: Search },
     { id: 'booking-config', label: t('admin.bookingConfig'), icon: Calendar },
     { id: 'booking-info', label: t('admin.bookingInfo'), icon: LayoutDashboard },
     { id: 'newsletter', label: t('admin.newsletter'), icon: BookOpen },

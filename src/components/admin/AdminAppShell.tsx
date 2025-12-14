@@ -13,7 +13,6 @@ import { HomeContentManagement } from './pages/HomeContentManagement';
 import { AboutContentManagement } from './pages/AboutContentManagement';
 import { ContactContentManagement } from './pages/ContactContentManagement';
 import { NewsletterSettings } from './pages/NewsletterSettings';
-import { SEOSettings } from './pages/SEOSettings';
 import { MediaLibrary } from './pages/MediaLibrary';
 import { VideosManagement } from './pages/VideosManagement';
 import { MagazineManagement } from './pages/MagazineManagement';
@@ -51,8 +50,6 @@ export default function AdminAppShell() {
         return <AboutContentManagement />;
       case 'contact-content':
         return <ContactContentManagement />;
-      case 'seo-settings':
-        return <SEOSettings />;
       case 'booking-config':
         return <BookingFlowConfig />;
       case 'booking-info':

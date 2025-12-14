@@ -1,5 +1,4 @@
-import { useEffect, useState, useMemo, useRef, ChangeEvent } from 'react';
-import { motion } from 'motion/react';
+import { useEffect, useState, useMemo, ChangeEvent } from 'react';
 import { Settings as SettingsIcon, Image as ImageIcon, Mail, UploadCloud, Bell } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Button } from '../../ui/button';
@@ -29,15 +28,6 @@ interface EmailTemplates {
   emailReminderTemplate?: string | null;
   contactAutoReply?: string | null;
 }
-interface PerPageSeoEntry {
-  title?: string | null;
-  titleEn?: string | null;
-  titleFa?: string | null;
-  description?: string | null;
-  descriptionEn?: string | null;
-  descriptionFa?: string | null;
-}
-interface PerPageSeoMap { [path: string]: PerPageSeoEntry }
 interface SettingsPayload extends BrandingSettings, EmailTemplates, NotificationSettings {}
 
 export function SettingsManagement() {
@@ -45,7 +35,6 @@ export function SettingsManagement() {
   const [brand, setBrand] = useState<BrandingSettings>({});
   const [notifications, setNotifications] = useState<NotificationSettings>({});
   const [emails, setEmails] = useState<EmailTemplates>({});
-  const [perPageSeo, setPerPageSeo] = useState<PerPageSeoMap>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -69,7 +58,6 @@ export function SettingsManagement() {
         telegramChatId: s.telegramChatId || '',
       });
       setEmails({ emailConfirmTemplate: s.emailConfirmTemplate || '', emailReminderTemplate: s.emailReminderTemplate || '', contactAutoReply: s.contactAutoReply || '' });
-  setPerPageSeo((s.perPageSeo as any) || {});
     } catch (e: any) {
       toast.error(e?.message || t('admin.settings.loadFailed'));
     } finally { setLoading(false); }
@@ -80,7 +68,7 @@ export function SettingsManagement() {
   const save = async () => {
     try {
       setSaving(true);
-  const settings: SettingsPayload & { perPageSeo?: any } = { ...brand, ...emails, ...notifications, perPageSeo };
+  const settings: SettingsPayload = { ...brand, ...emails, ...notifications };
   await apiFetch('/settings', { method: 'PUT', body: { settings } });
       toast.success(t('admin.settings.saved'));
     } catch (e: any) {
@@ -123,11 +111,10 @@ export function SettingsManagement() {
       </div>
 
       <Tabs defaultValue="branding" className="w-full">
-        <TabsList className="grid w-full max-w-3xl grid-cols-4">
+        <TabsList className="grid w-full max-w-3xl grid-cols-3">
           <TabsTrigger value="branding"><SettingsIcon className="w-4 h-4 mr-2" />{t('admin.settings.brandingTab')}</TabsTrigger>
           <TabsTrigger value="notifications"><Bell className="w-4 h-4 mr-2" />{t('admin.settings.notificationsTab')}</TabsTrigger>
           <TabsTrigger value="emails"><Mail className="w-4 h-4 mr-2" />{t('admin.settings.emailsTab')}</TabsTrigger>
-          <TabsTrigger value="seo"><SettingsIcon className="w-4 h-4 mr-2" />{t('admin.settings.seoTab')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="branding" className="mt-6">
@@ -238,135 +225,7 @@ export function SettingsManagement() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="seo" className="mt-6">
-          <Card className="p-6 border-0 shadow-lg">
-            <h3 className="mb-6 text-gray-900">{t('admin.settings.seoOverridesTitle')}</h3>
-            <p className="text-sm text-gray-600 mb-2">{t('admin.settings.seoOverridesHint')}</p>
-            <p className="text-xs text-gray-500 mb-4">{t('admin.settings.seoOverridesUsage')}</p>
-            <SeoEditor value={perPageSeo} onChange={setPerPageSeo} />
-            <div className="mt-6">
-              <Button disabled={saving} onClick={save} className="bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl">{saving ? t('admin.saving') : t('admin.settings.saveSeo')}</Button>
-            </div>
-          </Card>
-        </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-interface SeoRow {
-  id: string;
-  path: string;
-  titleEn: string;
-  titleFa: string;
-  descriptionEn: string;
-  descriptionFa: string;
-}
-
-function SeoEditor({ value, onChange }: { value: PerPageSeoMap; onChange: (v: PerPageSeoMap) => void }) {
-  const { t } = useLanguage();
-
-  const generateRowId = () => {
-    try {
-      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-        return crypto.randomUUID();
-      }
-    } catch (e) {
-      // ignore
-    }
-    return `seo-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  };
-
-  const normalize = (input?: PerPageSeoMap): SeoRow[] =>
-    Object.entries(input ?? {}).map(([path, meta], index) => ({
-      id: `existing-${index}-${path || 'root'}`,
-      path,
-      titleEn: meta?.titleEn || meta?.title || '',
-      titleFa: meta?.titleFa || meta?.title || '',
-      descriptionEn: meta?.descriptionEn || meta?.description || '',
-      descriptionFa: meta?.descriptionFa || meta?.description || '',
-    }));
-
-  const createEmptyRow = (): SeoRow => ({
-    id: generateRowId(),
-    path: '',
-    titleEn: '',
-    titleFa: '',
-    descriptionEn: '',
-    descriptionFa: '',
-  });
-
-  const [rows, setRows] = useState<SeoRow[]>(() => normalize(value));
-
-  const serializedRef = useRef('');
-
-  useEffect(() => {
-    const nextSerialized = JSON.stringify(value ?? {});
-    if (nextSerialized !== serializedRef.current) {
-      serializedRef.current = nextSerialized;
-      setRows(normalize(value));
-    }
-  }, [value]);
-
-  const add = () => setRows(prev => [...prev, createEmptyRow()]);
-  const update = (i: number, patch: Partial<SeoRow>) => setRows(prev => prev.map((r, idx) => idx === i ? { ...r, ...patch } : r));
-  const remove = (i: number) => setRows(prev => prev.filter((_, idx) => idx !== i));
-
-  useEffect(() => {
-    const obj: PerPageSeoMap = {};
-    for (const r of rows) {
-      const path = r.path.trim();
-      if (!path) continue;
-      const entry: PerPageSeoEntry = {
-        titleEn: r.titleEn.trim() || undefined,
-        titleFa: r.titleFa.trim() || undefined,
-        descriptionEn: r.descriptionEn.trim() || undefined,
-        descriptionFa: r.descriptionFa.trim() || undefined,
-      };
-      entry.title = entry.titleEn || entry.titleFa;
-      entry.description = entry.descriptionEn || entry.descriptionFa;
-      obj[path] = entry;
-    }
-    serializedRef.current = JSON.stringify(obj);
-    onChange(obj);
-  }, [rows, onChange]);
-
-  return (
-    <div className="space-y-4">
-      {rows.map((r, i) => (
-        <div key={r.id} className="rounded-2xl border border-gray-200 bg-white/80 p-4 space-y-4 shadow-sm">
-          <div className="grid md:grid-cols-6 gap-3">
-            <div className="md:col-span-5">
-              <Label>{t('admin.settings.path')}</Label>
-              <Input value={r.path} onChange={(e)=> update(i, { path: e.target.value })} className="mt-1" placeholder="/services/example" />
-            </div>
-            <div className="md:col-span-1 flex items-end justify-end">
-              <Button size="icon" variant="outline" onClick={()=> remove(i)} className="text-red-600">×</Button>
-            </div>
-          </div>
-          <div className="grid md:grid-cols-2 gap-3">
-            <div>
-              <Label>{t('admin.settings.titleLabelEn')}</Label>
-              <Input value={r.titleEn} onChange={(e)=> update(i, { titleEn: e.target.value })} className="mt-1" placeholder={t('admin.seo.siteTitlePlaceholder')} />
-            </div>
-            <div>
-              <Label>{t('admin.settings.titleLabelFa')}</Label>
-              <Input value={r.titleFa} onChange={(e)=> update(i, { titleFa: e.target.value })} className="mt-1 text-right" dir="rtl" placeholder={t('admin.seo.siteTitlePlaceholder')} />
-            </div>
-          </div>
-          <div className="grid md:grid-cols-2 gap-3">
-            <div>
-              <Label>{t('admin.settings.descriptionLabelEn')}</Label>
-              <Textarea rows={3} value={r.descriptionEn} onChange={(e)=> update(i, { descriptionEn: e.target.value })} className="mt-1" placeholder={t('admin.seo.metaDescriptionPlaceholder')} />
-            </div>
-            <div>
-              <Label>{t('admin.settings.descriptionLabelFa')}</Label>
-              <Textarea rows={3} value={r.descriptionFa} onChange={(e)=> update(i, { descriptionFa: e.target.value })} className="mt-1 text-right" dir="rtl" placeholder={t('admin.seo.metaDescriptionPlaceholder')} />
-            </div>
-          </div>
-        </div>
-      ))}
-      <Button variant="outline" onClick={add} className="rounded-xl">{t('admin.settings.addOverride')}</Button>
     </div>
   );
 }

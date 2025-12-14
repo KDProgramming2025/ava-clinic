@@ -28,7 +28,7 @@ export const SeoDefaultsProvider: React.FC<{ children: ReactNode }> = ({ childre
       setDefaults({
         siteTitle: 'Ava Beauty',
         metaDescription: 'Leading clinic for hair & eyebrow implant procedures delivering natural results.',
-        ogImage: '/og-image.jpg',
+        ogImage: '/logo.png',
         loaded: true,
       });
     }

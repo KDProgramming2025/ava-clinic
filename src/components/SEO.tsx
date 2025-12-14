@@ -3,8 +3,26 @@ import { Helmet } from 'react-helmet-async';
 import { useLanguage } from './LanguageContext';
 import { useSeoDefaults } from './SeoDefaultsProvider';
 
-// Simple base config (assumption). TODO: Externalize to settings or .env.
-const BASE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://www.example.com';
+// Canonical origin for absolute URLs; uses env override then falls back to production domain.
+const CANONICAL_ORIGIN = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, '')
+  || (typeof window !== 'undefined' ? window.location.origin : 'https://avakasht.ir');
+
+function toAbsolute(url?: string | null) {
+  if (!url) return undefined;
+  if (/^https?:\/\//i.test(url)) return url;
+  const normalized = url.startsWith('/') ? url : `/${url}`;
+  return `${CANONICAL_ORIGIN}${normalized}`;
+}
+
+function withLang(url: string, lang: 'fa' | 'en') {
+  try {
+    const u = new URL(url, CANONICAL_ORIGIN);
+    u.searchParams.set('l', lang);
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
 
 export interface SEOProps {
   title?: string;            // Localized page title
@@ -41,9 +59,21 @@ export const SEO: React.FC<SEOProps> = ({
   const finalTitle = title || defaults.siteTitle || undefined;
   const finalDescription = description || defaults.metaDescription || undefined;
   const finalImage = image || defaults.ogImage || undefined;
-  const resolvedCanonical = canonical || (typeof window !== 'undefined' ? window.location.href : undefined);
+  const currentUrl = typeof window !== 'undefined'
+    ? `${CANONICAL_ORIGIN}${window.location.pathname}${window.location.search}`
+    : undefined;
+  const resolvedCanonical = canonical
+    ? toAbsolute(canonical)
+    : (currentUrl ? withLang(currentUrl, language) : undefined);
   const effectiveRobots = noIndex ? 'noindex,nofollow' : robots;
   const ldArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
+  const ogLocale = language === 'fa' ? 'fa_IR' : 'en_US';
+  const altLocale = language === 'fa' ? 'en_US' : 'fa_IR';
+  const siteName = defaults.siteTitle || 'Ava Beauty';
+  const absoluteImage = toAbsolute(finalImage);
+
+  const alternateFa = currentUrl ? withLang(currentUrl, 'fa') : undefined;
+  const alternateEn = currentUrl ? withLang(currentUrl, 'en') : undefined;
 
   return (
     <Helmet prioritizeSeoTags>
@@ -58,20 +88,26 @@ export const SEO: React.FC<SEOProps> = ({
         <link key={a.hrefLang} rel="alternate" hrefLang={a.hrefLang} href={a.href} />
       ))}
       {/* Self language tag */}
-      {resolvedCanonical && <link rel="alternate" hrefLang={language === 'fa' ? 'fa' : 'en'} href={resolvedCanonical} />}
+      {alternateFa && <link rel="alternate" hrefLang="fa" href={alternateFa} />}
+      {alternateEn && <link rel="alternate" hrefLang="en" href={alternateEn} />}
+      {resolvedCanonical && <link rel="alternate" hrefLang="x-default" href={resolvedCanonical.replace(/([?&])l=(fa|en)(&|$)/, '$1').replace(/[?&]$/, '')} />}
 
       {/* Open Graph */}
   {finalTitle && <meta property="og:title" content={finalTitle} />}
   {finalDescription && <meta property="og:description" content={finalDescription} />}
       {resolvedCanonical && <meta property="og:url" content={resolvedCanonical} />}
       <meta property="og:type" content={type} />
-  {finalImage && <meta property="og:image" content={finalImage.startsWith('http') ? finalImage : `${BASE_URL}${finalImage}`} />}
+      <meta property="og:site_name" content={siteName} />
+      <meta property="og:locale" content={ogLocale} />
+      <meta property="og:locale:alternate" content={altLocale} />
+  {absoluteImage && <meta property="og:image" content={absoluteImage} />}
+  {absoluteImage && <meta property="og:image:alt" content={finalTitle || siteName} />}
 
       {/* Twitter */}
       <meta name="twitter:card" content="summary_large_image" />
   {finalTitle && <meta name="twitter:title" content={finalTitle} />}
   {finalDescription && <meta name="twitter:description" content={finalDescription} />}
-  {finalImage && <meta name="twitter:image" content={finalImage.startsWith('http') ? finalImage : `${BASE_URL}${finalImage}`} />}
+  {absoluteImage && <meta name="twitter:image" content={absoluteImage} />}
       {twitterHandle && <meta name="twitter:site" content={twitterHandle} />}
 
       {/* Robots */}
