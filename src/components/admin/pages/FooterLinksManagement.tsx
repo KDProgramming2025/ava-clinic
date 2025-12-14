@@ -122,7 +122,12 @@ export default function FooterLinksManagement() {
                     <label className="text-sm text-gray-600">{t('admin.footerLinksManagement.url')}</label>
                     <div className="relative mt-1">
                       <LinkIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <Input value={it.url} onChange={(e)=> update(idx, { url: e.target.value })} className="pl-9" />
+                      <Input
+                        value={it.url}
+                        onChange={(e)=> update(idx, { url: e.target.value })}
+                        className="pl-12 rtl:pr-12"
+                        style={{ paddingInlineStart: '3rem' }}
+                      />
                     </div>
                   </div>
                   <div className="md:col-span-3">
@@ -131,14 +136,25 @@ export default function FooterLinksManagement() {
                         <label className="text-sm text-gray-600">{t('admin.footerLinksManagement.group')} (EN)</label>
                         <div className="relative mt-1">
                           <Folder className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          <Input value={it.groupEn || ''} onChange={(e)=> update(idx, { groupEn: e.target.value })} className="pl-9" />
+                          <Input
+                            value={it.groupEn || ''}
+                            onChange={(e)=> update(idx, { groupEn: e.target.value })}
+                            className="pl-12 rtl:pr-12"
+                            style={{ paddingInlineStart: '3rem' }}
+                          />
                         </div>
                       </div>
                       <div>
                         <label className="text-sm text-gray-600">{t('admin.footerLinksManagement.group')} (FA)</label>
                         <div className="relative mt-1">
                           <Folder className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          <Input dir="rtl" value={it.groupFa || ''} onChange={(e)=> update(idx, { groupFa: e.target.value })} className="pl-9 text-right" />
+                          <Input
+                            dir="rtl"
+                            value={it.groupFa || ''}
+                            onChange={(e)=> update(idx, { groupFa: e.target.value })}
+                            className="pl-12 rtl:pr-12 text-right"
+                            style={{ paddingInlineStart: '3rem' }}
+                          />
                         </div>
                       </div>
                     </div>

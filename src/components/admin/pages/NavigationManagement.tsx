@@ -126,7 +126,12 @@ export default function NavigationManagement() {
                     <label className="text-sm text-gray-600">{t('admin.navigationManagement.path')}</label>
                     <div className="relative mt-1">
                       <LinkIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <Input value={it.path} onChange={(e)=> update(idx, { path: e.target.value })} className="pl-9" />
+                      <Input
+                        value={it.path}
+                        onChange={(e)=> update(idx, { path: e.target.value })}
+                        className="pl-12 rtl:pr-12"
+                        style={{ paddingInlineStart: '3rem' }}
+                      />
                     </div>
                   </div>
                   <div className="md:col-span-2 flex items-center gap-2 mt-6 md:mt-0">
