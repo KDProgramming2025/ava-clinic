@@ -7,6 +7,7 @@ import fs from 'fs/promises';
 import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import TelegramService from './services/TelegramService.js';
+import prisma from './prismaClient.js';
 import servicesRouter from './routes/services.js';
 import testimonialsRouter from './routes/testimonials.js';
 import teamRouter from './routes/team.js';
@@ -34,6 +35,8 @@ import seoRouter from './routes/seo.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+// Respect X-Forwarded-* headers from reverse proxy/CDN (needed for rate limiter IP detection)
+app.set('trust proxy', 1);
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
@@ -41,6 +44,188 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"]
   }
 });
+
+// --- Social preview helpers ---
+const PREVIEW_BOT_REGEX = /(telegram|facebookexternalhit|whatsapp|viber|line|twitterbot|linkedinbot|slackbot|discord|vkshare|pinterest|embedly|quora\slink\spreview|outbrain|yandexbot|bingbot|googlebot|baiduspider)/i;
+const DEFAULT_DESCRIPTION = 'Ava Beauty clinic specializes in women\'s hair and eyebrow implants in Tehran with natural-looking results.';
+const DEFAULT_DESCRIPTION_FA = 'کلینیک تخصصی کاشت مو و ابرو آوا در تهران با نتایج طبیعی و ماندگار.';
+
+const absoluteUrl = (base, value) => {
+  if (!value) return undefined;
+  if (/^https?:\/\//i.test(value)) return value;
+  const normalized = value.startsWith('/') ? value : `/${value}`;
+  return `${base}${normalized}`;
+};
+
+const escapeHtml = (value) => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;');
+
+const firstNonEmpty = (...values) => {
+  for (const value of values) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed) return trimmed;
+    }
+  }
+  return undefined;
+};
+
+const currentBaseUrl = (req) => {
+  const envUrl = process.env.SITE_URL || process.env.BASE_URL;
+  if (envUrl) return envUrl.replace(/\/$/, '');
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+  const host = req.get('host');
+  return `${proto}://${host}`;
+};
+
+const isPreviewBotRequest = (req) => {
+  const ua = (req.get('user-agent') || '').toLowerCase();
+  const force = req.query.__preview === '1';
+  return force || PREVIEW_BOT_REGEX.test(ua);
+};
+
+async function buildMetaForRequest(req, base) {
+  const cleanPath = req.path || '/';
+  const fullPath = (req.originalUrl || cleanPath).split('#')[0] || cleanPath;
+  const langParam = String(req.query?.l || '').toLowerCase();
+  const lang = langParam === 'en' ? 'en' : 'fa';
+
+  const [settings, homeHero] = await Promise.all([
+    prisma.settings.findUnique({ where: { id: 1 } }),
+    cleanPath === '/' ? prisma.homeHero.findUnique({ where: { id: 1 }, select: { imageUrl: true } }) : Promise.resolve(null),
+  ]);
+
+  const pickLocalized = (opts) => {
+    const { fa, en, neutral } = opts;
+    if (lang === 'en') return firstNonEmpty(en, neutral, fa);
+    return firstNonEmpty(fa, neutral, en);
+  };
+
+  const fallbackTitle = pickLocalized({ fa: settings?.siteTitleFa, en: settings?.siteTitleEn, neutral: settings?.siteTitle }) || 'Ava Beauty';
+  let fallbackDescription = pickLocalized({ fa: settings?.metaDescriptionFa, en: settings?.metaDescriptionEn, neutral: settings?.metaDescription })
+    || (lang === 'fa' ? DEFAULT_DESCRIPTION_FA : DEFAULT_DESCRIPTION);
+
+  if (lang === 'fa' && (!settings?.metaDescriptionFa || !settings.metaDescriptionFa.trim())) {
+    const neutralDesc = settings?.metaDescription?.trim();
+    if (neutralDesc && neutralDesc === fallbackDescription) {
+      fallbackDescription = DEFAULT_DESCRIPTION_FA;
+    }
+  }
+
+  if (lang === 'fa' && fallbackDescription && settings?.metaDescriptionFa && settings.metaDescriptionEn && settings.metaDescriptionFa === settings.metaDescriptionEn) {
+    // Stored FA text is just the English copy; prefer a Persian default to avoid English preview.
+    fallbackDescription = DEFAULT_DESCRIPTION_FA;
+  }
+  const fallbackImage = absoluteUrl(base, settings?.ogImage)
+    || absoluteUrl(base, homeHero?.imageUrl)
+    || absoluteUrl(base, settings?.logoUrl)
+    || `${base}/logo.png`;
+
+  const meta = {
+    title: fallbackTitle,
+    description: fallbackDescription,
+    image: fallbackImage,
+    type: 'website',
+    url: `${base}${fullPath}`,
+    siteName: fallbackTitle,
+  };
+
+  try {
+    if (cleanPath.startsWith('/services/')) {
+      const slug = cleanPath.split('/').filter(Boolean)[1];
+      if (slug) {
+        const service = await prisma.service.findUnique({
+          where: { slug },
+          select: { title: true, titleFa: true, titleEn: true, description: true, descriptionFa: true, descriptionEn: true, image: true },
+        });
+        if (service) {
+          meta.title = pickLocalized({ fa: service.titleFa, en: service.titleEn, neutral: service.title }) || meta.title;
+          meta.description = pickLocalized({ fa: service.descriptionFa, en: service.descriptionEn, neutral: service.description }) || meta.description;
+          meta.image = absoluteUrl(base, service.image) || meta.image;
+          meta.type = 'article';
+          meta.url = `${base}/services/${slug}`;
+        }
+      }
+    } else if (cleanPath.startsWith('/magazine/')) {
+      const slug = cleanPath.split('/').filter(Boolean)[1];
+      if (slug) {
+        const article = await prisma.article.findFirst({
+          where: { slug, status: 'PUBLISHED' },
+          select: {
+            title: true,
+            titleFa: true,
+            titleEn: true,
+            excerpt: true,
+            description: true,
+            descriptionFa: true,
+            descriptionEn: true,
+            image: true,
+          },
+        });
+        if (article) {
+          meta.title = pickLocalized({ fa: article.titleFa, en: article.titleEn, neutral: article.title }) || meta.title;
+          meta.description = pickLocalized({ fa: article.descriptionFa, en: article.descriptionEn, neutral: article.excerpt || article.description }) || meta.description;
+          meta.image = absoluteUrl(base, article.image) || meta.image;
+          meta.type = 'article';
+          meta.url = `${base}/magazine/${slug}`;
+        }
+      }
+    } else if (cleanPath.startsWith('/videos/')) {
+      const slug = cleanPath.split('/').filter(Boolean)[1];
+      if (slug) {
+        const video = await prisma.video.findFirst({
+          where: { slug, status: 'PUBLISHED' },
+          select: { title: true, description: true, thumbnail: true },
+        });
+        if (video) {
+          meta.title = pickLocalized({ neutral: video.title, fa: video.title, en: video.title }) || meta.title;
+          meta.description = pickLocalized({ neutral: video.description, fa: video.description, en: video.description }) || meta.description;
+          meta.image = absoluteUrl(base, video.thumbnail) || meta.image;
+          meta.type = 'video.other';
+          meta.url = `${base}/videos/${slug}`;
+        }
+      }
+    }
+  } catch (e) {
+    // If any lookups fail, fallback meta is still returned.
+    console.warn('[seo-meta] lookup failed', e?.message || e);
+  }
+
+  return meta;
+}
+
+const buildHeadTags = (meta) => {
+  const tags = [
+    meta.title ? `<title>${escapeHtml(meta.title)}</title>` : null,
+    meta.title ? `<meta property="og:title" content="${escapeHtml(meta.title)}" />` : null,
+    meta.description ? `<meta name="description" content="${escapeHtml(meta.description)}" />` : null,
+    meta.description ? `<meta property="og:description" content="${escapeHtml(meta.description)}" />` : null,
+    meta.url ? `<link rel="canonical" href="${escapeHtml(meta.url)}" />` : null,
+    meta.url ? `<meta property="og:url" content="${escapeHtml(meta.url)}" />` : null,
+    `<meta property="og:type" content="${escapeHtml(meta.type || 'website')}" />`,
+    meta.siteName ? `<meta property="og:site_name" content="${escapeHtml(meta.siteName)}" />` : null,
+    meta.image ? `<meta property="og:image" content="${escapeHtml(meta.image)}" />` : null,
+    meta.image ? `<meta property="og:image:alt" content="${escapeHtml(meta.title || meta.siteName || 'Ava Beauty')}" />` : null,
+    '<meta name="twitter:card" content="summary_large_image" />',
+    meta.title ? `<meta name="twitter:title" content="${escapeHtml(meta.title)}" />` : null,
+    meta.description ? `<meta name="twitter:description" content="${escapeHtml(meta.description)}" />` : null,
+    meta.image ? `<meta name="twitter:image" content="${escapeHtml(meta.image)}" />` : null,
+    '<meta name="robots" content="index,follow" />',
+  ].filter(Boolean);
+
+  return `    ${tags.join('\n    ')}\n`;
+};
+
+const injectHeadTags = (html, meta) => {
+  const tags = buildHeadTags(meta);
+  if (html.includes('</head>')) {
+    return html.replace('</head>', `${tags}</head>`);
+  }
+  return `${tags}${html}`;
+};
 
 // --- Security Headers (simple, fast) ---
 app.use((req, res, next) => {
@@ -165,20 +350,53 @@ app.get('/api/content', (_req, res) => {
 
 // Serve frontend static assets from Vite build output
 const buildDir = path.resolve(process.cwd(), 'build');
+const indexFile = path.join(buildDir, 'index.html');
+let cachedIndexHtml;
+
 app.use(express.static(buildDir, { maxAge: '7d', index: false }));
 
-// SPA fallback using regex pattern (avoid path-to-regexp '*' parsing issue in some Node builds)
+const getIndexHtml = async () => {
+  if (cachedIndexHtml) return cachedIndexHtml;
+  cachedIndexHtml = await fs.readFile(indexFile, 'utf-8');
+  return cachedIndexHtml;
+};
+
+// SPA fallback with server-side OG/Twitter tags for link preview bots (Telegram, etc.)
 app.get(/.*/, async (req, res, next) => {
-  // Skip API & direct SEO asset endpoints
   if (req.path.startsWith('/api/')) return next();
   if (['/sitemap.xml', '/robots.txt', '/rss.xml'].includes(req.path)) return next();
+
   try {
-    const file = path.join(buildDir, 'index.html');
-    const html = await fs.readFile(file, 'utf-8');
+    const base = currentBaseUrl(req);
+    const html = await getIndexHtml();
+
     res.set('Content-Type', 'text/html');
-    return res.send(html);
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Vary', 'User-Agent');
+
+    if (!isPreviewBotRequest(req)) {
+      return res.send(html);
+    }
+
+    const meta = await buildMetaForRequest(req, base);
+    const withMeta = injectHeadTags(html, meta);
+    return res.send(withMeta);
   } catch (e) {
-    return next();
+    console.warn('[spa-fallback]', e?.message || e);
+    try {
+      const html = await getIndexHtml();
+      res.set('Content-Type', 'text/html');
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      res.set('Vary', 'User-Agent');
+      return res.send(html);
+    } catch (err) {
+      console.warn('[spa-fallback-read]', err?.message || err);
+      return next();
+    }
   }
 });
 
