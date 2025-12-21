@@ -125,11 +125,11 @@ async function buildMetaForRequest(req, base) {
     // Stored FA text is just the English copy; prefer a Persian default to avoid English preview.
     fallbackDescription = DEFAULT_DESCRIPTION_FA;
   }
+  const homeHeroImage = absoluteUrl(base, homeHero?.imageUrl);
   const fallbackImage = addCacheBuster(
-    absoluteUrl(base, settings?.ogImage)
-      || absoluteUrl(base, homeHero?.imageUrl)
-      || absoluteUrl(base, settings?.logoUrl)
-      || `${base}/logo.png`
+    cleanPath === '/'
+      ? (homeHeroImage || absoluteUrl(base, settings?.ogImage) || absoluteUrl(base, settings?.logoUrl) || `${base}/logo.png`)
+      : (absoluteUrl(base, settings?.ogImage) || absoluteUrl(base, settings?.logoUrl) || `${base}/logo.png`)
   );
 
   const meta = {
