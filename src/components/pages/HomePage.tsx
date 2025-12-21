@@ -118,6 +118,7 @@ export function HomePage() {
   const heroCtaPrimary = pickLocalized(hero?.ctaPrimaryLabelFa, hero?.ctaPrimaryLabelEn, hero?.ctaPrimaryLabel);
   const heroCtaSecondary = pickLocalized(hero?.ctaSecondaryLabelFa, hero?.ctaSecondaryLabelEn, hero?.ctaSecondaryLabel);
   const heroImageUrl = resolveMediaUrl(hero?.imageUrl);
+  const seoImage = heroImageUrl || '/og-image.jpg';
   const ctaHeading = pickLocalized(cta?.headingFa, cta?.headingEn, cta?.heading);
   const ctaSubheading = pickLocalized(cta?.subheadingFa, cta?.subheadingEn, cta?.subheading);
   const ctaButton = pickLocalized(cta?.buttonLabelFa, cta?.buttonLabelEn, cta?.buttonLabel);
@@ -138,7 +139,7 @@ export function HomePage() {
             description={t('heroDescription')}
             canonical={canonical}
             alternates={alternates}
-            image="/og-image.jpg"
+            image={seoImage}
             type="website"
           />
         );
