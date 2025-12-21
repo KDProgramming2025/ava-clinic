@@ -252,22 +252,26 @@ export function HomePage() {
                   const localizedTitle = pickLocalized(service.titleFa, service.titleEn, service.title);
                   const subtitleFallback = service.subtitle || (service.description ? service.description.slice(0, 120) : '');
                   const localizedSubtitle = pickLocalized(service.subtitleFa, service.subtitleEn, subtitleFallback) || subtitleFallback;
+                  const serviceHref = serviceKey ? `/services/${serviceKey}` : '/services';
+                  const serviceImage = resolveMediaUrl(service.image);
                   return (
                     <motion.div key={service.id || index} initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }} whileHover={{ y: -10 }}>
                       <Card className="overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all">
-                        <div className="relative h-64 overflow-hidden">
-                          {loading ? <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 animate-pulse" /> : (
-                            <ImageWithFallback src={service.image} alt={localizedTitle} className="w-full h-full object-cover transition-transform duration-500 hover:scale-110" />
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                          <div className="absolute bottom-4 left-4 right-4">
-                            <h3 className="text-white mb-2 min-h-6">{!loading && localizedTitle}</h3>
+                        <Link to={serviceHref} className="block h-full">
+                          <div className="relative h-64 overflow-hidden">
+                            {loading ? <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 animate-pulse" /> : (
+                              <ImageWithFallback src={serviceImage} alt={localizedTitle} className="w-full h-full object-cover transition-transform duration-500 hover:scale-110" />
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                            <div className="absolute bottom-4 left-4 right-4">
+                              <h3 className="text-white mb-2 min-h-6">{!loading && localizedTitle}</h3>
+                            </div>
                           </div>
-                        </div>
-                        <div className="p-6">
-                          <p className="text-gray-600 mb-4 min-h-10">{!loading && localizedSubtitle}</p>
-                          {!loading && <Button variant="outline" className="w-full rounded-full border-pink-500 text-pink-600 hover:bg-pink-50">{t('learnMore')}</Button>}
-                        </div>
+                          <div className="p-6">
+                            <p className="text-gray-600 mb-4 min-h-10">{!loading && localizedSubtitle}</p>
+                            {!loading && <Button variant="outline" className="w-full rounded-full border-pink-500 text-pink-600 hover:bg-pink-50">{t('learnMore')}</Button>}
+                          </div>
+                        </Link>
                       </Card>
                     </motion.div>
                   );
