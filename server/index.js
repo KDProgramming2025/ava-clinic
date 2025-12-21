@@ -57,6 +57,12 @@ const absoluteUrl = (base, value) => {
   return `${base}${normalized}`;
 };
 
+const addCacheBuster = (url) => {
+  if (!url) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}v=${Date.now()}`;
+};
+
 const escapeHtml = (value) => String(value || '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -119,10 +125,12 @@ async function buildMetaForRequest(req, base) {
     // Stored FA text is just the English copy; prefer a Persian default to avoid English preview.
     fallbackDescription = DEFAULT_DESCRIPTION_FA;
   }
-  const fallbackImage = absoluteUrl(base, settings?.ogImage)
-    || absoluteUrl(base, homeHero?.imageUrl)
-    || absoluteUrl(base, settings?.logoUrl)
-    || `${base}/logo.png`;
+  const fallbackImage = addCacheBuster(
+    absoluteUrl(base, settings?.ogImage)
+      || absoluteUrl(base, homeHero?.imageUrl)
+      || absoluteUrl(base, settings?.logoUrl)
+      || `${base}/logo.png`
+  );
 
   const meta = {
     title: fallbackTitle,
@@ -144,7 +152,7 @@ async function buildMetaForRequest(req, base) {
         if (service) {
           meta.title = pickLocalized({ fa: service.titleFa, en: service.titleEn, neutral: service.title }) || meta.title;
           meta.description = pickLocalized({ fa: service.descriptionFa, en: service.descriptionEn, neutral: service.description }) || meta.description;
-          meta.image = absoluteUrl(base, service.image) || meta.image;
+          meta.image = addCacheBuster(absoluteUrl(base, service.image)) || meta.image;
           meta.type = 'article';
           meta.url = `${base}/services/${slug}`;
         }
@@ -168,7 +176,7 @@ async function buildMetaForRequest(req, base) {
         if (article) {
           meta.title = pickLocalized({ fa: article.titleFa, en: article.titleEn, neutral: article.title }) || meta.title;
           meta.description = pickLocalized({ fa: article.descriptionFa, en: article.descriptionEn, neutral: article.excerpt || article.description }) || meta.description;
-          meta.image = absoluteUrl(base, article.image) || meta.image;
+          meta.image = addCacheBuster(absoluteUrl(base, article.image)) || meta.image;
           meta.type = 'article';
           meta.url = `${base}/magazine/${slug}`;
         }
@@ -183,7 +191,7 @@ async function buildMetaForRequest(req, base) {
         if (video) {
           meta.title = pickLocalized({ neutral: video.title, fa: video.title, en: video.title }) || meta.title;
           meta.description = pickLocalized({ neutral: video.description, fa: video.description, en: video.description }) || meta.description;
-          meta.image = absoluteUrl(base, video.thumbnail) || meta.image;
+          meta.image = addCacheBuster(absoluteUrl(base, video.thumbnail)) || meta.image;
           meta.type = 'video.other';
           meta.url = `${base}/videos/${slug}`;
         }
