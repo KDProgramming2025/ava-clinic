@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Edit, Plus, Trash2, Save, RefreshCcw, LayoutGrid, Activity, Sparkles, UploadCloud, Image as ImageIcon } from 'lucide-react';
+import { Edit, Plus, Trash2, Save, RefreshCcw, LayoutGrid, Activity, Sparkles, UploadCloud, Image as ImageIcon, Palette } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { apiFetch } from '../../../api/client';
 import { useLanguage } from '../../LanguageContext';
 import { resolveMediaUrl } from '../../../utils/media';
+import { IconPicker } from '../IconPicker';
 
 interface HomeHero {
   title?: string|null;
@@ -66,6 +67,10 @@ export function HomeContentManagement() {
   const [statForm, setStatForm] = useState<{ labelEn: string; labelFa: string; value: string; icon: string }>({ labelEn: '', labelFa: '', value: '', icon: '' });
   const [featureForm, setFeatureForm] = useState<{ titleEn: string; titleFa: string; descriptionEn: string; descriptionFa: string; icon: string }>({ titleEn: '', titleFa: '', descriptionEn: '', descriptionFa: '', icon: '' });
   const [heroImageProcessing, setHeroImageProcessing] = useState(false);
+  const [statIconProcessing, setStatIconProcessing] = useState(false);
+  const [featureIconProcessing, setFeatureIconProcessing] = useState(false);
+  const [statIconPickerOpen, setStatIconPickerOpen] = useState(false);
+  const [featureIconPickerOpen, setFeatureIconPickerOpen] = useState(false);
 
   const randomId = () => {
     const g = globalThis as typeof globalThis & { crypto?: Crypto };
@@ -182,6 +187,52 @@ export function HomeContentManagement() {
       await persistHeroImage(null);
     } finally {
       setHeroImageProcessing(false);
+    }
+  };
+
+  const uploadIcon = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiFetch<{ url: string; publicUrl?: string | null }>('/media/upload', { method: 'POST', body: formData });
+  };
+
+  const handleStatIconUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const prev = statForm.icon;
+    try {
+      setStatIconProcessing(true);
+      const created = await uploadIcon(file);
+      if (created?.url) {
+        setStatForm(f => ({ ...f, icon: created.url }));
+        setDirty(true);
+      }
+    } catch (e: any) {
+      setStatForm(f => ({ ...f, icon: prev }));
+      toast.error(e?.message || t('admin.media.uploadFailed'));
+    } finally {
+      setStatIconProcessing(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleFeatureIconUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const prev = featureForm.icon;
+    try {
+      setFeatureIconProcessing(true);
+      const created = await uploadIcon(file);
+      if (created?.url) {
+        setFeatureForm(f => ({ ...f, icon: created.url }));
+        setDirty(true);
+      }
+    } catch (e: any) {
+      setFeatureForm(f => ({ ...f, icon: prev }));
+      toast.error(e?.message || t('admin.media.uploadFailed'));
+    } finally {
+      setFeatureIconProcessing(false);
+      event.target.value = '';
     }
   };
 
@@ -562,7 +613,54 @@ export function HomeContentManagement() {
             </div>
             <div>
               <Label htmlFor="stat-icon">{t('admin.homeContent.stat.iconLabel')}</Label>
-              <Input id="stat-icon" value={statForm.icon} onChange={(e)=> setStatForm(f=>({...f,icon:e.target.value}))} className="mt-2 rounded-xl" placeholder="lucide icon name (optional)" />
+              {statForm.icon && (
+                <div className="mt-2 mb-2 relative w-20 h-20 rounded-lg overflow-hidden border">
+                  {statForm.icon.startsWith('lucide:') ? (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-500 to-purple-600">
+                      <span className="text-white text-xs text-center px-1">{statForm.icon.replace('lucide:', '')}</span>
+                    </div>
+                  ) : (
+                    <img src={resolveMediaUrl(statForm.icon)} alt="Icon preview" className="w-full h-full object-cover" />
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="absolute top-0 right-0 text-red-600 bg-white/80" 
+                    onClick={() => { setStatForm(f => ({ ...f, icon: '' })); setDirty(true); }}
+                    disabled={statIconProcessing}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+              <div className="flex gap-2 mt-2">
+                <Input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleStatIconUpload} 
+                  disabled={statIconProcessing} 
+                  className="rounded-xl flex-1"
+                  id="stat-icon-upload"
+                />
+                <Button 
+                  variant="outline" 
+                  disabled={statIconProcessing}
+                  className="whitespace-nowrap"
+                  onClick={() => document.getElementById('stat-icon-upload')?.click()}
+                >
+                  <UploadCloud className={`w-4 h-4 mr-2 ${statIconProcessing ? 'animate-spin' : ''}`} />
+                  {statIconProcessing ? t('admin.media.uploading') : t('admin.media.upload')}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="whitespace-nowrap"
+                  onClick={() => setStatIconPickerOpen(true)}
+                >
+                  <Palette className="w-4 h-4 mr-2" />
+                  {t('admin.media.chooseIcon') || 'Choose'}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">{t('admin.media.iconHelp') || 'Upload an image or choose a Lucide icon'}</p>
             </div>
           </div>
           <DialogFooter>
@@ -599,7 +697,54 @@ export function HomeContentManagement() {
             </div>
             <div>
               <Label htmlFor="feat-icon">{t('admin.homeContent.feature.iconLabel')}</Label>
-              <Input id="feat-icon" value={featureForm.icon} onChange={(e)=> setFeatureForm(f=>({...f,icon:e.target.value}))} className="mt-2 rounded-xl" />
+              {featureForm.icon && (
+                <div className="mt-2 mb-2 relative w-20 h-20 rounded-lg overflow-hidden border">
+                  {featureForm.icon.startsWith('lucide:') ? (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
+                      <span className="text-white text-xs text-center px-1">{featureForm.icon.replace('lucide:', '')}</span>
+                    </div>
+                  ) : (
+                    <img src={resolveMediaUrl(featureForm.icon)} alt="Icon preview" className="w-full h-full object-cover" />
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="absolute top-0 right-0 text-red-600 bg-white/80" 
+                    onClick={() => { setFeatureForm(f => ({ ...f, icon: '' })); setDirty(true); }}
+                    disabled={featureIconProcessing}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+              <div className="flex gap-2 mt-2">
+                <Input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleFeatureIconUpload} 
+                  disabled={featureIconProcessing} 
+                  className="rounded-xl flex-1"
+                  id="feature-icon-upload"
+                />
+                <Button 
+                  variant="outline" 
+                  disabled={featureIconProcessing}
+                  className="whitespace-nowrap"
+                  onClick={() => document.getElementById('feature-icon-upload')?.click()}
+                >
+                  <UploadCloud className={`w-4 h-4 mr-2 ${featureIconProcessing ? 'animate-spin' : ''}`} />
+                  {featureIconProcessing ? t('admin.media.uploading') : t('admin.media.upload')}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="whitespace-nowrap"
+                  onClick={() => setFeatureIconPickerOpen(true)}
+                >
+                  <Palette className="w-4 h-4 mr-2" />
+                  {t('admin.media.chooseIcon') || 'Choose'}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">{t('admin.media.iconHelp') || 'Upload an image or choose a Lucide icon'}</p>
             </div>
           </div>
           <DialogFooter>
@@ -608,6 +753,20 @@ export function HomeContentManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Icon Pickers */}
+      <IconPicker
+        open={statIconPickerOpen}
+        onOpenChange={setStatIconPickerOpen}
+        onSelect={(iconName) => { setStatForm(f => ({ ...f, icon: iconName })); setDirty(true); }}
+        currentIcon={statForm.icon}
+      />
+      <IconPicker
+        open={featureIconPickerOpen}
+        onOpenChange={setFeatureIconPickerOpen}
+        onSelect={(iconName) => { setFeatureForm(f => ({ ...f, icon: iconName })); setDirty(true); }}
+        currentIcon={featureForm.icon}
+      />
     </div>
   );
 }
