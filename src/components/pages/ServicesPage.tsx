@@ -121,9 +121,9 @@ export function ServicesPage() {
           {error && <div className="text-center py-20 text-red-600">{error}</div>}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {(services.length ? services : loading ? Array.from({length:6}).map(()=>({title:'',subtitle:'',image:'',priceRange:'',duration:'',recovery:''})) : []).map((service: any, index) => {
-              const title = language === 'fa' ? (service.titleFa || service.title) : (service.titleEn || service.title);
-              const subtitle = language === 'fa' ? (service.subtitleFa || service.subtitle) : (service.subtitleEn || service.subtitle);
-              const description = language === 'fa' ? (service.descriptionFa || service.description) : (service.descriptionEn || service.description);
+              const title = getBilingualText(service, 'title');
+              const subtitle = getBilingualText(service, 'subtitle');
+              const description = getBilingualText(service, 'description');
               return (
               <motion.div
                 key={service.id || index}
@@ -147,7 +147,7 @@ export function ServicesPage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                     <div className="absolute top-4 right-4">
                       <Badge className="bg-white text-pink-600 min-h-6">
-                        {!loading && service.priceRange || service.price || ''}
+                        {!loading && getBilingualText(service, 'priceRange')}
                       </Badge>
                     </div>
                     <div className="absolute bottom-4 left-4 right-4">
@@ -156,7 +156,7 @@ export function ServicesPage() {
                           {!loading && iconForService()}
                         </div>
                         <div>
-                          <h3 className="text-white min-h-6">{!loading && service.title}</h3>
+                          <h3 className="text-white min-h-6">{!loading && title}</h3>
                           <p className="text-white/80 min-h-4">{!loading && subtitle}</p>
                         </div>
                       </div>
@@ -167,11 +167,11 @@ export function ServicesPage() {
                     <div className="flex items-center gap-4 text-gray-600 mb-4">
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-pink-500" />
-                        <span className="min-h-4">{!loading && service.duration}</span>
+                        <span className="min-h-4">{!loading && getBilingualText(service, 'duration')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Shield className="w-4 h-4 text-pink-500" />
-                        <span className="min-h-4">{!loading && service.recovery}</span>
+                        <span className="min-h-4">{!loading && getBilingualText(service, 'recovery')}</span>
                       </div>
                     </div>
                     {!loading && <Button className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-full">
@@ -205,7 +205,10 @@ export function ServicesPage() {
                   <div className="grid lg:grid-cols-2 gap-12">
                     <div>
                       <h2 className="mb-6 text-gray-900">
-                        {isRTL ? `${t('services.benefitsSuffix')} ${services[selectedService]?.title}` : `${services[selectedService]?.title} ${t('services.benefitsSuffix')}`}
+                        {(() => {
+                          const svcTitle = getBilingualText(services[selectedService], 'title');
+                          return isRTL ? `${t('services.benefitsSuffix')} ${svcTitle}` : `${svcTitle} ${t('services.benefitsSuffix')}`;
+                        })()}
                       </h2>
                       <div className="space-y-4">
                         {(services[selectedService]?.benefits || []).map((benefit: any, index: number) => {
@@ -228,23 +231,23 @@ export function ServicesPage() {
                     <div>
                       <ImageWithFallback
                         src={services[selectedService]?.image}
-                        alt={services[selectedService]?.title}
+                        alt={getBilingualText(services[selectedService], 'title')}
                         className="rounded-2xl shadow-xl w-full h-auto"
                       />
                       <div className="mt-6 grid grid-cols-3 gap-4">
                         <div className="text-center p-4 bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl">
                           <Award className="w-8 h-8 mx-auto mb-2 text-pink-500" />
-                          <p className="text-gray-900">{services[selectedService]?.priceRange || services[selectedService]?.price || ''}</p>
+                          <p className="text-gray-900">{getBilingualText(services[selectedService], 'priceRange')}</p>
                           <p className="text-gray-600">{t('services.price')}</p>
                         </div>
                         <div className="text-center p-4 bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl">
                           <Clock className="w-8 h-8 mx-auto mb-2 text-purple-500" />
-                          <p className="text-gray-900">{services[selectedService]?.duration}</p>
+                          <p className="text-gray-900">{getBilingualText(services[selectedService], 'duration')}</p>
                           <p className="text-gray-600">{t('services.duration')}</p>
                         </div>
                         <div className="text-center p-4 bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl">
                           <Shield className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-                          <p className="text-gray-900">{services[selectedService]?.recovery}</p>
+                          <p className="text-gray-900">{getBilingualText(services[selectedService], 'recovery')}</p>
                           <p className="text-gray-600">{t('services.recovery')}</p>
                         </div>
                       </div>
@@ -264,6 +267,7 @@ export function ServicesPage() {
                   <div className="max-w-3xl mx-auto">
                     {(services[selectedService]?.processSteps || []).map((step: any, index: number) => {
                       const stepText = getBilingualText(step, 'description');
+                      const stepTitle = getBilingualText(step, 'title');
                       return (
                       <motion.div
                         key={index}
@@ -278,6 +282,7 @@ export function ServicesPage() {
                           </div>
                         </div>
                         <div className="flex-1 pt-2">
+                          {stepTitle && <p className="text-gray-900 font-medium mb-1">{stepTitle}</p>}
                           <p className="text-gray-900">{stepText}</p>
                           {index < ((services[selectedService]?.processSteps || []).length - 1) && (
                             <div className="h-8 w-0.5 bg-gradient-to-b from-pink-500 to-purple-600 ml-6 mt-4" />

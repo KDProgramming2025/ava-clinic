@@ -20,8 +20,14 @@ model Service {
   description     String
   image           String?
   priceRange      String?
+  priceRangeEn    String?
+  priceRangeFa    String?
   duration        String?
+  durationEn      String?
+  durationFa      String?
   recovery        String?
+  recoveryEn      String?
+  recoveryFa      String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   durationMinutes Int?
@@ -40,6 +46,8 @@ model Service {
 model Benefit {
   id        String  @id @default(cuid())
   text      String
+  textEn    String?
+  textFa    String?
   serviceId String
   service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 }
@@ -48,7 +56,11 @@ model ProcessStep {
   id          String  @id @default(cuid())
   stepNumber  Int
   title       String?
+  titleEn     String?
+  titleFa     String?
   description String
+  descriptionEn String?
+  descriptionFa String?
   serviceId   String
   service     Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
@@ -58,7 +70,11 @@ model ProcessStep {
 model Faq {
   id        String  @id @default(cuid())
   question  String
+  questionEn String?
+  questionFa String?
   answer    String
+  answerEn  String?
+  answerFa  String?
   serviceId String
   service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 }

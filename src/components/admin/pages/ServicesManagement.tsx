@@ -49,7 +49,7 @@ type Service = {
 };
 
 type BenefitForm = { textEn: string; textFa: string };
-type StepForm = { stepNumber?: number; title?: string; descriptionEn: string; descriptionFa: string };
+type StepForm = { stepNumber?: number; titleEn: string; titleFa: string; descriptionEn: string; descriptionFa: string };
 type FaqForm = { questionEn: string; questionFa: string; answerEn: string; answerFa: string };
 
 const emptyForm = {
@@ -234,7 +234,8 @@ export function ServicesManagement() {
       .sort((a, b) => (a.stepNumber ?? 0) - (b.stepNumber ?? 0))
       .map((s: any) => ({
         stepNumber: s.stepNumber,
-        title: s.title || '',
+        titleEn: s.titleEn || s.title || '',
+        titleFa: s.titleFa || s.title || '',
         descriptionEn: s.descriptionEn || s.description || '',
         descriptionFa: s.descriptionFa || s.description || '',
       })));
@@ -269,19 +270,24 @@ export function ServicesManagement() {
 
     const stepsPayload = steps
       .map((s, idx) => {
+        const titleEn = trimInput(s.titleEn);
+        const titleFa = trimInput(s.titleFa);
+        const title = prefer(titleEn, titleFa, (s as any).title);
         const descriptionEn = trimInput(s.descriptionEn);
         const descriptionFa = trimInput(s.descriptionFa);
         const description = prefer(descriptionEn, descriptionFa);
         if (!description) return null;
         return {
           stepNumber: s.stepNumber ?? idx + 1,
-          title: trimInput(s.title) || undefined,
+          title: title || undefined,
+          titleEn: titleEn || undefined,
+          titleFa: titleFa || undefined,
           description,
           descriptionEn: descriptionEn || undefined,
           descriptionFa: descriptionFa || undefined,
         };
       })
-      .filter((item): item is { stepNumber: number; title?: string; description: string; descriptionEn?: string; descriptionFa?: string } => Boolean(item));
+      .filter((item): item is { stepNumber: number; title?: string; titleEn?: string; titleFa?: string; description: string; descriptionEn?: string; descriptionFa?: string } => Boolean(item));
 
     const faqPayload = faqs
       .map((f) => {
@@ -874,31 +880,40 @@ export function ServicesManagement() {
                 <div className="mt-2 space-y-3">
                   {steps.map((s, idx) => (
                     <div key={idx} className="p-3 rounded-xl bg-gray-50 space-y-2">
-                      <div className="grid md:grid-cols-5 gap-2">
+                      <div className="grid md:grid-cols-3 gap-2">
                         <Input
                           type="number"
                           value={s.stepNumber ?? idx + 1}
                           onChange={(e) => setSteps(arr => arr.map((x,i)=> i===idx? { ...x, stepNumber: parseInt(e.target.value)||idx+1 }: x))}
-                          className="md:col-span-1 rounded-xl"
+                          className="rounded-xl"
                           placeholder="#"
                         />
                         <Input
-                          value={s.title || ''}
-                          onChange={(e) => setSteps(arr => arr.map((x,i)=> i===idx? { ...x, title: e.target.value }: x))}
-                          className="md:col-span-2 rounded-xl"
-                          placeholder={t('admin.subtitleLabel')}
+                          value={s.titleEn}
+                          onChange={(e) => setSteps(arr => arr.map((x,i)=> i===idx? { ...x, titleEn: e.target.value }: x))}
+                          className="rounded-xl"
+                          placeholder={`${t('admin.stepTitleLabel') || t('admin.subtitleLabel')} (EN)`}
                         />
+                        <Input
+                          value={s.titleFa}
+                          dir="rtl"
+                          onChange={(e) => setSteps(arr => arr.map((x,i)=> i===idx? { ...x, titleFa: e.target.value }: x))}
+                          className="rounded-xl text-right"
+                          placeholder={`${t('admin.stepTitleLabel') || t('admin.subtitleLabel')} (FA)`}
+                        />
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-2">
                         <Textarea
                           value={s.descriptionEn}
                           onChange={(e) => setSteps(arr => arr.map((x,i)=> i===idx? { ...x, descriptionEn: e.target.value }: x))}
-                          className="md:col-span-2 rounded-xl"
+                          className="rounded-xl"
                           placeholder={`${t('admin.descriptionLabel')} (EN)`}
                         />
                         <Textarea
                           value={s.descriptionFa}
                           dir="rtl"
                           onChange={(e) => setSteps(arr => arr.map((x,i)=> i===idx? { ...x, descriptionFa: e.target.value }: x))}
-                          className="md:col-span-2 rounded-xl text-right"
+                          className="rounded-xl text-right"
                           placeholder={`${t('admin.descriptionLabel')} (FA)`}
                         />
                       </div>
@@ -907,7 +922,7 @@ export function ServicesManagement() {
                       </div>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setSteps(arr => [...arr,{ descriptionEn: '', descriptionFa: '' }])}>{t('admin.addStep')}</Button>
+                  <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setSteps(arr => [...arr,{ titleEn: '', titleFa: '', descriptionEn: '', descriptionFa: '' }])}>{t('admin.addStep')}</Button>
                 </div>
               </div>
               <div>

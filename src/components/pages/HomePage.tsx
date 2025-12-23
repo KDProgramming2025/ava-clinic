@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Award, Users, TrendingUp, Heart, Shield, Clock, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
 import { useServices } from '../../contexts/ServicesContext';
 import { Button } from '../ui/button';
@@ -91,24 +92,43 @@ export function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
-  const iconForStat = (icon?: string | null) => {
-    switch (icon) {
-      case 'award': return <Award className="w-8 h-8" />;
-      case 'users': return <Users className="w-8 h-8" />;
-      case 'trending': return <TrendingUp className="w-8 h-8" />;
-      case 'heart': return <Heart className="w-8 h-8" />;
-      default: return null;
+  const renderIcon = (icon?: string | null, className = 'w-6 h-6', fallback?: JSX.Element | null) => {
+    const resolveLucide = (name: string) => {
+      const IconComponent = (LucideIcons as any)[name];
+      return IconComponent ? <IconComponent className={className} /> : null;
+    };
+
+    if (!icon) return fallback || null;
+
+    const trimmed = icon.trim();
+    if (trimmed.startsWith('lucide:')) {
+      const lucideName = trimmed.replace('lucide:', '');
+      const lucideIcon = resolveLucide(lucideName);
+      if (lucideIcon) return lucideIcon;
     }
+
+    const lucideIcon = resolveLucide(trimmed) || resolveLucide(trimmed.charAt(0).toUpperCase() + trimmed.slice(1));
+    if (lucideIcon) return lucideIcon;
+
+    return <img src={resolveMediaUrl(trimmed)} alt="icon" className={`${className} object-cover rounded`} />;
   };
-  const iconForFeature = (icon?: string | null) => {
-    switch (icon) {
-      case 'shield': return <Shield className="w-7 h-7 text-white" />;
-      case 'award': return <Award className="w-7 h-7 text-white" />;
-      case 'heart': return <Heart className="w-7 h-7 text-white" />;
-      case 'clock': return <Clock className="w-7 h-7 text-white" />;
-      default: return null;
-    }
-  };
+
+  const statFallbackIcons = [
+    <LucideIcons.Award className="w-8 h-8 text-pink-500" />,
+    <LucideIcons.Users className="w-8 h-8 text-pink-500" />,
+    <LucideIcons.TrendingUp className="w-8 h-8 text-pink-500" />,
+    <LucideIcons.Heart className="w-8 h-8 text-pink-500" />
+  ];
+
+  const featureFallbackIcons = [
+    <LucideIcons.Shield className="w-7 h-7 text-white" />,
+    <LucideIcons.Award className="w-7 h-7 text-white" />,
+    <LucideIcons.Heart className="w-7 h-7 text-white" />,
+    <LucideIcons.Clock className="w-7 h-7 text-white" />
+  ];
+
+  const iconForStat = (icon?: string | null, index = 0) => renderIcon(icon, 'w-8 h-8 text-pink-500', statFallbackIcons[index % statFallbackIcons.length]);
+  const iconForFeature = (icon?: string | null, index = 0) => renderIcon(icon, 'w-7 h-7 text-white', featureFallbackIcons[index % featureFallbackIcons.length]);
 
   const selectTestimonialName = (item: any) => language === 'fa' ? (item.nameFa || item.name) : (item.nameEn || item.name);
   const selectTestimonialText = (item: any) => language === 'fa' ? (item.textFa || item.text) : (item.textEn || item.text);
@@ -208,7 +228,7 @@ export function HomePage() {
                   const statLabel = pickLocalized(stat.labelFa, stat.labelEn, stat.label);
                   return (
                     <motion.div key={index} whileHover={{ y: -5 }} className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 text-center shadow-lg">
-                      <div className="w-8 h-8 mx-auto mb-3 text-pink-500">{!loading && iconForStat(stat.icon)}</div>
+                      <div className="w-8 h-8 mx-auto mb-3">{!loading && iconForStat(stat.icon, index)}</div>
                       <div className="mb-1 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent min-h-6">{!loading && stat.value}</div>
                       <p className="text-gray-600 min-h-4">{!loading && statLabel as any}</p>
                     </motion.div>
@@ -230,7 +250,7 @@ export function HomePage() {
                   return (
                     <motion.div key={index} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }} whileHover={{ y: -10 }}>
                       <Card className="p-6 h-full border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-white to-pink-50/30">
-                        <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">{!loading && iconForFeature(feature.icon)}</div>
+                        <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">{!loading && iconForFeature(feature.icon, index)}</div>
                         <h3 className="mb-3 text-gray-900 min-h-6">{!loading && featureTitle as any}</h3>
                         <p className="text-gray-600 min-h-10">{!loading && featureDescription as any}</p>
                       </Card>

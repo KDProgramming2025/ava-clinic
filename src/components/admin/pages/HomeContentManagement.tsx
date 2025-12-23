@@ -637,7 +637,7 @@ export function HomeContentManagement() {
               <Label htmlFor="stat-icon">{t('admin.homeContent.stat.iconLabel')}</Label>
               {statForm.icon && (
                 <div className="mt-2 mb-2 relative w-20 h-20 rounded-lg overflow-hidden border">
-                  {renderIcon(statForm.icon, 'w-full h-full text-white')}
+                  {renderIcon(statForm.icon, 'w-full h-full text-black')}
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -715,7 +715,7 @@ export function HomeContentManagement() {
               <Label htmlFor="feat-icon">{t('admin.homeContent.feature.iconLabel')}</Label>
               {featureForm.icon && (
                 <div className="mt-2 mb-2 relative w-20 h-20 rounded-lg overflow-hidden border">
-                  {renderIcon(featureForm.icon, 'w-full h-full text-white')}
+                  {renderIcon(featureForm.icon, 'w-full h-full text-black')}
                   <Button 
                     variant="ghost" 
                     size="sm" 
