@@ -1,6 +1,7 @@
 import { ChangeEvent, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Edit, Plus, Trash2, Save, RefreshCcw, LayoutGrid, Activity, Sparkles, UploadCloud, Image as ImageIcon, Palette } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
@@ -71,6 +72,18 @@ export function HomeContentManagement() {
   const [featureIconProcessing, setFeatureIconProcessing] = useState(false);
   const [statIconPickerOpen, setStatIconPickerOpen] = useState(false);
   const [featureIconPickerOpen, setFeatureIconPickerOpen] = useState(false);
+
+  const renderIcon = (icon?: string | null, className = 'w-5 h-5') => {
+    if (!icon) return null;
+    const trimmed = icon.trim();
+    if (trimmed.startsWith('lucide:')) {
+      const name = trimmed.replace('lucide:', '');
+      const IconComponent = (LucideIcons as any)[name];
+      if (IconComponent) return <IconComponent className={className} />;
+      return <span className="text-xs text-gray-500">{name}</span>;
+    }
+    return <img src={resolveMediaUrl(trimmed)} alt="icon" className={`${className} object-cover rounded`} />;
+  };
 
   const randomId = () => {
     const g = globalThis as typeof globalThis & { crypto?: Crypto };
@@ -513,7 +526,14 @@ export function HomeContentManagement() {
                     <span className="font-medium text-gray-900">{s.label}</span>
                     <Badge className="bg-pink-100 text-pink-700">{s.value}</Badge>
                   </div>
-                  {s.icon && <p className="text-xs text-gray-500">Icon: {s.icon}</p>}
+                  {s.icon && (
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <span className="text-gray-600">Icon:</span>
+                      <div className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 overflow-hidden">
+                        {renderIcon(s.icon, 'w-5 h-5')}
+                      </div>
+                    </div>
+                  )}
                   <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="outline" size="sm" onClick={()=> openEditStat(s)} className="rounded-md"><Edit className="w-4 h-4" /></Button>
                     <Button variant="outline" size="sm" onClick={()=> deleteStat(s)} className="rounded-md text-red-600"><Trash2 className="w-4 h-4" /></Button>
@@ -535,7 +555,9 @@ export function HomeContentManagement() {
                 <Card key={f.id} className="p-4 shadow-sm border border-gray-100 relative group">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-medium text-gray-900 line-clamp-1" title={f.title}>{f.title}</span>
-                    <Badge className="bg-purple-100 text-purple-700">{f.icon || '—'}</Badge>
+                    <Badge className="bg-purple-100 text-purple-700 flex items-center gap-1 min-w-[48px] justify-center">
+                      {f.icon ? renderIcon(f.icon, 'w-4 h-4') : '—'}
+                    </Badge>
                   </div>
                   {f.description && <p className="text-sm text-gray-600 line-clamp-3">{f.description}</p>}
                   <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -615,13 +637,7 @@ export function HomeContentManagement() {
               <Label htmlFor="stat-icon">{t('admin.homeContent.stat.iconLabel')}</Label>
               {statForm.icon && (
                 <div className="mt-2 mb-2 relative w-20 h-20 rounded-lg overflow-hidden border">
-                  {statForm.icon.startsWith('lucide:') ? (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-500 to-purple-600">
-                      <span className="text-white text-xs text-center px-1">{statForm.icon.replace('lucide:', '')}</span>
-                    </div>
-                  ) : (
-                    <img src={resolveMediaUrl(statForm.icon)} alt="Icon preview" className="w-full h-full object-cover" />
-                  )}
+                  {renderIcon(statForm.icon, 'w-full h-full text-white')}
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -699,13 +715,7 @@ export function HomeContentManagement() {
               <Label htmlFor="feat-icon">{t('admin.homeContent.feature.iconLabel')}</Label>
               {featureForm.icon && (
                 <div className="mt-2 mb-2 relative w-20 h-20 rounded-lg overflow-hidden border">
-                  {featureForm.icon.startsWith('lucide:') ? (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
-                      <span className="text-white text-xs text-center px-1">{featureForm.icon.replace('lucide:', '')}</span>
-                    </div>
-                  ) : (
-                    <img src={resolveMediaUrl(featureForm.icon)} alt="Icon preview" className="w-full h-full object-cover" />
-                  )}
+                  {renderIcon(featureForm.icon, 'w-full h-full text-white')}
                   <Button 
                     variant="ghost" 
                     size="sm" 
