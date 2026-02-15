@@ -117,7 +117,9 @@ export function MediaLibrary() {
       {/* Grid */}
       <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {filtered.map((m, idx) => {
-          const mediaSrc = resolveMediaUrl(m.publicUrl || m.url);
+          const mediaSrc = resolveMediaUrl(m.publicUrl || m.url).replace("https://avakasht.ir","");
+
+          console.log("www: "+mediaSrc);
           return (
           <motion.div key={m.id} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay: idx * 0.03 }}>
             <Card className="group relative overflow-hidden border-0 shadow-lg">

@@ -5,6 +5,9 @@ const ensureLeadingSlash = (value = '') => value.startsWith('/') ? value : `/${v
 
 const resolveBaseFromEnv = () => {
   const raw = (process.env.MEDIA_BASE_URL || process.env.PUBLIC_BASE_URL || '').trim();
+  console.log("qqqqqq: "+raw);
+  console.log("qqqqqq: "+ (raw ? stripTrailingSlash(raw) : ''));
+  
   return raw ? stripTrailingSlash(raw) : '';
 };
 
